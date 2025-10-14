@@ -70,6 +70,7 @@ def get_session(session_id):
     return sessions[session_id]
 
 def extract_pdf_text(pdf_file):
+    """Extract text from PDF file"""
     text = ""
     try:
         pdf_bytes = pdf_file.read()
@@ -106,6 +107,7 @@ def extract_pdf_text(pdf_file):
     return text if text.strip() else "Could not extract text from PDF"
 
 def extract_docx_text(docx_file):
+    """Extract text from DOCX file"""
     try:
         doc = Document(docx_file)
         return "\n".join([para.text for para in doc.paragraphs if para.text.strip()])
@@ -113,6 +115,7 @@ def extract_docx_text(docx_file):
         return "Error reading DOCX file"
 
 def extract_txt_text(txt_file):
+    """Extract text from TXT file"""
     try:
         return txt_file.read().decode('utf-8')
     except:
@@ -123,6 +126,7 @@ def extract_txt_text(txt_file):
             return "Error reading TXT file"
 
 def process_file(file_path_or_obj, filename):
+    """Process a single file and extract text"""
     file_ext = filename.lower().split('.')[-1]
     
     if isinstance(file_path_or_obj, str):
@@ -143,9 +147,12 @@ def process_file(file_path_or_obj, filename):
     return ""
 
 def load_documents_from_directory(directory):
+    """
+    Load all documents from a directory - FIXED VERSION
+    """
     all_text = ""
     processed_files = []
-    MAX_CHARS = 1000000  # 1 million chars limit
+    MAX_CHARS = 2000000  # 2 million chars limit
     
     if not os.path.exists(directory):
         print(f"Directory {directory} does not exist")
@@ -161,48 +168,59 @@ def load_documents_from_directory(directory):
             
         file_path = os.path.join(directory, filename)
         
+        # Skip directories
+        if not os.path.isfile(file_path):
+            continue
+        
         try:
             text = ""
             
-            # Use the CORRECT function names that exist in your code
+            # FIXED: Use correct function names
             if filename.lower().endswith('.pdf'):
                 with open(file_path, 'rb') as f:
-                    text = extract_pdf_text(f)  # ← FIXED: was extract_text_from_pdf
+                    text = extract_pdf_text(f)  # ✅ CORRECT
             elif filename.lower().endswith(('.docx', '.doc')):
                 with open(file_path, 'rb') as f:
-                    text = extract_docx_text(f)  # ← FIXED: was extract_text_from_docx
+                    text = extract_docx_text(f)  # ✅ CORRECT
             elif filename.lower().endswith('.txt'):
                 with open(file_path, 'rb') as f:
                     text = extract_txt_text(f)
             else:
+                print(f"Skipping unsupported file type: {filename}")
                 continue
             
             if not text or len(text.strip()) == 0:
-                print(f"No text extracted from {filename}")
+                print(f"⚠️ No text extracted from {filename}")
                 continue
             
             # Truncate if adding this would exceed limit
             remaining_space = MAX_CHARS - len(all_text)
             if len(text) > remaining_space:
                 text = text[:remaining_space]
-                print(f"Truncated {filename} to fit within limit")
+                print(f"⚠️ Truncated {filename} to fit within limit")
             
             all_text += f"\n\n--- {filename} ---\n\n{text}"
             processed_files.append(filename)
             print(f"✓ Processed {filename}: {len(text)} chars")
             
         except Exception as e:
-            print(f"Error processing {filename}: {e}")
+            print(f"❌ Error processing {filename}: {e}")
+            import traceback
+            traceback.print_exc()
             continue
     
-    print(f"Total text length: {len(all_text)} chars from {len(processed_files)} files")
+    print(f"\n{'='*60}")
+    print(f"✅ TOTAL: {len(all_text)} chars from {len(processed_files)} files")
+    print(f"{'='*60}\n")
     return all_text, processed_files
 
 
 def similarity_score(str1, str2):
+    """Calculate similarity between two strings"""
     return SequenceMatcher(None, str1.lower(), str2.lower()).ratio()
 
 def find_related_video(query, threshold=0.3):
+    """Find related video based on query"""
     videos_folder = app.config['VIDEOS_FOLDER']
     
     if not os.path.exists(videos_folder):
@@ -234,79 +252,48 @@ def find_related_video(query, threshold=0.3):
     return best_match
 
 def create_chain(vectorstore):
-    retriever = vectorstore.as_retriever()
+    """Create conversation chain with retriever"""
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+    
     prompt = ChatPromptTemplate.from_template(
-        """
-        Answer the question based on the following context:
+        """You are a helpful HR Assistant. Answer the question based on the following context from HR documents.
 
-        Context: {context}
+Context: {context}
 
-        Question: {input}
+Question: {input}
 
-        Provide a clear, detailed, and helpful answer. If the context contains relevant information,
-        use it to provide specific details. If you're explaining a process or concept, be thorough
-        but concise.
+Provide a clear, detailed, and helpful answer. If the context contains relevant information,
+use it to provide specific details. If you're explaining a process or concept, be thorough
+but concise. If the information is not in the context, say so politely.
 
-        Answer:""")
+Answer:""")
+    
     llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.3)
     document_chain = create_stuff_documents_chain(llm, prompt)
     return create_retrieval_chain(retriever, document_chain)
 
 @app.route('/')
 def index():
+    """Render home page"""
     return render_template('index.html')
-
-def get_session(session_id):
-    if session_id not in sessions:
-        pkl_path = os.path.join(app.config['SESSION_FOLDER'], f'{session_id}.pkl')
-        if os.path.exists(pkl_path):
-            try:
-                with open(pkl_path, 'rb') as f:
-                    sessions[session_id] = pickle.load(f)
-            except Exception as e:
-                print(f"Error loading session: {e}")
-                sessions[session_id] = {
-                    'vectorstore': None,
-                    'conversation_chain': None,
-                    'chat_history': [],
-                    'uploaded_files': [],
-                    'preloaded_files': [],
-                    'feedback_history': []
-                }
-        else:
-            # Initialize new session with all required keys
-            sessions[session_id] = {
-                'vectorstore': None,
-                'conversation_chain': None,
-                'chat_history': [],
-                'uploaded_files': [],
-                'preloaded_files': [],
-                'feedback_history': []
-            }
-    
-    # Ensure all keys exist even for existing sessions (backward compatibility)
-    if 'chat_history' not in sessions[session_id]:
-        sessions[session_id]['chat_history'] = []
-    if 'feedback_history' not in sessions[session_id]:
-        sessions[session_id]['feedback_history'] = []
-    if 'uploaded_files' not in sessions[session_id]:
-        sessions[session_id]['uploaded_files'] = []
-    if 'preloaded_files' not in sessions[session_id]:
-        sessions[session_id]['preloaded_files'] = []
-    
-    return sessions[session_id]
-
 
 @app.route('/init_session', methods=['POST'])
 def init_session():
+    """Initialize session and load documents from knowledge base"""
     try:
         session_id = request.json.get('session_id', 'default')
         session = get_session(session_id)
         
+        print(f"\n{'='*60}")
+        print(f"INITIALIZING SESSION: {session_id}")
+        print(f"{'='*60}\n")
+        
+        # Load documents from the documents folder
         all_text, processed_files = load_documents_from_directory(app.config['DOCUMENTS_FOLDER'])
         
-        if all_text:
+        if all_text and len(all_text.strip()) > 0:
             try:
+                print("Creating text chunks...")
                 # Split text into chunks
                 text_splitter = CharacterTextSplitter(
                     separator="\n",
@@ -323,48 +310,55 @@ def init_session():
                         'error': 'No text chunks created from documents'
                     }), 500
                 
-                print(f"Creating FAISS index with {len(texts)} chunks")
+                print(f"✓ Created {len(texts)} chunks")
+                print("Creating FAISS vectorstore...")
                 
                 # Initialize embeddings
                 embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
                 
                 # Create FAISS vectorstore
                 vectorstore = FAISS.from_texts(texts, embeddings)
+                print("✓ Vectorstore created")
                 
                 # Create conversation chain
+                print("Creating conversation chain...")
                 conversation_chain = create_chain(vectorstore)
+                print("✓ Conversation chain ready")
                 
                 # Store in session
                 session['vectorstore'] = vectorstore
                 session['conversation_chain'] = conversation_chain
                 session['preloaded_files'] = processed_files
                 
-                print(f"Successfully loaded {len(processed_files)} documents")
+                print(f"\n{'='*60}")
+                print(f"✅ SUCCESS: Loaded {len(processed_files)} documents")
+                print(f"{'='*60}\n")
                 
                 return jsonify({
                     'success': True,
                     'files': processed_files,
-                    'message': f'Loaded {len(processed_files)} documents from knowledge base'
+                    'message': f'Successfully loaded {len(processed_files)} documents from knowledge base'
                 })
                 
             except Exception as e:
-                print(f"Error creating vectorstore: {e}")
+                print(f"❌ Error creating vectorstore: {e}")
                 import traceback
                 traceback.print_exc()
                 return jsonify({
                     'success': False,
                     'error': f'Error creating knowledge base: {str(e)}'
                 }), 500
-        
-        # No documents found - return success but with empty knowledge base
-        return jsonify({
-            'success': True,
-            'files': [],
-            'message': 'No documents found in knowledge base. You can upload documents to get started.'
-        })
+        else:
+            print("⚠️ No documents found or no text extracted")
+            # No documents found - return success but with empty knowledge base
+            return jsonify({
+                'success': True,
+                'files': [],
+                'message': 'No documents found in knowledge base. You can upload documents to get started.'
+            })
     
     except Exception as e:
-        print(f"Init session error: {e}")
+        print(f"❌ Init session error: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({
@@ -373,63 +367,9 @@ def init_session():
             'message': 'Error initializing session'
         }), 500
 
-
-def load_documents_from_directory(directory):
-    all_text = ""
-    processed_files = []
-    MAX_CHARS = 1000000  # Increase to 1 million chars (was too small)
-    
-    if not os.path.exists(directory):
-        print(f"Directory {directory} does not exist")
-        return all_text, processed_files
-    
-    files = os.listdir(directory)
-    print(f"Found {len(files)} files in {directory}")
-    
-    for filename in files:
-        if len(all_text) >= MAX_CHARS:
-            print(f"Reached max chars limit ({MAX_CHARS}), stopping at {filename}")
-            break
-            
-        file_path = os.path.join(directory, filename)
-        
-        try:
-            text = ""
-            if filename.endswith('.pdf'):
-                text = extract_text_from_pdf(file_path)
-            elif filename.endswith('.docx'):
-                text = extract_text_from_docx(file_path)
-            elif filename.endswith('.txt'):
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    text = f.read()
-            else:
-                continue
-            
-            if not text or len(text.strip()) == 0:
-                print(f"No text extracted from {filename}")
-                continue
-            
-            # Truncate if adding this would exceed limit
-            remaining_space = MAX_CHARS - len(all_text)
-            if len(text) > remaining_space:
-                text = text[:remaining_space]
-                print(f"Truncated {filename} to fit within limit")
-            
-            all_text += text + "\n\n"
-            processed_files.append(filename)
-            print(f"Processed {filename}: {len(text)} chars")
-            
-        except Exception as e:
-            print(f"Error processing {filename}: {e}")
-            continue
-    
-    print(f"Total text length: {len(all_text)} chars from {len(processed_files)} files")
-    return all_text, processed_files
-
-
-
 @app.route('/upload', methods=['POST'])
 def upload_files():
+    """Upload and process user files"""
     session_id = request.form.get('session_id', 'default')
     session = get_session(session_id)
     
@@ -480,6 +420,7 @@ def upload_files():
 
 @app.route('/chat', methods=['POST'])
 def chat():
+    """Handle chat messages"""
     session_id = request.json.get('session_id', 'default')
     message = request.json.get('message', '')
     is_voice_input = request.json.get('is_voice_input', False)
@@ -489,7 +430,7 @@ def chat():
     if not message:
         return jsonify({'error': 'No message provided'}), 400
     
-    # Ensure chat_history exists before appending
+    # Ensure chat_history exists
     if 'chat_history' not in session:
         session['chat_history'] = []
     
@@ -500,6 +441,7 @@ def chat():
         'timestamp': datetime.now().isoformat()
     })
     
+    # Handle goodbye messages
     if message.lower().strip() in ['bye', 'goodbye', 'exit', 'quit', 'end']:
         response = "Thank you for using HR Assistant! Have a great day!"
         session['chat_history'].append({
@@ -508,7 +450,6 @@ def chat():
             'timestamp': datetime.now().isoformat()
         })
         
-        # Generate audio for voice input
         audio_url = None
         if is_voice_input:
             try:
@@ -527,14 +468,15 @@ def chat():
             'audio_url': audio_url
         })
     
+    # Find related video
     related_video = find_related_video(message)
     
+    # Process with conversation chain
     if session['conversation_chain']:
         try:
             result = session['conversation_chain'].invoke({'input': message})
             response = result['answer']
             
-            # Add assistant response to chat history
             session['chat_history'].append({
                 'message': response,
                 'is_user': False,
@@ -546,7 +488,7 @@ def chat():
                 'should_speak': is_voice_input
             }
             
-            # Generate audio automatically if voice input
+            # Generate audio for voice input
             if is_voice_input:
                 try:
                     audio_filename = f"response_{uuid.uuid4().hex}.mp3"
@@ -564,14 +506,17 @@ def chat():
             return jsonify(response_data)
             
         except Exception as e:
+            print(f"Chat error: {e}")
+            import traceback
+            traceback.print_exc()
             return jsonify({'error': f'Error processing request: {str(e)}'}), 500
     else:
-        return jsonify({'error': 'Please upload documents first or wait for knowledge base to load'}), 400
+        return jsonify({'error': 'Please wait for knowledge base to load or upload documents first'}), 400
 
 @app.route('/text_to_speech', methods=['POST'])
 def text_to_speech():
+    """Convert text to speech"""
     text = request.json.get('text', '')
-    session_id = request.json.get('session_id', 'default')
     
     if not text:
         return jsonify({'error': 'No text provided'}), 400
@@ -592,6 +537,7 @@ def text_to_speech():
 
 @app.route('/feedback', methods=['POST'])
 def submit_feedback():
+    """Submit user feedback"""
     session_id = request.json.get('session_id', 'default')
     rating = request.json.get('rating')
     comment = request.json.get('comment', '')
@@ -612,6 +558,7 @@ def submit_feedback():
 
 @app.route('/export/json', methods=['POST'])
 def export_json():
+    """Export chat history as JSON"""
     session_id = request.json.get('session_id', 'default')
     session = get_session(session_id)
     
@@ -629,6 +576,7 @@ def export_json():
 
 @app.route('/export/feedback', methods=['POST'])
 def export_feedback():
+    """Export feedback as CSV"""
     session_id = request.json.get('session_id', 'default')
     session = get_session(session_id)
     
@@ -657,6 +605,7 @@ def export_feedback():
 
 @app.route('/clear', methods=['POST'])
 def clear_session():
+    """Clear session data"""
     session_id = request.json.get('session_id', 'default')
     if session_id in sessions:
         sessions[session_id] = {
@@ -671,11 +620,11 @@ def clear_session():
 
 @app.route('/feedback/stats', methods=['GET'])
 def feedback_stats():
+    """Get feedback statistics"""
     try:
         session_id = request.args.get('session_id', 'default')
         session = get_session(session_id)
         
-        # Safely get feedback_history with default empty list
         feedback_history = session.get('feedback_history', [])
         
         stats = {
@@ -697,9 +646,9 @@ def feedback_stats():
             'stats': {'total': 0, 'positive': 0, 'negative': 0, 'average_rating': 0}
         })
 
-
 @app.route('/get_loaded_files', methods=['GET'])
 def get_loaded_files():
+    """Get list of loaded files"""
     session_id = request.args.get('session_id', 'default')
     session = get_session(session_id)
     
@@ -709,12 +658,5 @@ def get_loaded_files():
     })
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
-
-
-
-
-
-
-
-
+    port = int(os.getenv('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
