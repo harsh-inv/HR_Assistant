@@ -40,6 +40,7 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['DOCUMENTS_FOLDER'] = 'documents'
 app.config['VIDEOS_FOLDER'] = 'static/videos'
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
+app.config['SESSION_FOLDER'] = 'sessions'
 
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 
@@ -599,6 +600,7 @@ def get_loaded_files():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
 
 
 
