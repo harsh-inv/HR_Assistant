@@ -219,6 +219,93 @@ def create_chain(vectorstore):
 def index():
     return render_template('index.html')
 
+def get_session(session_id):
+    if session_id not in sessions:
+        pkl_path = os.path.join(app.config['SESSION_FOLDER'], f'{session_id}.pkl')
+        if os.path.exists(pkl_path):
+            try:
+                with open(pkl_path, 'rb') as f:
+                    session_metadata = pickle.load(f)
+                
+                # Reload FAISS vectorstore separately
+                if 'faiss_path' in session_metadata and os.path.exists(session_metadata['faiss_path']):
+                    embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
+                    vectorstore = FAISS.load_local(
+                        session_metadata['faiss_path'], 
+                        embeddings,
+                        allow_dangerous_deserialization=True
+                    )
+                    sessions[session_id] = {
+                        'vectorstore': vectorstore,
+                        'processed_files': session_metadata.get('processed_files', []),
+                        'uploaded_files': session_metadata.get('uploaded_files', [])
+                    }
+                else:
+                    sessions[session_id] = {
+                        'vectorstore': None,
+                        'processed_files': [],
+                        'uploaded_files': []
+                    }
+            except Exception as e:
+                print(f"Error loading session: {e}")
+                sessions[session_id] = {'vectorstore': None, 'processed_files': [], 'uploaded_files': []}
+        else:
+            sessions[session_id] = {'vectorstore': None, 'processed_files': [], 'uploaded_files': []}
+    
+    return sessions[session_id]
+
+
+@app.route('/init_session', methods=['POST'])
+def init_session():
+    session_id = request.json.get('session_id', 'default')
+    session = get_session(session_id)
+    
+    # Load documents
+    all_text, processed_files = load_documents_from_directory(app.config['DOCUMENTS_FOLDER'])
+    
+    if all_text:
+        try:
+            # Create embeddings
+            text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+            texts = text_splitter.split_text(all_text)
+            embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
+            
+            # Create FAISS vectorstore
+            session['vectorstore'] = FAISS.from_texts(texts, embeddings)
+            
+            # Save FAISS index separately (not pickled)
+            faiss_path = os.path.join(app.config['SESSION_FOLDER'], f'{session_id}_faiss')
+            session['vectorstore'].save_local(faiss_path)
+            
+            # Store metadata only (not the vectorstore)
+            session['processed_files'] = processed_files
+            session['faiss_path'] = faiss_path
+            
+            # Save session metadata without vectorstore
+            pkl_path = os.path.join(app.config['SESSION_FOLDER'], f'{session_id}.pkl')
+            session_metadata = {
+                'processed_files': processed_files,
+                'faiss_path': faiss_path,
+                'uploaded_files': session.get('uploaded_files', [])
+            }
+            with open(pkl_path, 'wb') as f:
+                pickle.dump(session_metadata, f)
+            
+            return jsonify({
+                'success': True,
+                'files': processed_files,
+                'message': f'Loaded {len(processed_files)} documents'
+            })
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    return jsonify({
+        'success': True,
+        'files': [],
+        'message': 'No documents in knowledge base'
+    })
+
+
 def load_documents_from_directory(directory, max_chars=50000):
     """Load documents with memory limit"""
     all_text = ""
@@ -512,5 +599,6 @@ def get_loaded_files():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
 
 
