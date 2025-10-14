@@ -219,82 +219,33 @@ def create_chain(vectorstore):
 def index():
     return render_template('index.html')
 
-@app.route('/init_session', methods=['POST'])
-def init_session():
-    try:
-        session_id = request.json.get('session_id', 'default')
-        session = get_session(session_id)
-        
-        # Check if OPENAI_API_KEY is set
-        if not OPENAI_API_KEY or OPENAI_API_KEY == '':
-            return jsonify({
-                'success': False,
-                'files': [],
-                'message': 'OpenAI API key not configured. Please set OPENAI_API_KEY environment variable on Render.',
-                'error': 'Missing API key'
-            }), 500
-        
-        # Check if documents folder exists
-        docs_folder = app.config['DOCUMENTS_FOLDER']
-        if not os.path.exists(docs_folder):
-            return jsonify({
-                'success': False,
-                'files': [],
-                'message': f'Documents folder not found: {docs_folder}',
-                'error': 'Documents folder missing'
-            }), 500
-        
-        # Load documents
-        all_text, processed_files = load_documents_from_directory(docs_folder)
-        
-        if all_text:
-            # Split text into chunks
-            text_splitter = CharacterTextSplitter(
-                separator="\n",
-                chunk_size=1000,
-                chunk_overlap=200,
-                length_function=len
-            )
-            texts = text_splitter.split_text(all_text)
-            
-            # Create embeddings and vector store
-            try:
-                embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
-                vectorstore = FAISS.from_texts(texts, embeddings)
-                session['vectorstore'] = vectorstore
-                session['conversation_chain'] = create_chain(vectorstore)
-                session['preloaded_files'] = processed_files
-                
-                return jsonify({
-                    'success': True,
-                    'files': processed_files,
-                    'message': f'Loaded {len(processed_files)} documents from knowledge base'
-                })
-            except Exception as e:
-                print(f"Error creating embeddings/vectorstore: {str(e)}")
-                return jsonify({
-                    'success': False,
-                    'files': [],
-                    'message': f'Failed to create embeddings: {str(e)}',
-                    'error': 'Embedding creation failed'
-                }), 500
-        
-        return jsonify({
-            'success': True,
-            'files': [],
-            'message': 'No documents found in knowledge base. You can upload documents to get started.'
-        })
-        
-    except Exception as e:
-        print(f"Error in init_session: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({
-            'success': False,
-            'files': [],
-            'message': f'Error loading knowledge base: {str(e)}',
-            'error': str(e)
-        }), 500
+def load_documents_from_directory(directory, max_chars=50000):
+    """Load documents with memory limit"""
+    all_text = ""
+    processed_files = []
+    
+    if not os.path.exists(directory):
+        return all_text, processed_files
+    
+    for root, dirs, files in os.walk(directory):
+        for filename in files:
+            if filename.lower().endswith(('.pdf', '.docx', '.doc', '.txt')):
+                if len(all_text) > max_chars:
+                    print(f"Reached max chars limit, stopping at {filename}")
+                    break
+                    
+                filepath = os.path.join(root, filename)
+                try:
+                    text = process_file(filepath, filename)
+                    if text:
+                        # Limit individual file size
+                        text = text[:20000]  # Max 20k chars per file
+                        all_text += f"\n\n--- {filename} ---\n{text}"
+                        processed_files.append(filename)
+                except Exception as e:
+                    print(f"Error processing {filename}: {e}")
+    
+    return all_text, processed_files
 
 
 @app.route('/upload', methods=['POST'])
@@ -561,4 +512,5 @@ def get_loaded_files():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
 
