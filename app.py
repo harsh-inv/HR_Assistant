@@ -145,27 +145,40 @@ def process_file(file_path_or_obj, filename):
 def load_documents_from_directory(directory):
     all_text = ""
     processed_files = []
-    MAX_CHARS = 500000  # Set a reasonable limit (500k chars)
+    MAX_CHARS = 1000000  # 1 million chars limit
     
     if not os.path.exists(directory):
+        print(f"Directory {directory} does not exist")
         return all_text, processed_files
     
-    for filename in os.listdir(directory):
+    files = os.listdir(directory)
+    print(f"Found {len(files)} files in {directory}")
+    
+    for filename in files:
         if len(all_text) >= MAX_CHARS:
-            print(f"Reached max chars limit ({MAX_CHARS}), stopping document loading")
+            print(f"Reached max chars limit ({MAX_CHARS}), stopping at {filename}")
             break
             
         file_path = os.path.join(directory, filename)
         
         try:
-            if filename.endswith('.pdf'):
-                text = extract_text_from_pdf(file_path)
-            elif filename.endswith('.docx'):
-                text = extract_text_from_docx(file_path)
-            elif filename.endswith('.txt'):
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    text = f.read()
+            text = ""
+            
+            # Use the CORRECT function names that exist in your code
+            if filename.lower().endswith('.pdf'):
+                with open(file_path, 'rb') as f:
+                    text = extract_pdf_text(f)  # ← FIXED: was extract_text_from_pdf
+            elif filename.lower().endswith(('.docx', '.doc')):
+                with open(file_path, 'rb') as f:
+                    text = extract_docx_text(f)  # ← FIXED: was extract_text_from_docx
+            elif filename.lower().endswith('.txt'):
+                with open(file_path, 'rb') as f:
+                    text = extract_txt_text(f)
             else:
+                continue
+            
+            if not text or len(text.strip()) == 0:
+                print(f"No text extracted from {filename}")
                 continue
             
             # Truncate if adding this would exceed limit
@@ -174,14 +187,17 @@ def load_documents_from_directory(directory):
                 text = text[:remaining_space]
                 print(f"Truncated {filename} to fit within limit")
             
-            all_text += text + "\n\n"
+            all_text += f"\n\n--- {filename} ---\n\n{text}"
             processed_files.append(filename)
+            print(f"✓ Processed {filename}: {len(text)} chars")
             
         except Exception as e:
             print(f"Error processing {filename}: {e}")
             continue
     
+    print(f"Total text length: {len(all_text)} chars from {len(processed_files)} files")
     return all_text, processed_files
+
 
 def similarity_score(str1, str2):
     return SequenceMatcher(None, str1.lower(), str2.lower()).ratio()
@@ -694,6 +710,7 @@ def get_loaded_files():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
 
 
 
