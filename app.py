@@ -221,36 +221,81 @@ def index():
 
 @app.route('/init_session', methods=['POST'])
 def init_session():
-    session_id = request.json.get('session_id', 'default')
-    session = get_session(session_id)
-    
-    all_text, processed_files = load_documents_from_directory(app.config['DOCUMENTS_FOLDER'])
-    
-    if all_text:
-        text_splitter = CharacterTextSplitter(
-            separator="\n",
-            chunk_size=1000,
-            chunk_overlap=200,
-            length_function=len
-        )
-        texts = text_splitter.split_text(all_text)
-        embeddings = OpenAIEmbeddings()
-        vectorstore = FAISS.from_texts(texts, embeddings)
-        session['vectorstore'] = vectorstore
-        session['conversation_chain'] = create_chain(vectorstore)
-        session['preloaded_files'] = processed_files
+    try:
+        session_id = request.json.get('session_id', 'default')
+        session = get_session(session_id)
+        
+        # Check if OPENAI_API_KEY is set
+        if not OPENAI_API_KEY or OPENAI_API_KEY == '':
+            return jsonify({
+                'success': False,
+                'files': [],
+                'message': 'OpenAI API key not configured. Please set OPENAI_API_KEY environment variable on Render.',
+                'error': 'Missing API key'
+            }), 500
+        
+        # Check if documents folder exists
+        docs_folder = app.config['DOCUMENTS_FOLDER']
+        if not os.path.exists(docs_folder):
+            return jsonify({
+                'success': False,
+                'files': [],
+                'message': f'Documents folder not found: {docs_folder}',
+                'error': 'Documents folder missing'
+            }), 500
+        
+        # Load documents
+        all_text, processed_files = load_documents_from_directory(docs_folder)
+        
+        if all_text:
+            # Split text into chunks
+            text_splitter = CharacterTextSplitter(
+                separator="\n",
+                chunk_size=1000,
+                chunk_overlap=200,
+                length_function=len
+            )
+            texts = text_splitter.split_text(all_text)
+            
+            # Create embeddings and vector store
+            try:
+                embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
+                vectorstore = FAISS.from_texts(texts, embeddings)
+                session['vectorstore'] = vectorstore
+                session['conversation_chain'] = create_chain(vectorstore)
+                session['preloaded_files'] = processed_files
+                
+                return jsonify({
+                    'success': True,
+                    'files': processed_files,
+                    'message': f'Loaded {len(processed_files)} documents from knowledge base'
+                })
+            except Exception as e:
+                print(f"Error creating embeddings/vectorstore: {str(e)}")
+                return jsonify({
+                    'success': False,
+                    'files': [],
+                    'message': f'Failed to create embeddings: {str(e)}',
+                    'error': 'Embedding creation failed'
+                }), 500
         
         return jsonify({
             'success': True,
-            'files': processed_files,
-            'message': f'Loaded {len(processed_files)} documents from knowledge base'
+            'files': [],
+            'message': 'No documents found in knowledge base. You can upload documents to get started.'
         })
-    
-    return jsonify({
-        'success': True,
-        'files': [],
-        'message': 'No documents found in knowledge base. You can upload documents to get started.'
-    })
+        
+    except Exception as e:
+        print(f"Error in init_session: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'files': [],
+            'message': f'Error loading knowledge base: {str(e)}',
+            'error': str(e)
+        }), 500
+
 
 @app.route('/upload', methods=['POST'])
 def upload_files():
@@ -516,3 +561,4 @@ def get_loaded_files():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
