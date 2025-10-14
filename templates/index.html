@@ -13,31 +13,29 @@
         }
 
         body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(9, 9, 11, 0.97) 100%);
-    min-height: 100vh;
-    color: #e2e8f0;
-    overflow-x: hidden;
-    position: relative;
-}
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(9, 9, 11, 0.97) 100%);
+            min-height: 100vh;
+            color: #e2e8f0;
+            overflow-x: hidden;
+            position: relative;
+        }
 
-    /* Background Image */
-    body::before {
-        content: '';
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: url('/static/image.jpg') no-repeat center center;
-        background-size: cover;
-        background-attachment: fixed;
-        z-index: -1;
-        opacity: 0.15;
-        filter: blur(2px);
-    }
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('/static/image.jpg') no-repeat center center;
+            background-size: cover;
+            background-attachment: fixed;
+            z-index: -1;
+            opacity: 0.15;
+            filter: blur(2px);
+        }
 
-        /* Header */
         .header {
             background: rgba(30, 41, 59, 0.8);
             backdrop-filter: blur(10px);
@@ -64,7 +62,6 @@
             background-clip: text;
         }
 
-        /* Main Container */
         .container {
             max-width: 1400px;
             margin: 0 auto;
@@ -75,7 +72,6 @@
             height: calc(100vh - 120px);
         }
 
-        /* Sidebar */
         .sidebar {
             background: rgba(30, 41, 59, 0.6);
             backdrop-filter: blur(20px);
@@ -221,7 +217,14 @@
             font-size: 0.9rem;
         }
 
-        /* Chat Area */
+        .file-item.preloaded {
+            border-left: 3px solid #10b981;
+        }
+
+        .file-item.uploaded {
+            border-left: 3px solid #667eea;
+        }
+
         .chat-container {
             background: rgba(30, 41, 59, 0.6);
             backdrop-filter: blur(20px);
@@ -289,6 +292,12 @@
             max-width: 70%;
             line-height: 1.6;
             display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .message-text-wrapper {
+            display: flex;
             align-items: flex-start;
             gap: 0.5rem;
         }
@@ -339,7 +348,29 @@
             }
         }
 
-        /* Input Area */
+        .video-container {
+            margin-top: 1rem;
+            border-radius: 12px;
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .video-container video {
+            width: 100%;
+            max-height: 400px;
+            display: block;
+        }
+
+        .video-label {
+            padding: 0.5rem;
+            background: rgba(102, 126, 234, 0.2);
+            color: #cbd5e1;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
         .chat-input-area {
             padding: 1.5rem;
             border-top: 1px solid rgba(148, 163, 184, 0.1);
@@ -411,9 +442,6 @@
             box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
         }
 
-        /* Feedback Modal */
-
-        
         .modal {
             display: none;
             position: fixed;
@@ -424,9 +452,7 @@
             height: 100%;
             background: rgba(0, 0, 0, 0.7);
             backdrop-filter: blur(5px);
-            
         }
-                
 
         .modal.active {
             display: flex;
@@ -533,7 +559,6 @@
             to { transform: rotate(360deg); }
         }
 
-        /* Responsive */
         @media (max-width: 968px) {
             .container {
                 grid-template-columns: 1fr;
@@ -549,7 +574,6 @@
             }
         }
 
-        /* Scrollbar */
         ::-webkit-scrollbar {
             width: 8px;
         }
@@ -566,22 +590,35 @@
         ::-webkit-scrollbar-thumb:hover {
             background: rgba(148, 163, 184, 0.5);
         }
+
+        .init-message {
+            background: rgba(16, 185, 129, 0.2);
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            color: #10b981;
+            border-left: 3px solid #10b981;
+        }
     </style>
 </head>
 <body>
-    <!-- Header -->
     <div class="header">
         <img src="/static/logo.jpg" alt="Logo" class="logo" onerror="this.style.display='none'">
         <h1>🤖 HR Assistant</h1>
     </div>
 
-    <!-- Main Container -->
     <div class="container">
-        <!-- Sidebar -->
         <div class="sidebar">
-            <!-- Document Upload -->
             <div class="sidebar-section">
-                <h3><i class="fas fa-file-upload"></i> Document Upload</h3>
+                <h3><i class="fas fa-database"></i> Knowledge Base</h3>
+                <div id="knowledgeBaseInfo" class="init-message">
+                    <i class="fas fa-sync fa-spin"></i> Loading knowledge base...
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3><i class="fas fa-file-upload"></i> Upload Documents</h3>
                 <div class="upload-area" onclick="document.getElementById('fileInput').click()">
                     <i class="fas fa-cloud-upload-alt"></i>
                     <p>Click to upload documents</p>
@@ -591,7 +628,6 @@
                 <div class="file-list" id="fileList"></div>
             </div>
 
-            <!-- Voice Settings -->
             <div class="sidebar-section">
                 <h3><i class="fas fa-volume-up"></i> Voice Settings</h3>
                 <div class="toggle-switch">
@@ -603,13 +639,11 @@
                 </div>
             </div>
 
-            <!-- Feedback Stats -->
             <div class="sidebar-section">
                 <h3><i class="fas fa-chart-bar"></i> Feedback</h3>
                 <div id="feedbackStats"></div>
             </div>
 
-            <!-- Actions -->
             <div class="sidebar-section">
                 <h3><i class="fas fa-cog"></i> Actions</h3>
                 <button class="btn btn-secondary" onclick="exportChat()" style="margin-bottom: 0.5rem;">
@@ -628,26 +662,24 @@
                font-weight: 600;
                margin-top: 1rem;
                width: 100%;">
-            <i class="fas fa-download"></i> Export All Feedback
-            </button>
+                    <i class="fas fa-download"></i> Export All Feedback
+                </button>
             </div>
         </div>
 
-        <!-- Chat Area -->
         <div class="chat-container">
             <div class="chat-messages" id="chatMessages">
                 <div class="message assistant">
                     <div class="message-avatar">🤖</div>
                     <div class="message-content">
                         <div class="message-text">
-                            Hello! I'm your HR Assistant. Upload some documents and ask me anything!
+                            Hello! I'm your HR Assistant. I have access to the knowledge base and I'm ready to help. You can also upload additional documents if needed!
                         </div>
                     </div>
                 </div>
             </div>
 
             <div class="chat-input-area">
-                <!-- Text Input -->
                 <div class="input-wrapper">
                     <input type="text" class="chat-input" id="chatInput" placeholder="Type your message here..." onkeypress="handleKeyPress(event)">
                     <button class="mic-btn" id="micBtn" onclick="toggleVoiceRecording()" title="Voice input">
@@ -666,7 +698,6 @@
         </div>
     </div>
 
-    <!-- Feedback Modal -->
     <div class="modal" id="feedbackModal">
         <div class="modal-content">
             <h2>📝 Please rate your experience</h2>
@@ -690,13 +721,15 @@
     </div>
 
     <script>
-        // Session ID
         const sessionId = 'session_' + Date.now();
         let selectedRating = 0;
         let isRecording = false;
         let recognition = null;
         let ttsEnabled = false;
         let currentSpeech = null;
+        let femaleVoice = null;
+        let isVoiceInput = false;
+        let currentAudio = null;
 
         // Initialize Speech Recognition
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
@@ -716,22 +749,22 @@
             recognition.onend = () => {
                 isRecording = false;
                 updateMicButton();
+                // Automatically send message after voice input
+                const input = document.getElementById('chatInput');
+                if (input.value.trim()) {
+                    setTimeout(() => {
+                        sendMessage();
+                    }, 500);
+                }
             };
 
             recognition.onerror = (event) => {
                 console.error('Speech recognition error:', event.error);
                 isRecording = false;
+                isVoiceInput = false;
                 updateMicButton();
             };
         }
-
-        // TTS Toggle
-        document.getElementById('ttsToggle').addEventListener('change', (e) => {
-            ttsEnabled = e.target.checked;
-            if (!ttsEnabled && currentSpeech) {
-                window.speechSynthesis.cancel();
-            }
-        });
 
         // Toggle Voice Recording
         function toggleVoiceRecording() {
@@ -743,9 +776,11 @@
             if (isRecording) {
                 recognition.stop();
                 isRecording = false;
+                isVoiceInput = false;
             } else {
                 recognition.start();
                 isRecording = true;
+                isVoiceInput = true;
             }
             updateMicButton();
         }
@@ -761,52 +796,87 @@
             }
         }
 
-        // Text to Speech Function
-        function speakText(text, button) {
-            if (!('speechSynthesis' in window)) {
-                alert('Text-to-speech is not supported in your browser.');
+        // Function to play audio from URL
+        function playAudioFromURL(audioUrl, button) {
+            // If audio is currently playing from this button, stop it
+            if (currentAudio && button.classList.contains('speaking')) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+                currentAudio = null;
+                button.classList.remove('speaking');
+                button.innerHTML = '<i class="fas fa-volume-up"></i>';
                 return;
             }
 
-            // Stop any ongoing speech
-            if (currentSpeech) {
-                window.speechSynthesis.cancel();
-                if (button) {
-                    button.classList.remove('speaking');
-                    button.innerHTML = '<i class="fas fa-volume-up"></i>';
-                }
-                currentSpeech = null;
-                return;
+            // Stop any currently playing audio
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+                currentAudio = null;
+                // Reset any other speaking buttons
+                document.querySelectorAll('.speaker-btn.speaking').forEach(btn => {
+                    btn.classList.remove('speaking');
+                    btn.innerHTML = '<i class="fas fa-volume-up"></i>';
+                });
             }
-
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.rate = 0.9;
-            utterance.pitch = 1;
-            utterance.volume = 1;
 
             if (button) {
                 button.classList.add('speaking');
                 button.innerHTML = '<i class="fas fa-stop"></i>';
             }
 
-            utterance.onend = () => {
-                currentSpeech = null;
+            currentAudio = new Audio(audioUrl);
+            
+            currentAudio.onended = () => {
+                currentAudio = null;
                 if (button) {
                     button.classList.remove('speaking');
                     button.innerHTML = '<i class="fas fa-volume-up"></i>';
                 }
             };
 
-            utterance.onerror = () => {
-                currentSpeech = null;
+            currentAudio.onerror = () => {
+                currentAudio = null;
                 if (button) {
                     button.classList.remove('speaking');
                     button.innerHTML = '<i class="fas fa-volume-up"></i>';
                 }
+                console.error('Error playing audio');
             };
 
-            currentSpeech = utterance;
-            window.speechSynthesis.speak(utterance);
+            currentAudio.play().catch(error => {
+                console.error('Error playing audio:', error);
+                currentAudio = null;
+                if (button) {
+                    button.classList.remove('speaking');
+                    button.innerHTML = '<i class="fas fa-volume-up"></i>';
+                }
+            });
+        }
+
+        // Initialize Session with Knowledge Base
+        async function initSession() {
+            try {
+                const response = await fetch('/init_session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId })
+                });
+
+                const data = await response.json();
+                const infoDiv = document.getElementById('knowledgeBaseInfo');
+                
+                if (data.success && data.files.length > 0) {
+                    infoDiv.innerHTML = `<i class="fas fa-check-circle"></i> ${data.message}`;
+                    displayLoadedFiles(data.files, true);
+                } else {
+                    infoDiv.innerHTML = `<i class="fas fa-info-circle"></i> ${data.message}`;
+                }
+            } catch (error) {
+                console.error('Init error:', error);
+                document.getElementById('knowledgeBaseInfo').innerHTML = 
+                    '<i class="fas fa-exclamation-circle"></i> Error loading knowledge base';
+            }
         }
 
         // File Upload
@@ -828,7 +898,7 @@
 
                 const data = await response.json();
                 if (data.success) {
-                    displayUploadedFiles(data.files);
+                    displayLoadedFiles(data.files, false);
                     addMessage('✅ ' + data.message, false);
                 } else {
                     alert('Error: ' + data.error);
@@ -838,13 +908,25 @@
             }
         });
 
-        function displayUploadedFiles(files) {
+        function displayLoadedFiles(files, isPreloaded) {
             const fileList = document.getElementById('fileList');
-            fileList.innerHTML = '<h4 style="margin: 1rem 0 0.5rem 0; color: #94a3b8; font-size: 0.9rem;">Uploaded Files:</h4>';
+            const header = isPreloaded ? 
+                '<h4 style="margin: 1rem 0 0.5rem 0; color: #10b981; font-size: 0.9rem;"><i class="fas fa-database"></i> Knowledge Base:</h4>' :
+                '<h4 style="margin: 1rem 0 0.5rem 0; color: #667eea; font-size: 0.9rem;"><i class="fas fa-upload"></i> Uploaded Files:</h4>';
+            
+            const existingHeader = isPreloaded ? 
+                fileList.querySelector('h4:first-child') : 
+                fileList.querySelector('h4:last-of-type');
+                
+            if (!existingHeader) {
+                fileList.innerHTML += header;
+            }
+            
             files.forEach(file => {
                 const icon = getFileIcon(file);
+                const className = isPreloaded ? 'preloaded' : 'uploaded';
                 fileList.innerHTML += `
-                    <div class="file-item">
+                    <div class="file-item ${className}">
                         ${icon} ${file}
                     </div>
                 `;
@@ -869,44 +951,41 @@
             
             if (!message) return;
 
-            // Add user message to chat
+            const wasVoiceInput = isVoiceInput;
             addMessage(message, true);
             input.value = '';
+            isVoiceInput = false;
 
-            // Show loading
             document.getElementById('loadingIndicator').classList.add('active');
 
             try {
                 const response = await fetch('/chat', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         session_id: sessionId,
-                        message: message
+                        message: message,
+                        is_voice_input: wasVoiceInput
                     })
                 });
 
                 const data = await response.json();
                 
-                // Hide loading
                 document.getElementById('loadingIndicator').classList.remove('active');
 
                 if (data.response) {
-                    addMessage(data.response, false);
+                    addMessage(data.response, false, data.video, data.video_name, data.audio_url);
                     
-                    // Auto-play TTS if enabled
-                    if (ttsEnabled) {
+                    // Automatically play audio if it was voice input
+                    if (wasVoiceInput && data.audio_url) {
                         setTimeout(() => {
                             const lastMessage = document.querySelector('.message.assistant:last-child .speaker-btn');
                             if (lastMessage) {
-                                speakText(data.response, lastMessage);
+                                playAudioFromURL(data.audio_url, lastMessage);
                             }
                         }, 300);
                     }
                     
-                    // Show feedback modal if session ended
                     if (data.session_ended) {
                         setTimeout(() => {
                             document.getElementById('feedbackModal').classList.add('active');
@@ -927,7 +1006,7 @@
             }
         }
 
-        function addMessage(text, isUser) {
+        function addMessage(text, isUser, videoUrl = null, videoName = null, audioUrl = null) {
             const messagesContainer = document.getElementById('chatMessages');
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${isUser ? 'user' : 'assistant'}`;
@@ -939,30 +1018,80 @@
             const content = document.createElement('div');
             content.className = 'message-content';
             
+            const textWrapper = document.createElement('div');
+            textWrapper.className = 'message-text-wrapper';
+            
             const textDiv = document.createElement('div');
             textDiv.className = 'message-text';
             textDiv.textContent = text;
             
-            content.appendChild(textDiv);
+            textWrapper.appendChild(textDiv);
             
-            // Add speaker button for assistant messages
             if (!isUser) {
                 const speakerBtn = document.createElement('button');
                 speakerBtn.className = 'speaker-btn';
                 speakerBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
+                speakerBtn.dataset.audioUrl = audioUrl || '';
                 speakerBtn.onclick = function() {
-                    speakText(text, this);
+                    if (this.dataset.audioUrl) {
+                        playAudioFromURL(this.dataset.audioUrl, this);
+                    } else {
+                        // Fallback to generating TTS on-demand
+                        generateAndPlayTTS(text, this);
+                    }
                 };
                 speakerBtn.title = 'Listen to response';
-                content.appendChild(speakerBtn);
+                textWrapper.appendChild(speakerBtn);
+            }
+            
+            content.appendChild(textWrapper);
+            
+            // Add video if provided
+            if (videoUrl && !isUser) {
+                const videoContainer = document.createElement('div');
+                videoContainer.className = 'video-container';
+                
+                const videoLabel = document.createElement('div');
+                videoLabel.className = 'video-label';
+                videoLabel.innerHTML = `<i class="fas fa-video"></i> Related Video: ${videoName || 'Tutorial'}`;
+                
+                const video = document.createElement('video');
+                video.controls = true;
+                video.src = videoUrl;
+                video.preload = 'metadata';
+                
+                videoContainer.appendChild(videoLabel);
+                videoContainer.appendChild(video);
+                content.appendChild(videoContainer);
             }
             
             messageDiv.appendChild(avatar);
             messageDiv.appendChild(content);
             messagesContainer.appendChild(messageDiv);
             
-            // Scroll to bottom
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Generate TTS on demand
+        async function generateAndPlayTTS(text, button) {
+            try {
+                const response = await fetch('/text_to_speech', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: text,
+                        session_id: sessionId
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success && data.audio_url) {
+                    button.dataset.audioUrl = data.audio_url;
+                    playAudioFromURL(data.audio_url, button);
+                }
+            } catch (error) {
+                console.error('TTS Error:', error);
+            }
         }
 
         // Star Rating
@@ -995,37 +1124,36 @@
                 }
             });
         }
-        async function exportFeedback() {
-    try {
-        const response = await fetch('/export/feedback', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ session_id: sessionId })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            // Create a blob and download
-            const blob = new Blob([result.csv_data], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = result.filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-            
-            alert('Feedback exported successfully!');
-        }
-    } catch (error) {
-        console.error('Export error:', error);
-        alert('Failed to export feedback');
-    }
-}
 
-        // Feedback Functions
+        async function exportFeedback() {
+            try {
+                const response = await fetch('/export/feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    const blob = new Blob([result.csv_data], { type: 'text/csv' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = result.filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                    
+                    alert('Feedback exported successfully!');
+                }
+            } catch (error) {
+                console.error('Export error:', error);
+                alert('Failed to export feedback');
+            }
+        }
+
         async function submitFeedback() {
             if (selectedRating === 0) {
                 alert('Please select a star rating!');
@@ -1037,9 +1165,7 @@
             try {
                 const response = await fetch('/feedback', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         session_id: sessionId,
                         rating: selectedRating,
@@ -1090,17 +1216,12 @@
             }
         }
 
-        // Export Chat
         async function exportChat() {
             try {
                 const response = await fetch('/export/json', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        session_id: sessionId
-                    })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId })
                 });
 
                 const data = await response.json();
@@ -1118,7 +1239,6 @@
             }
         }
 
-        // Clear Chat
         async function clearChat() {
             if (!confirm('Are you sure you want to clear the chat history?')) {
                 return;
@@ -1127,12 +1247,8 @@
             try {
                 const response = await fetch('/clear', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        session_id: sessionId
-                    })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId })
                 });
 
                 const data = await response.json();
@@ -1141,19 +1257,23 @@
                         <div class="message assistant">
                             <div class="message-avatar">🤖</div>
                             <div class="message-content">
-                                Hello! I'm your HR Assistant. Upload some documents and ask me anything!
+                                <div class="message-text">
+                                    Hello! I'm your HR Assistant. I have access to the knowledge base and I'm ready to help!
+                                </div>
                             </div>
                         </div>
                     `;
                     document.getElementById('fileList').innerHTML = '';
                     loadFeedbackStats();
+                    initSession();
                 }
             } catch (error) {
                 alert('Error clearing chat: ' + error.message);
             }
         }
 
-        // Initialize
+        // Initialize on page load
+        initSession();
         loadFeedbackStats();
     </script>
 </body>
