@@ -422,6 +422,10 @@ def chat():
     if not message:
         return jsonify({'error': 'No message provided'}), 400
     
+    # Ensure chat_history exists before appending
+    if 'chat_history' not in session:
+        session['chat_history'] = []
+    
     session['chat_history'].append({
         'message': message,
         'is_user': True,
@@ -463,10 +467,12 @@ def chat():
             result = session['conversation_chain'].invoke({'input': message})
             response = result['answer']
             
-            if 'chat_history' not in session:
-               session['chat_history'] = []
-                session['chat_history'].append({
-
+            # Add assistant response to chat history
+            session['chat_history'].append({
+                'message': response,
+                'is_user': False,
+                'timestamp': datetime.now().isoformat()
+            })
             
             response_data = {
                 'response': response,
@@ -637,6 +643,7 @@ def get_loaded_files():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
 
 
 
