@@ -12,6 +12,8 @@ import re
 from gtts import gTTS
 import uuid
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 warnings.filterwarnings("ignore")
 logging.getLogger().setLevel(logging.ERROR)
@@ -36,11 +38,12 @@ except ImportError:
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
-app.config['UPLOAD_FOLDER'] = 'uploads'
-app.config['DOCUMENTS_FOLDER'] = 'documents'
-app.config['VIDEOS_FOLDER'] = 'static/videos'
+app.config['DOCUMENTS_FOLDER'] = os.path.join(BASE_DIR, 'documents')
+app.config['UPLOAD_FOLDER'] = os.path.join(BASE_DIR, 'uploads')
+app.config['SESSION_FOLDER'] = os.path.join(BASE_DIR, 'sessions')
+app.config['VIDEOS_FOLDER'] = os.path.join(BASE_DIR, 'static', 'videos')
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
-app.config['SESSION_FOLDER'] = 'sessions'
+
 
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 
@@ -660,3 +663,4 @@ def get_loaded_files():
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
