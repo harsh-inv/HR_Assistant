@@ -283,82 +283,133 @@ def get_session(session_id):
 
 @app.route('/init_session', methods=['POST'])
 def init_session():
-    session_id = request.json.get('session_id', 'default')
-    session = get_session(session_id)
+    try:
+        session_id = request.json.get('session_id', 'default')
+        session = get_session(session_id)
+        
+        all_text, processed_files = load_documents_from_directory(app.config['DOCUMENTS_FOLDER'])
+        
+        if all_text:
+            try:
+                # Split text into chunks
+                text_splitter = CharacterTextSplitter(
+                    separator="\n",
+                    chunk_size=1000,
+                    chunk_overlap=200,
+                    length_function=len
+                )
+                texts = text_splitter.split_text(all_text)
+                
+                # Ensure we have texts to embed
+                if not texts:
+                    return jsonify({
+                        'success': False,
+                        'error': 'No text chunks created from documents'
+                    }), 500
+                
+                print(f"Creating FAISS index with {len(texts)} chunks")
+                
+                # Initialize embeddings
+                embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
+                
+                # Create FAISS vectorstore
+                vectorstore = FAISS.from_texts(texts, embeddings)
+                
+                # Create conversation chain
+                conversation_chain = create_chain(vectorstore)
+                
+                # Store in session
+                session['vectorstore'] = vectorstore
+                session['conversation_chain'] = conversation_chain
+                session['preloaded_files'] = processed_files
+                
+                print(f"Successfully loaded {len(processed_files)} documents")
+                
+                return jsonify({
+                    'success': True,
+                    'files': processed_files,
+                    'message': f'Loaded {len(processed_files)} documents from knowledge base'
+                })
+                
+            except Exception as e:
+                print(f"Error creating vectorstore: {e}")
+                import traceback
+                traceback.print_exc()
+                return jsonify({
+                    'success': False,
+                    'error': f'Error creating knowledge base: {str(e)}'
+                }), 500
+        
+        # No documents found - return success but with empty knowledge base
+        return jsonify({
+            'success': True,
+            'files': [],
+            'message': 'No documents found in knowledge base. You can upload documents to get started.'
+        })
     
-    # Load documents
-    all_text, processed_files = load_documents_from_directory(app.config['DOCUMENTS_FOLDER'])
-    
-    if all_text:
-        try:
-            # Create embeddings
-            text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-            texts = text_splitter.split_text(all_text)
-            embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
-            
-            # Create FAISS vectorstore
-            session['vectorstore'] = FAISS.from_texts(texts, embeddings)
-            
-            # Save FAISS index separately (not pickled)
-            faiss_path = os.path.join(app.config['SESSION_FOLDER'], f'{session_id}_faiss')
-            session['vectorstore'].save_local(faiss_path)
-            
-            # Store metadata only (not the vectorstore)
-            session['processed_files'] = processed_files
-            session['faiss_path'] = faiss_path
-            
-            # Save session metadata without vectorstore
-            pkl_path = os.path.join(app.config['SESSION_FOLDER'], f'{session_id}.pkl')
-            session_metadata = {
-                'processed_files': processed_files,
-                'faiss_path': faiss_path,
-                'uploaded_files': session.get('uploaded_files', [])
-            }
-            with open(pkl_path, 'wb') as f:
-                pickle.dump(session_metadata, f)
-            
-            return jsonify({
-                'success': True,
-                'files': processed_files,
-                'message': f'Loaded {len(processed_files)} documents'
-            })
-        except Exception as e:
-            return jsonify({'success': False, 'error': str(e)}), 500
-    
-    return jsonify({
-        'success': True,
-        'files': [],
-        'message': 'No documents in knowledge base'
-    })
+    except Exception as e:
+        print(f"Init session error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': 'Error initializing session'
+        }), 500
 
 
-def load_documents_from_directory(directory, max_chars=50000):
-    """Load documents with memory limit"""
+def load_documents_from_directory(directory):
     all_text = ""
     processed_files = []
+    MAX_CHARS = 1000000  # Increase to 1 million chars (was too small)
     
     if not os.path.exists(directory):
+        print(f"Directory {directory} does not exist")
         return all_text, processed_files
     
-    for root, dirs, files in os.walk(directory):
-        for filename in files:
-            if filename.lower().endswith(('.pdf', '.docx', '.doc', '.txt')):
-                if len(all_text) > max_chars:
-                    print(f"Reached max chars limit, stopping at {filename}")
-                    break
-                    
-                filepath = os.path.join(root, filename)
-                try:
-                    text = process_file(filepath, filename)
-                    if text:
-                        # Limit individual file size
-                        text = text[:20000]  # Max 20k chars per file
-                        all_text += f"\n\n--- {filename} ---\n{text}"
-                        processed_files.append(filename)
-                except Exception as e:
-                    print(f"Error processing {filename}: {e}")
+    files = os.listdir(directory)
+    print(f"Found {len(files)} files in {directory}")
     
+    for filename in files:
+        if len(all_text) >= MAX_CHARS:
+            print(f"Reached max chars limit ({MAX_CHARS}), stopping at {filename}")
+            break
+            
+        file_path = os.path.join(directory, filename)
+        
+        try:
+            text = ""
+            if filename.endswith('.pdf'):
+                text = extract_text_from_pdf(file_path)
+            elif filename.endswith('.docx'):
+                text = extract_text_from_docx(file_path)
+            elif filename.endswith('.txt'):
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    text = f.read()
+            else:
+                continue
+            
+            if not text or len(text.strip()) == 0:
+                print(f"No text extracted from {filename}")
+                continue
+            
+            # Truncate if adding this would exceed limit
+            remaining_space = MAX_CHARS - len(all_text)
+            if len(text) > remaining_space:
+                text = text[:remaining_space]
+                print(f"Truncated {filename} to fit within limit")
+            
+            all_text += text + "\n\n"
+            processed_files.append(filename)
+            print(f"Processed {filename}: {len(text)} chars")
+            
+        except Exception as e:
+            print(f"Error processing {filename}: {e}")
+            continue
+    
+    print(f"Total text length: {len(all_text)} chars from {len(processed_files)} files")
     return all_text, processed_files
+
 
 
 @app.route('/upload', methods=['POST'])
@@ -643,6 +694,7 @@ def get_loaded_files():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
 
 
 
