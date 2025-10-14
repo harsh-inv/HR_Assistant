@@ -145,21 +145,41 @@ def process_file(file_path_or_obj, filename):
 def load_documents_from_directory(directory):
     all_text = ""
     processed_files = []
+    MAX_CHARS = 500000  # Set a reasonable limit (500k chars)
     
     if not os.path.exists(directory):
         return all_text, processed_files
     
-    for root, dirs, files in os.walk(directory):
-        for filename in files:
-            if filename.lower().endswith(('.pdf', '.docx', '.doc', '.txt')):
-                file_path = os.path.join(root, filename)
-                try:
-                    text = process_file(file_path, filename)
-                    if text:
-                        all_text += f"\n\n--- {filename} ---\n{text}"
-                        processed_files.append(filename)
-                except Exception as e:
-                    print(f"Error processing {filename}: {e}")
+    for filename in os.listdir(directory):
+        if len(all_text) >= MAX_CHARS:
+            print(f"Reached max chars limit ({MAX_CHARS}), stopping document loading")
+            break
+            
+        file_path = os.path.join(directory, filename)
+        
+        try:
+            if filename.endswith('.pdf'):
+                text = extract_text_from_pdf(file_path)
+            elif filename.endswith('.docx'):
+                text = extract_text_from_docx(file_path)
+            elif filename.endswith('.txt'):
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    text = f.read()
+            else:
+                continue
+            
+            # Truncate if adding this would exceed limit
+            remaining_space = MAX_CHARS - len(all_text)
+            if len(text) > remaining_space:
+                text = text[:remaining_space]
+                print(f"Truncated {filename} to fit within limit")
+            
+            all_text += text + "\n\n"
+            processed_files.append(filename)
+            
+        except Exception as e:
+            print(f"Error processing {filename}: {e}")
+            continue
     
     return all_text, processed_files
 
@@ -226,32 +246,37 @@ def get_session(session_id):
         if os.path.exists(pkl_path):
             try:
                 with open(pkl_path, 'rb') as f:
-                    session_metadata = pickle.load(f)
-                
-                # Reload FAISS vectorstore separately
-                if 'faiss_path' in session_metadata and os.path.exists(session_metadata['faiss_path']):
-                    embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
-                    vectorstore = FAISS.load_local(
-                        session_metadata['faiss_path'], 
-                        embeddings,
-                        allow_dangerous_deserialization=True
-                    )
-                    sessions[session_id] = {
-                        'vectorstore': vectorstore,
-                        'processed_files': session_metadata.get('processed_files', []),
-                        'uploaded_files': session_metadata.get('uploaded_files', [])
-                    }
-                else:
-                    sessions[session_id] = {
-                        'vectorstore': None,
-                        'processed_files': [],
-                        'uploaded_files': []
-                    }
+                    sessions[session_id] = pickle.load(f)
             except Exception as e:
                 print(f"Error loading session: {e}")
-                sessions[session_id] = {'vectorstore': None, 'processed_files': [], 'uploaded_files': []}
+                sessions[session_id] = {
+                    'vectorstore': None,
+                    'conversation_chain': None,
+                    'chat_history': [],
+                    'uploaded_files': [],
+                    'preloaded_files': [],
+                    'feedback_history': []
+                }
         else:
-            sessions[session_id] = {'vectorstore': None, 'processed_files': [], 'uploaded_files': []}
+            # Initialize new session with all required keys
+            sessions[session_id] = {
+                'vectorstore': None,
+                'conversation_chain': None,
+                'chat_history': [],
+                'uploaded_files': [],
+                'preloaded_files': [],
+                'feedback_history': []
+            }
+    
+    # Ensure all keys exist even for existing sessions (backward compatibility)
+    if 'chat_history' not in sessions[session_id]:
+        sessions[session_id]['chat_history'] = []
+    if 'feedback_history' not in sessions[session_id]:
+        sessions[session_id]['feedback_history'] = []
+    if 'uploaded_files' not in sessions[session_id]:
+        sessions[session_id]['uploaded_files'] = []
+    if 'preloaded_files' not in sessions[session_id]:
+        sessions[session_id]['preloaded_files'] = []
     
     return sessions[session_id]
 
@@ -438,11 +463,10 @@ def chat():
             result = session['conversation_chain'].invoke({'input': message})
             response = result['answer']
             
-            session['chat_history'].append({
-                'message': response,
-                'is_user': False,
-                'timestamp': datetime.now().isoformat()
-            })
+            if 'chat_history' not in session:
+               session['chat_history'] = []
+                session['chat_history'].append({
+
             
             response_data = {
                 'response': response,
@@ -574,19 +598,32 @@ def clear_session():
 
 @app.route('/feedback/stats', methods=['GET'])
 def feedback_stats():
-    session_id = request.args.get('session_id', 'default')
-    session = get_session(session_id)
-    
-    feedback_history = session['feedback_history']
-    if not feedback_history:
-        return jsonify({'count': 0, 'average': 0})
-    
-    avg_rating = sum(f['rating'] for f in feedback_history) / len(feedback_history)
-    
-    return jsonify({
-        'count': len(feedback_history),
-        'average': round(avg_rating, 1)
-    })
+    try:
+        session_id = request.args.get('session_id', 'default')
+        session = get_session(session_id)
+        
+        # Safely get feedback_history with default empty list
+        feedback_history = session.get('feedback_history', [])
+        
+        stats = {
+            'total': len(feedback_history),
+            'positive': sum(1 for f in feedback_history if f.get('rating', 0) > 3),
+            'negative': sum(1 for f in feedback_history if f.get('rating', 0) <= 3),
+            'average_rating': sum(f.get('rating', 0) for f in feedback_history) / len(feedback_history) if feedback_history else 0
+        }
+        
+        return jsonify({
+            'success': True,
+            'stats': stats
+        })
+    except Exception as e:
+        print(f"Feedback stats error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'stats': {'total': 0, 'positive': 0, 'negative': 0, 'average_rating': 0}
+        })
+
 
 @app.route('/get_loaded_files', methods=['GET'])
 def get_loaded_files():
@@ -600,6 +637,7 @@ def get_loaded_files():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
 
 
 
