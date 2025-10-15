@@ -67,9 +67,14 @@
             margin: 0 auto;
             padding: 2rem;
             display: grid;
-            grid-template-columns: 320px 1fr;
+            grid-template-columns: 60px 1fr;
             gap: 2rem;
             height: calc(100vh - 120px);
+            transition: grid-template-columns 0.3s ease;
+        }
+
+        .container.sidebar-expanded {
+            grid-template-columns: 320px 1fr;
         }
 
         .sidebar {
@@ -80,8 +85,49 @@
             border: 1px solid rgba(148, 163, 184, 0.1);
             overflow-y: auto;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-        
-            transition: transform 0.3s ease;}
+            position: relative;
+            width: 60px;
+            transition: width 0.3s ease;
+        }
+
+        .sidebar.expanded {
+            width: 320px;
+        }
+
+        .sidebar-toggle {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(102, 126, 234, 0.2);
+            border: none;
+            color: #667eea;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+
+        .sidebar-toggle:hover {
+            background: rgba(102, 126, 234, 0.4);
+            transform: scale(1.05);
+        }
+
+        .sidebar-content {
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            margin-top: 3rem;
+        }
+
+        .sidebar.expanded .sidebar-content {
+            opacity: 1;
+            visibility: visible;
+        }
 
         .sidebar-section {
             margin-bottom: 2rem;
@@ -149,58 +195,6 @@
 
         .btn-secondary:hover {
             background: rgba(148, 163, 184, 0.3);
-        }
-
-        .toggle-switch {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            margin-bottom: 1rem;
-        }
-
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 50px;
-            height: 26px;
-        }
-
-        .switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(148, 163, 184, 0.3);
-            transition: 0.4s;
-            border-radius: 26px;
-        }
-
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 18px;
-            width: 18px;
-            left: 4px;
-            bottom: 4px;
-            background-color: white;
-            transition: 0.4s;
-            border-radius: 50%;
-        }
-
-        input:checked + .slider {
-            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
-        }
-
-        input:checked + .slider:before {
-            transform: translateX(24px);
         }
 
         .file-list {
@@ -566,10 +560,18 @@
                 height: auto;
             }
 
+            .container.sidebar-expanded {
+                grid-template-columns: 1fr;
+            }
+
             .sidebar {
                 max-height: none;
-            
-            transition: transform 0.3s ease;}
+                width: 100%;
+            }
+
+            .sidebar.expanded {
+                width: 100%;
+            }
 
             .message-content {
                 max-width: 85%;
@@ -602,49 +604,6 @@
             color: #10b981;
             border-left: 3px solid #10b981;
         }
-    
-        /* Sidebar Toggle Button */
-        .sidebar-toggle {
-            position: fixed;
-            left: 320px;
-            top: 95px;
-            z-index: 1001;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-            color: white;
-            width: 40px;
-            height: 40px;
-            border-radius: 0 8px 8px 0;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 2px 2px 10px rgba(0,0,0,0.3);
-        }
-
-        .sidebar-toggle:hover {
-            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-            transform: scale(1.05);
-        }
-
-        .sidebar-toggle.collapsed {
-            left: 20px;
-            border-radius: 8px;
-        }
-
-        .sidebar.collapsed {
-            transform: translateX(-100%);
-        }
-
-        .main-content {
-            transition: margin-left 0.3s ease;
-        }
-
-        .main-content.expanded {
-            margin-left: 0;
-        }
-
     </style>
 </head>
 <body>
@@ -653,62 +612,48 @@
         <h1>🤖 HR Assistant</h1>
     </div>
 
-    <div class="container">
-        <div class="sidebar">
-            <div class="sidebar-section">
-                <h3><i class="fas fa-database"></i> Knowledge Base</h3>
-                <div id="knowledgeBaseInfo" class="init-message">
-                    <i class="fas fa-sync fa-spin"></i> Loading knowledge base...
+    <div class="container" id="mainContainer">
+        <div class="sidebar" id="sidebar">
+            <button class="sidebar-toggle" onclick="toggleSidebar()">
+                <i class="fas fa-bars"></i>
+            </button>
+            
+            <div class="sidebar-content">
+                <div class="sidebar-section">
+                    <h3><i class="fas fa-database"></i> Knowledge Base</h3>
+                    <div id="knowledgeBaseInfo" class="init-message">
+                        <i class="fas fa-sync fa-spin"></i> Loading knowledge base...
+                    </div>
                 </div>
-            </div>
 
-            <div class="sidebar-section">
-                <h3><i class="fas fa-file-upload"></i> Upload Documents</h3>
-                <div class="upload-area" onclick="document.getElementById('fileInput').click()">
-                    <i class="fas fa-cloud-upload-alt"></i>
-                    <p>Click to upload documents</p>
-                    <small>PDF, DOCX, TXT</small>
+                <div class="sidebar-section">
+                    <h3><i class="fas fa-file-upload"></i> Upload Documents</h3>
+                    <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>Click to upload documents</p>
+                        <small>PDF, DOCX, TXT</small>
+                    </div>
+                    <input type="file" id="fileInput" multiple accept=".pdf,.docx,.txt" style="display: none;">
+                    <div class="file-list" id="fileList"></div>
                 </div>
-                <input type="file" id="fileInput" multiple accept=".pdf,.docx,.txt" style="display: none;">
-                <div class="file-list" id="fileList"></div>
-            </div>
 
-            <div class="sidebar-section">
-                <h3><i class="fas fa-volume-up"></i> Voice Settings</h3>
-                <div class="toggle-switch">
-                    <label class="switch">
-                        <input type="checkbox" id="ttsToggle">
-                        <span class="slider"></span>
-                    </label>
-                    <span>Enable Text-to-Speech</span>
+                <div class="sidebar-section">
+                    <h3><i class="fas fa-chart-bar"></i> Feedback</h3>
+                    <div id="feedbackStats"></div>
                 </div>
-            </div>
 
-            <div class="sidebar-section">
-                <h3><i class="fas fa-chart-bar"></i> Feedback</h3>
-                <div id="feedbackStats"></div>
-            </div>
-
-            <div class="sidebar-section">
-                <h3><i class="fas fa-cog"></i> Actions</h3>
-                <button class="btn btn-secondary" onclick="exportChat()" style="margin-bottom: 0.5rem;">
-                    <i class="fas fa-download"></i> Export Chat
-                </button>
-                <button class="btn btn-secondary" onclick="clearChat()">
-                    <i class="fas fa-trash"></i> Clear Chat
-                </button>
-                <button onclick="exportFeedback()" 
-                style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); 
-               color: white; 
-               padding: 0.75rem 1.5rem; 
-               border: none; 
-               border-radius: 10px; 
-               cursor: pointer; 
-               font-weight: 600;
-               margin-top: 1rem;
-               width: 100%;">
-                    <i class="fas fa-download"></i> Export All Feedback
-                </button>
+                <div class="sidebar-section">
+                    <h3><i class="fas fa-cog"></i> Actions</h3>
+                    <button class="btn btn-secondary" onclick="exportChat()" style="margin-bottom: 0.5rem;">
+                        <i class="fas fa-download"></i> Export Chat
+                    </button>
+                    <button class="btn btn-secondary" onclick="clearChat()" style="margin-bottom: 0.5rem;">
+                        <i class="fas fa-trash"></i> Clear Chat
+                    </button>
+                    <button class="btn btn-secondary" onclick="exportFeedback()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                        <i class="fas fa-download"></i> Export Feedback
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -770,11 +715,16 @@
         let selectedRating = 0;
         let isRecording = false;
         let recognition = null;
-        let ttsEnabled = false;
-        let currentSpeech = null;
-        let femaleVoice = null;
         let isVoiceInput = false;
         let currentAudio = null;
+
+        // Toggle sidebar
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const container = document.getElementById('mainContainer');
+            sidebar.classList.toggle('expanded');
+            container.classList.toggle('sidebar-expanded');
+        }
 
         // Initialize Speech Recognition
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
@@ -794,7 +744,6 @@
             recognition.onend = () => {
                 isRecording = false;
                 updateMicButton();
-                // Automatically send message after voice input
                 const input = document.getElementById('chatInput');
                 if (input.value.trim()) {
                     setTimeout(() => {
@@ -811,7 +760,6 @@
             };
         }
 
-        // Toggle Voice Recording
         function toggleVoiceRecording() {
             if (!recognition) {
                 alert('Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari.');
@@ -841,9 +789,7 @@
             }
         }
 
-        // Function to play audio from URL
         function playAudioFromURL(audioUrl, button) {
-            // If audio is currently playing from this button, stop it
             if (currentAudio && button.classList.contains('speaking')) {
                 currentAudio.pause();
                 currentAudio.currentTime = 0;
@@ -853,12 +799,10 @@
                 return;
             }
 
-            // Stop any currently playing audio
             if (currentAudio) {
                 currentAudio.pause();
                 currentAudio.currentTime = 0;
                 currentAudio = null;
-                // Reset any other speaking buttons
                 document.querySelectorAll('.speaker-btn.speaking').forEach(btn => {
                     btn.classList.remove('speaking');
                     btn.innerHTML = '<i class="fas fa-volume-up"></i>';
@@ -899,7 +843,6 @@
             });
         }
 
-        // Initialize Session with Knowledge Base
         async function initSession() {
             try {
                 const response = await fetch('/init_session', {
@@ -924,7 +867,6 @@
             }
         }
 
-        // File Upload
         document.getElementById('fileInput').addEventListener('change', async (e) => {
             const files = e.target.files;
             if (files.length === 0) return;
@@ -989,7 +931,6 @@
             return icons[ext] || '📄';
         }
 
-        // Send Message
         async function sendMessage() {
             const input = document.getElementById('chatInput');
             const message = input.value.trim();
@@ -1021,7 +962,6 @@
                 if (data.response) {
                     addMessage(data.response, false, data.video, data.video_name, data.audio_url);
                     
-                    // Automatically play audio if it was voice input
                     if (wasVoiceInput && data.audio_url) {
                         setTimeout(() => {
                             const lastMessage = document.querySelector('.message.assistant:last-child .speaker-btn');
@@ -1081,7 +1021,6 @@
                     if (this.dataset.audioUrl) {
                         playAudioFromURL(this.dataset.audioUrl, this);
                     } else {
-                        // Fallback to generating TTS on-demand
                         generateAndPlayTTS(text, this);
                     }
                 };
@@ -1091,7 +1030,6 @@
             
             content.appendChild(textWrapper);
             
-            // Add video if provided
             if (videoUrl && !isUser) {
                 const videoContainer = document.createElement('div');
                 videoContainer.className = 'video-container';
@@ -1117,7 +1055,6 @@
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
-        // Generate TTS on demand
         async function generateAndPlayTTS(text, button) {
             try {
                 const response = await fetch('/text_to_speech', {
@@ -1139,7 +1076,6 @@
             }
         }
 
-        // Star Rating
         document.querySelectorAll('.star').forEach(star => {
             star.addEventListener('click', (e) => {
                 selectedRating = parseInt(e.target.dataset.rating);
@@ -1317,30 +1253,8 @@
             }
         }
 
-        // Initialize on page load
         initSession();
         loadFeedbackStats();
-    </script>
-    <script>
-
-        function toggleSidebar() {
-            const sidebar = document.querySelector('.sidebar');
-            const mainContent = document.querySelector('.main-content');
-            const toggleBtn = document.getElementById('sidebarToggle');
-
-            sidebar.classList.toggle('collapsed');
-            mainContent.classList.toggle('expanded');
-            toggleBtn.classList.toggle('collapsed');
-
-            // Change icon
-            const icon = toggleBtn.querySelector('i');
-            if (sidebar.classList.contains('collapsed')) {
-                icon.className = 'fas fa-chevron-right';
-            } else {
-                icon.className = 'fas fa-times';
-            }
-        }
-
     </script>
 </body>
 </html>
