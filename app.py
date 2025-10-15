@@ -199,22 +199,28 @@ def find_related_video(query, threshold=0.3):
 
 def create_chain(vectorstore):
     retriever = vectorstore.as_retriever()
-    prompt = ChatPromptTemplate.from_template(
-        """
-        Answer the question based on the following context:
+    
+    prompt = ChatPromptTemplate.from_template("""
+You are an HR Assistant for Invenio Business Solutions. Answer questions ONLY using the provided context from HR policy documents.
 
-        Context: {context}
+Context: {context}
+Question: {input}
 
-        Question: {input}
+IMPORTANT RULES:
+1. Answer ONLY based on the information in the Context above
+2. If the context doesn't contain the answer, say: "I don't have that specific information in the HR policy documents. Please contact HR directly or ask a different question."
+3. Do NOT make assumptions or provide general knowledge
+4. Do NOT add extra information not present in the context
+5. Quote specific policy details when available
+6. Be concise and direct
 
-        Provide a clear, detailed, and helpful answer. If the context contains relevant information,
-        use it to provide specific details. If you're explaining a process or concept, be thorough
-        but concise.
-
-        Answer:""")
-    llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.3)
+Answer:
+""")
+    
+    llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.0)  # Changed to 0.0 for less creativity
     document_chain = create_stuff_documents_chain(llm, prompt)
     return create_retrieval_chain(retriever, document_chain)
+
 
 @app.route('/')
 def index():
@@ -526,3 +532,4 @@ def get_loaded_files():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
