@@ -72,14 +72,56 @@
             height: calc(100vh - 120px);
         }
 
+        
         .sidebar {
-            background: rgba(30, 41, 59, 0.6);
-            backdrop-filter: blur(20px);
-            border-radius: 20px;
-            padding: 1.5rem;
-            border: 1px solid rgba(148, 163, 184, 0.1);
+            position: fixed;
+            left: 0;
+            top: 80px;
+            width: 300px;
+            height: calc(100% - 80px);
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid rgba(148, 163, 184, 0.1);
+            padding: 2rem;
             overflow-y: auto;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease;
+            z-index: 100;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-toggle {
+            position: fixed;
+            left: 310px;
+            top: 90px;
+            z-index: 101;
+            background: rgba(59, 130, 246, 0.9);
+            border: none;
+            color: white;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0 8px 8px 0;
+            cursor: pointer;
+            transition: left 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .sidebar-toggle.collapsed {
+            left: 10px;
+        }
+
+        .sidebar-toggle:hover {
+            background: rgba(59, 130, 246, 1);
+        }
+
+        .main-content {
+            margin-left: 300px;
+            transition: margin-left 0.3s ease;
+        }
+
+        .main-content.expanded {
+            margin-left: 0;
         }
 
         .sidebar-section {
@@ -1275,6 +1317,27 @@
         // Initialize on page load
         initSession();
         loadFeedbackStats();
+    </script>
+    <script>
+
+        function toggleSidebar() {
+            const sidebar = document.querySelector('.sidebar');
+            const mainContent = document.querySelector('.main-content');
+            const toggleBtn = document.getElementById('sidebarToggle');
+
+            sidebar.classList.toggle('collapsed');
+            mainContent.classList.toggle('expanded');
+            toggleBtn.classList.toggle('collapsed');
+
+            // Change icon
+            const icon = toggleBtn.querySelector('i');
+            if (sidebar.classList.contains('collapsed')) {
+                icon.className = 'fas fa-bars';
+            } else {
+                icon.className = 'fas fa-times';
+            }
+        }
+
     </script>
 </body>
 </html>
