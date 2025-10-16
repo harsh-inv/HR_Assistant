@@ -1,535 +1,1004 @@
-import os
-import warnings
-import logging
-import json
-from datetime import datetime
-from flask import Flask, render_template, request, jsonify, send_file
-from werkzeug.utils import secure_filename
-import base64
-from io import BytesIO
-from difflib import SequenceMatcher
-import re
-from gtts import gTTS
-import uuid
-
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-warnings.filterwarnings("ignore")
-logging.getLogger().setLevel(logging.ERROR)
-
-try:
-    from docx import Document
-    import PyPDF2
-    import pdfplumber
-    import fitz
-except ImportError:
-    print("Please install: pip install python-docx PyPDF2 pdfplumber PyMuPDF")
-
-try:
-    from langchain_community.vectorstores import FAISS
-    from langchain_openai import OpenAIEmbeddings, ChatOpenAI
-    from langchain.text_splitter import CharacterTextSplitter
-    from langchain.chains import create_retrieval_chain
-    from langchain.chains.combine_documents import create_stuff_documents_chain
-    from langchain_core.prompts import ChatPromptTemplate
-except ImportError:
-    print("Please install: pip install langchain langchain-openai langchain-community faiss-cpu")
-
-app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key-here'
-app.config['UPLOAD_FOLDER'] = 'uploads'
-app.config['DOCUMENTS_FOLDER'] = os.getenv('DOCUMENTS_FOLDER', '/opt/render/project/src/documents')
-app.config['MAX_DOCUMENTS'] = 100  # Maximum number of documents to load
-app.config['VIDEOS_FOLDER'] = 'static/videos'
-app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
-
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-
-# Validate that the key exists
-if not OPENAI_API_KEY:
-    raise ValueError("OPENAI_API_KEY environment variable is not set. Please configure it in Render dashboard.")
-
-os.environ['OPENAI_API_KEY'] = OPENAI_API_KEY
-
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.makedirs(app.config['DOCUMENTS_FOLDER'], exist_ok=True)
-os.makedirs(app.config['VIDEOS_FOLDER'], exist_ok=True)
-os.makedirs(os.path.join('static', 'audio'), exist_ok=True)
-
-sessions = {}
-
-def get_session(session_id):
-    if session_id not in sessions:
-        sessions[session_id] = {
-            'vectorstore': None,
-            'conversation_chain': None,
-            'chat_history': [],
-            'uploaded_files': [],
-            'feedback_history': [],
-            'preloaded_files': []
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HR ASSISTANT</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-    return sessions[session_id]
 
-def extract_pdf_text(pdf_file):
-    text = ""
-    try:
-        pdf_bytes = pdf_file.read()
-        pdf_file.seek(0)
-        import sys
-        from contextlib import redirect_stderr
-        from io import StringIO
-        f = StringIO()
-        with redirect_stderr(f):
-            doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-            for page_num in range(doc.page_count):
-                try:
-                    page = doc.load_page(page_num)
-                    text += page.get_text() + "\n"
-                except:
-                    continue
-            doc.close()
-        if text.strip():
-            return text
-    except:
-        pass
-    try:
-        pdf_file.seek(0)
-        with pdfplumber.open(pdf_file) as pdf:
-            for page in pdf.pages:
-                try:
-                    page_text = page.extract_text()
-                    if page_text:
-                        text += page_text + "\n"
-                except:
-                    continue
-    except:
-        pass
-    return text if text.strip() else "Could not extract text from PDF"
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0d1117;
+            color: #ffffff;
+            height: 100vh;
+            overflow: hidden;
+            background-image: url('/static/images/background.png'), url('/static/images/background.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+        }
 
-def extract_docx_text(docx_file):
-    try:
-        doc = Document(docx_file)
-        return "\n".join([para.text for para in doc.paragraphs if para.text.strip()])
-    except:
-        return "Error reading DOCX file"
+        /* Header */
+        .header {
+            background: transparent;
+            padding: 20px 30px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
 
-def extract_txt_text(txt_file):
-    try:
-        return txt_file.read().decode('utf-8')
-    except:
-        try:
-            txt_file.seek(0)
-            return txt_file.read().decode('latin-1')
-        except:
-            return "Error reading TXT file"
+        .header-menu-btn {
+            width: 40px;
+            height: 40px;
+            background: rgba(35, 47, 62, 0.8);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            padding: 8px;
+            border-radius: 8px;
+            transition: all 0.3s;
+            backdrop-filter: blur(10px);
+        }
 
-def process_file(file_path_or_obj, filename):
-    file_ext = filename.lower().split('.')[-1]
-    
-    if isinstance(file_path_or_obj, str):
-        with open(file_path_or_obj, 'rb') as f:
-            if file_ext == 'pdf':
-                return extract_pdf_text(f)
-            elif file_ext in ['docx', 'doc']:
-                return extract_docx_text(f)
-            elif file_ext == 'txt':
-                return extract_txt_text(f)
-    else:
-        if file_ext == 'pdf':
-            return extract_pdf_text(file_path_or_obj)
-        elif file_ext in ['docx', 'doc']:
-            return extract_docx_text(file_path_or_obj)
-        elif file_ext == 'txt':
-            return extract_txt_text(file_path_or_obj)
-    return ""
+        .header-menu-btn:hover {
+            background: rgba(45, 57, 72, 0.9);
+        }
 
-def load_documents_from_directory(directory):
-    all_text = ""
-    processed_files = []
-    
-    if not os.path.exists(directory):
-        return all_text, processed_files
-    
-    for root, dirs, files in os.walk(directory):
-        for filename in files:
-            if filename.lower().endswith(('.pdf', '.docx', '.doc', '.txt')):
-                file_path = os.path.join(root, filename)
-                try:
-                    text = process_file(file_path, filename)
-                    if text:
-                        all_text += f"\n\n--- {filename} ---\n{text}"
-                        processed_files.append(filename)
-                except Exception as e:
-                    print(f"Error processing {filename}: {e}")
-    
-    return all_text, processed_files
+        .header-menu-btn span {
+            width: 24px;
+            height: 2px;
+            background: #ecf0f1;
+            border-radius: 2px;
+        }
 
-def similarity_score(str1, str2):
-    return SequenceMatcher(None, str1.lower(), str2.lower()).ratio()
+        .header-logo {
+            height: 45px;
+            width: auto;
+        }
 
-def find_related_video(query, threshold=0.3):
-    videos_folder = app.config['VIDEOS_FOLDER']
-    
-    if not os.path.exists(videos_folder):
-        return None
-    
-    query_clean = re.sub(r'[^\w\s]', '', query.lower())
-    query_words = set(query_clean.split())
-    
-    best_match = None
-    best_score = 0
-    
-    for filename in os.listdir(videos_folder):
-        if filename.lower().endswith(('.mp4', '.webm', '.ogg', '.mov', '.avi')):
-            name_without_ext = os.path.splitext(filename)[0]
-            name_clean = re.sub(r'[^\w\s]', ' ', name_without_ext.lower())
-            name_words = set(name_clean.split())
-            
-            common_words = query_words.intersection(name_words)
-            word_overlap = len(common_words) / max(len(query_words), 1)
-            
-            string_sim = similarity_score(query_clean, name_clean)
-            
-            combined_score = (word_overlap * 0.6) + (string_sim * 0.4)
-            
-            if combined_score > best_score and combined_score >= threshold:
-                best_score = combined_score
-                best_match = filename
-    
-    return best_match
+        .header h1 {
+            font-size: 24px;
+            font-weight: 400;
+            letter-spacing: 3px;
+            color: #ffffff;
+        }
 
-def create_chain(vectorstore):
-    retriever = vectorstore.as_retriever()
-    
-    prompt = ChatPromptTemplate.from_template("""
-You are an HR Assistant for Invenio Business Solutions. Answer questions ONLY using the provided context from HR policy documents.
+        /* Main Container */
+        .container {
+            display: flex;
+            gap: 20px;
+            padding: 0 20px 20px 20px;
+            height: calc(100vh - 89px);
+            overflow: hidden;
+        }
 
-Context: {context}
-Question: {input}
+        /* Sidebar - Narrower and Darker */
+        .sidebar {
+            width: 300px;
+            background: rgba(35, 47, 62, 0.98);
+            padding: 20px;
+            overflow-y: auto;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
 
-IMPORTANT RULES:
-1. Answer ONLY based on the information in the Context above
-2. If the context doesn't contain the answer, say: "I don't have that specific information in the HR policy documents. Please contact HR directly or ask a different question."
-3. Do NOT make assumptions or provide general knowledge
-4. Do NOT add extra information not present in the context
-5. Quote specific policy details when available
-6. Be concise and direct
+        .sidebar.collapsed {
+            margin-left: -340px;
+        }
 
-Answer:
-""")
-    
-    llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.0)  # Changed to 0.0 for less creativity
-    document_chain = create_stuff_documents_chain(llm, prompt)
-    return create_retrieval_chain(retriever, document_chain)
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
 
+        .sidebar::-webkit-scrollbar-track {
+            background: transparent;
+        }
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+        .sidebar::-webkit-scrollbar-thumb {
+            background: rgba(74, 95, 127, 0.5);
+            border-radius: 3px;
+        }
 
-@app.route('/init_session', methods=['POST'])
-def init_session():
-    session_id = request.json.get('session_id', 'default')
-    session = get_session(session_id)
-    
-    # Debug: Check documents folder
-    print(f"Documents folder path: {os.path.abspath(app.config['DOCUMENTS_FOLDER'])}")
-    print(f"Documents folder exists: {os.path.exists(app.config['DOCUMENTS_FOLDER'])}")
-    if os.path.exists(app.config['DOCUMENTS_FOLDER']):
-        files_in_folder = os.listdir(app.config['DOCUMENTS_FOLDER'])
-        print(f"Files in documents folder: {len(files_in_folder)} files found")
-        if len(files_in_folder) > app.config['MAX_DOCUMENTS']:
-            print(f"WARNING: Found {len(files_in_folder)} files, limiting to {app.config['MAX_DOCUMENTS']} files")
-    
-    all_text, processed_files = load_documents_from_directory(app.config['DOCUMENTS_FOLDER'])
-    
-    if all_text:
-        text_splitter = CharacterTextSplitter(
-            separator="\n",
-            chunk_size=1000,
-            chunk_overlap=200,
-            length_function=len
-        )
-        texts = text_splitter.split_text(all_text)
-        embeddings = OpenAIEmbeddings()
-        vectorstore = FAISS.from_texts(texts, embeddings)
-        session['vectorstore'] = vectorstore
-        session['conversation_chain'] = create_chain(vectorstore)
-        session['preloaded_files'] = processed_files
-        
-        return jsonify({
-            'success': True,
-            'files': processed_files,
-            'message': f'Loaded {len(processed_files)} documents from knowledge base'
-        })
-    
-    return jsonify({
-        'success': True,
-        'files': [],
-        'message': 'No documents found in knowledge base. You can upload documents to get started.'
-    })
+        .sidebar-section {
+            margin-bottom: 25px;
+        }
 
-@app.route('/upload', methods=['POST'])
-def upload_files():
-    session_id = request.form.get('session_id', 'default')
-    session = get_session(session_id)
-    
-    if 'files' not in request.files:
-        return jsonify({'error': 'No files provided'}), 400
-    
-    files = request.files.getlist('files')
-    all_text = ""
-    processed_files = []
-    
-    for file in files:
-        if file.filename:
-            filename = secure_filename(file.filename)
-            text = process_file(file, filename)
-            if text:
-                all_text += f"\n\n--- {filename} ---\n{text}"
-                processed_files.append(filename)
-                
-                file.seek(0)
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-    
-    if all_text:
-        text_splitter = CharacterTextSplitter(
-            separator="\n",
-            chunk_size=1000,
-            chunk_overlap=200,
-            length_function=len
-        )
-        texts = text_splitter.split_text(all_text)
-        embeddings = OpenAIEmbeddings()
-        
-        if session['vectorstore']:
-            session['vectorstore'].add_texts(texts)
-        else:
-            vectorstore = FAISS.from_texts(texts, embeddings)
-            session['vectorstore'] = vectorstore
-        
-        session['conversation_chain'] = create_chain(session['vectorstore'])
-        session['uploaded_files'].extend(processed_files)
-        
-        return jsonify({
-            'success': True,
-            'files': processed_files,
-            'message': f'Successfully processed {len(processed_files)} files'
-        })
-    
-    return jsonify({'error': 'No text could be extracted from files'}), 400
+        .sidebar-section h3 {
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: #ecf0f1;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
 
-@app.route('/chat', methods=['POST'])
-def chat():
-    session_id = request.json.get('session_id', 'default')
-    message = request.json.get('message', '')
-    is_voice_input = request.json.get('is_voice_input', False)
-    
-    session = get_session(session_id)
-    
-    if not message:
-        return jsonify({'error': 'No message provided'}), 400
-    
-    session['chat_history'].append({
-        'message': message,
-        'is_user': True,
-        'is_voice': is_voice_input,
-        'timestamp': datetime.now().isoformat()
-    })
-    
-    if message.lower().strip() in ['bye', 'goodbye', 'exit', 'quit', 'end']:
-        response = "Thank you for using HR Assistant! Have a great day!"
-        session['chat_history'].append({
-            'message': response,
-            'is_user': False,
-            'timestamp': datetime.now().isoformat()
-        })
-        
-        # Generate audio for voice input
-        audio_url = None
-        if is_voice_input:
-            try:
-                audio_filename = f"response_{uuid.uuid4().hex}.mp3"
-                audio_path = os.path.join('static', 'audio', audio_filename)
-                tts = gTTS(text=response, lang='en', slow=False)
-                tts.save(audio_path)
-                audio_url = f'/static/audio/{audio_filename}'
-            except Exception as e:
-                print(f"TTS error: {e}")
-        
-        return jsonify({
-            'response': response,
-            'session_ended': True,
-            'should_speak': is_voice_input,
-            'audio_url': audio_url
-        })
-    
-    related_video = find_related_video(message)
-    
-    if session['conversation_chain']:
-        try:
-            result = session['conversation_chain'].invoke({'input': message})
-            response = result['answer']
-            
-            session['chat_history'].append({
-                'message': response,
-                'is_user': False,
-                'timestamp': datetime.now().isoformat()
-            })
-            
-            response_data = {
-                'response': response,
-                'should_speak': is_voice_input
+        .info-box {
+            background: rgba(45, 57, 72, 0.7);
+            padding: 12px 15px;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+            margin-bottom: 15px;
+        }
+
+        .info-box p {
+            font-size: 13px;
+            line-height: 1.6;
+            color: #bdc3c7;
+        }
+
+        .upload-area {
+            border: 2px dashed rgba(90, 112, 133, 0.5);
+            border-radius: 8px;
+            padding: 30px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: transparent;
+        }
+
+        .upload-area:hover {
+            border-color: #3498db;
+            background: rgba(52, 152, 219, 0.05);
+        }
+
+        .upload-icon {
+            width: 40px;
+            height: 40px;
+            margin: 0 auto 10px;
+        }
+
+        .upload-area p {
+            font-size: 13px;
+            color: #95a5a6;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .upload-area span {
+            font-size: 11px;
+            color: #7f8c8d;
+        }
+
+        .feedback-section {
+            background: rgba(45, 57, 72, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .feedback-section p {
+            font-size: 13px;
+            color: #bdc3c7;
+        }
+
+        .action-btn {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: rgba(55, 67, 82, 0.9);
+            color: #ecf0f1;
+        }
+
+        .btn-primary:hover {
+            background: rgba(65, 77, 92, 1);
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+            font-weight: 600;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        /* Chat Area - Darker Background */
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: rgba(35, 47, 62, 0.98);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            overflow: hidden;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+        }
+
+        .chat-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-messages::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: rgba(74, 95, 127, 0.5);
+            border-radius: 3px;
+        }
+
+        .message {
+            display: flex;
+            align-items: start;
+            gap: 12px;
+            margin-bottom: 20px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-weight: 600;
+            font-size: 16px;
+            overflow: hidden;
+        }
+
+        .bot-avatar {
+            background: #e74c3c;
+            color: white;
+            padding: 0;
+        }
+
+        .bot-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: transparent;
+        }
+
+        .user-avatar {
+            background: #3498db;
+            color: white;
+        }
+
+        .message-content {
+            flex: 1;
+            background: rgba(45, 57, 72, 0.7);
+            padding: 15px 18px;
+            border-radius: 12px;
+            line-height: 1.6;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .user-message .message-content {
+            background: rgba(52, 73, 94, 0.8);
+        }
+
+        .welcome-message {
+            text-align: center;
+            padding: 60px 20px;
+            color: #ecf0f1;
+        }
+
+        .welcome-avatar {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            background: #e74c3c;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4);
+        }
+
+        .welcome-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .welcome-message h2 {
+            font-size: 24px;
+            margin-bottom: 12px;
+            color: #ecf0f1;
+            font-weight: 500;
+        }
+
+        .welcome-message p {
+            color: #95a5a6;
+            font-size: 14px;
+            line-height: 1.6;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Input Area */
+        .input-area {
+            padding: 20px 30px;
+            background: rgba(26, 31, 46, 0.6);
+            backdrop-filter: blur(10px);
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .input-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #messageInput {
+            width: 100%;
+            padding: 14px 20px;
+            border: 1px solid rgba(74, 95, 127, 0.5);
+            border-radius: 25px;
+            background: rgba(30, 40, 54, 0.8);
+            color: #ecf0f1;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        #messageInput:focus {
+            border-color: #3498db;
+            background: rgba(30, 40, 54, 1);
+        }
+
+        #messageInput::placeholder {
+            color: #7f8c8d;
+        }
+
+        .icon-btn {
+            width: 45px;
+            height: 45px;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .mic-btn {
+            background: rgba(61, 82, 102, 0.8);
+        }
+
+        .mic-btn:hover {
+            background: rgba(74, 95, 127, 0.9);
+        }
+
+        .mic-btn.recording {
+            background: #e74c3c;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        .send-btn {
+            background: #e74c3c;
+            width: 65px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .send-btn:hover {
+            background: #c0392b;
+        }
+
+        .send-btn:disabled {
+            background: #4a5f7f;
+            cursor: not-allowed;
+        }
+
+        .icon-btn svg {
+            width: 20px;
+            height: 20px;
+            fill: white;
+        }
+
+        /* File List */
+        .file-list {
+            margin-top: 10px;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: rgba(26, 31, 46, 0.6);
+            border-radius: 6px;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+
+        .file-item svg {
+            width: 16px;
+            height: 16px;
+            fill: #3498db;
+        }
+
+        /* Loading Spinner */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Video Player */
+        .video-container {
+            margin-top: 15px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .video-container video {
+            width: 100%;
+            max-width: 500px;
+            border-radius: 8px;
+        }
+
+        /* Speaker Button */
+        .speaker-btn {
+            width: 30px;
+            height: 30px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            padding: 0;
+            margin-left: 10px;
+            opacity: 0.7;
+            transition: opacity 0.3s;
+        }
+
+        .speaker-btn:hover {
+            opacity: 1;
+        }
+
+        .speaker-btn svg {
+            width: 20px;
+            height: 20px;
+            fill: #3498db;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                gap: 10px;
+                padding: 0 10px 10px 10px;
+            }
+
+            .sidebar {
+                position: absolute;
+                left: 10px;
+                top: 89px;
+                height: calc(100vh - 109px);
+                z-index: 100;
+            }
+
+            .sidebar.collapsed {
+                margin-left: -340px;
             }
             
-            # Generate audio automatically if voice input
-            if is_voice_input:
-                try:
-                    audio_filename = f"response_{uuid.uuid4().hex}.mp3"
-                    audio_path = os.path.join('static', 'audio', audio_filename)
-                    tts = gTTS(text=response, lang='en', slow=False)
-                    tts.save(audio_path)
-                    response_data['audio_url'] = f'/static/audio/{audio_filename}'
-                except Exception as e:
-                    print(f"TTS error: {e}")
-            
-            if related_video:
-                response_data['video'] = f'/static/videos/{related_video}'
-                response_data['video_name'] = os.path.splitext(related_video)[0].replace('_', ' ').title()
-            
-            return jsonify(response_data)
-            
-        except Exception as e:
-            return jsonify({'error': f'Error processing request: {str(e)}'}), 500
-    else:
-        return jsonify({'error': 'Please upload documents first or wait for knowledge base to load'}), 400
+            .input-area {
+                padding: 15px;
+            }
 
-@app.route('/text_to_speech', methods=['POST'])
-def text_to_speech():
-    text = request.json.get('text', '')
-    session_id = request.json.get('session_id', 'default')
-    
-    if not text:
-        return jsonify({'error': 'No text provided'}), 400
-    
-    try:
-        audio_filename = f"response_{uuid.uuid4().hex}.mp3"
-        audio_path = os.path.join('static', 'audio', audio_filename)
-        
-        tts = gTTS(text=text, lang='en', slow=False)
-        tts.save(audio_path)
-        
-        return jsonify({
-            'success': True,
-            'audio_url': f'/static/audio/{audio_filename}'
-        })
-    except Exception as e:
-        return jsonify({'error': f'TTS error: {str(e)}'}), 500
-
-@app.route('/feedback', methods=['POST'])
-def submit_feedback():
-    session_id = request.json.get('session_id', 'default')
-    rating = request.json.get('rating')
-    comment = request.json.get('comment', '')
-    session = get_session(session_id)
-    
-    feedback_data = {
-        'rating': rating,
-        'comment': comment,
-        'timestamp': datetime.now().isoformat()
-    }
-    
-    session['feedback_history'].append(feedback_data)
-    
-    return jsonify({
-        'success': True,
-        'message': 'Thank you for your feedback!'
-    })
-
-@app.route('/export/json', methods=['POST'])
-def export_json():
-    session_id = request.json.get('session_id', 'default')
-    session = get_session(session_id)
-    
-    chat_data = {
-        "export_info": {
-            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "total_messages": len(session['chat_history']),
-            "format": "HR Assistant JSON Export"
-        },
-        "chat_history": session['chat_history'],
-        "feedback": session['feedback_history']
-    }
-    
-    return jsonify(chat_data)
-
-@app.route('/export/feedback', methods=['POST'])
-def export_feedback():
-    session_id = request.json.get('session_id', 'default')
-    session = get_session(session_id)
-    
-    import csv
-    from io import StringIO
-    
-    output = StringIO()
-    writer = csv.writer(output)
-    
-    writer.writerow(['Timestamp', 'Rating', 'Comment'])
-    
-    for feedback in session['feedback_history']:
-        writer.writerow([
-            feedback['timestamp'],
-            feedback['rating'],
-            feedback.get('comment', '')
-        ])
-    
-    csv_content = output.getvalue()
-    
-    return jsonify({
-        'success': True,
-        'csv_data': csv_content,
-        'filename': f'feedback_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
-    })
-
-@app.route('/clear', methods=['POST'])
-def clear_session():
-    session_id = request.json.get('session_id', 'default')
-    if session_id in sessions:
-        sessions[session_id] = {
-            'vectorstore': None,
-            'conversation_chain': None,
-            'chat_history': [],
-            'uploaded_files': [],
-            'feedback_history': [],
-            'preloaded_files': []
+            .header {
+                padding: 15px 20px;
+            }
         }
-    return jsonify({'success': True})
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <button class="header-menu-btn" onclick="toggleSidebar()">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+        <img src="/static/images/InChat-white.png" alt="InChat Logo" class="header-logo" 
+             onerror="this.onerror=null; this.src='/static/images/InChat-white.jpg'">
+        <h1>HR ASSISTANT</h1>
+    </div>
 
-@app.route('/feedback/stats', methods=['GET'])
-def feedback_stats():
-    session_id = request.args.get('session_id', 'default')
-    session = get_session(session_id)
-    
-    feedback_history = session['feedback_history']
-    if not feedback_history:
-        return jsonify({'count': 0, 'average': 0})
-    
-    avg_rating = sum(f['rating'] for f in feedback_history) / len(feedback_history)
-    
-    return jsonify({
-        'count': len(feedback_history),
-        'average': round(avg_rating, 1)
-    })
+    <div class="container">
+        <!-- Sidebar - Floating Card -->
+        <div class="sidebar" id="sidebar">
+            <!-- Knowledge Base Section -->
+            <div class="sidebar-section">
+                <h3>Knowledge Base</h3>
+                <div class="info-box">
+                    <p id="kbStatus">No documents found in knowledge base. You can upload documents to get started.</p>
+                </div>
+            </div>
 
-@app.route('/get_loaded_files', methods=['GET'])
-def get_loaded_files():
-    session_id = request.args.get('session_id', 'default')
-    session = get_session(session_id)
-    
-    return jsonify({
-        'preloaded': session.get('preloaded_files', []),
-        'uploaded': session.get('uploaded_files', [])
-    })
+            <!-- Upload Documents Section -->
+            <div class="sidebar-section">
+                <h3>Upload Documents</h3>
+                <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="upload-icon">
+                        <path fill="#7f8c8d" d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+                    </svg>
+                    <p>Click to upload documents</p>
+                    <span>PDF, DOCX, TXT</span>
+                </div>
+                <input type="file" id="fileInput" multiple accept=".pdf,.docx,.doc,.txt" style="display: none;">
+                <div class="file-list" id="fileList"></div>
+            </div>
 
-if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+            <!-- Feedback Section -->
+            <div class="sidebar-section">
+                <h3>Feedback</h3>
+                <div class="feedback-section">
+                    <p id="feedbackStatus">No feedback yet</p>
+                </div>
+            </div>
 
+            <!-- Actions Section -->
+            <div class="sidebar-section">
+                <h3>Actions</h3>
+                <button class="action-btn btn-primary" onclick="exportChat()">Export Chat</button>
+                <button class="action-btn btn-primary" onclick="clearChat()">Clear Chat</button>
+                <button class="action-btn btn-danger" onclick="exportFeedback()">Export Feedback</button>
+            </div>
+        </div>
+
+        <!-- Chat Area - Floating Card -->
+        <div class="chat-area">
+            <div class="chat-messages" id="chatMessages">
+                <div class="welcome-message">
+                    <div class="welcome-avatar">
+                        <img src="/static/images/HR-chat-icon.png" alt="HR"
+                             onerror="this.onerror=null; this.src='/static/images/HR-chat-icon.jpg'">
+                    </div>
+                    <h2>Hello! I'm your HR Assistant.</h2>
+                    <p>I have access to the knowledge base and I'm ready to help. You can also upload additional documents if needed.</p>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="input-area">
+                <div class="input-container">
+                    <input type="text" id="messageInput" placeholder="Type your message here..." onkeypress="handleKeyPress(event)">
+                </div>
+                <button class="icon-btn mic-btn" id="micBtn" onclick="toggleRecording()">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                        <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                    </svg>
+                </button>
+                <button class="icon-btn send-btn" id="sendBtn" onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let sessionId = 'session_' + Date.now();
+        let isRecording = false;
+        let recognition = null;
+        let currentAudio = null;
+
+        // Initialize speech recognition
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('messageInput').value = transcript;
+                sendMessage(true);
+            };
+
+            recognition.onerror = function(event) {
+                console.error('Speech recognition error:', event.error);
+                stopRecording();
+            };
+
+            recognition.onend = function() {
+                stopRecording();
+            };
+        }
+
+        // Initialize session
+        async function initSession() {
+            try {
+                const response = await fetch('/init_session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId })
+                });
+                const data = await response.json();
+                
+                if (data.files && data.files.length > 0) {
+                    document.getElementById('kbStatus').textContent = 
+                        `${data.files.length} document(s) loaded. You can upload more documents to expand the knowledge base.`;
+                    updateFileList(data.files, 'preloaded');
+                }
+            } catch (error) {
+                console.error('Init error:', error);
+            }
+        }
+
+        // Toggle sidebar
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+        }
+
+        // Toggle voice recording
+        function toggleRecording() {
+            if (!recognition) {
+                alert('Speech recognition is not supported in your browser.');
+                return;
+            }
+
+            if (isRecording) {
+                recognition.stop();
+            } else {
+                recognition.start();
+                document.getElementById('micBtn').classList.add('recording');
+                isRecording = true;
+            }
+        }
+
+        function stopRecording() {
+            isRecording = false;
+            document.getElementById('micBtn').classList.remove('recording');
+        }
+
+        // Handle key press
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        // Send message
+        async function sendMessage(isVoiceInput = false) {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+
+            addMessage(message, true);
+            input.value = '';
+
+            const loadingId = addMessage('<div class="loading"></div>', false);
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        session_id: sessionId, 
+                        message: message,
+                        is_voice_input: isVoiceInput
+                    })
+                });
+
+                const data = await response.json();
+                removeMessage(loadingId);
+
+                if (data.error) {
+                    addMessage('Error: ' + data.error, false);
+                } else {
+                    let botMessage = data.response;
+                    
+                    if (data.audio_url) {
+                        botMessage += `<button class="speaker-btn" onclick="playAudio('${data.audio_url}')">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+                            </svg>
+                        </button>`;
+                        
+                        if (isVoiceInput) {
+                            playAudio(data.audio_url);
+                        }
+                    }
+                    
+                    addMessage(botMessage, false);
+
+                    if (data.video) {
+                        addVideoMessage(data.video, data.video_name);
+                    }
+
+                    if (data.session_ended) {
+                        setTimeout(() => {
+                            if (confirm('Would you like to rate your experience?')) {
+                                showFeedbackDialog();
+                            }
+                        }, 1000);
+                    }
+                }
+            } catch (error) {
+                removeMessage(loadingId);
+                addMessage('Error: Failed to send message', false);
+                console.error('Send error:', error);
+            }
+        }
+
+        function addMessage(content, isUser) {
+            const messagesDiv = document.getElementById('chatMessages');
+            const welcomeMsg = messagesDiv.querySelector('.welcome-message');
+            if (welcomeMsg) welcomeMsg.remove();
+
+            const messageId = 'msg_' + Date.now();
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message ' + (isUser ? 'user-message' : 'bot-message');
+            messageDiv.id = messageId;
+            
+            const avatarContent = isUser 
+                ? 'U' 
+                : '<img src="/static/images/HR-chat-icon.png" alt="HR" onerror="this.onerror=null; this.src=\'/static/images/HR-chat-icon.jpg\'">';
+            
+            messageDiv.innerHTML = `
+                <div class="message-avatar ${isUser ? 'user-avatar' : 'bot-avatar'}">
+                    ${avatarContent}
+                </div>
+                <div class="message-content">${content}</div>
+            `;
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            return messageId;
+        }
+
+        function removeMessage(messageId) {
+            const msg = document.getElementById(messageId);
+            if (msg) msg.remove();
+        }
+
+        function addVideoMessage(videoUrl, videoName) {
+            const messagesDiv = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message bot-message';
+            
+            messageDiv.innerHTML = `
+                <div class="message-avatar bot-avatar">
+                    <img src="/static/images/HR-chat-icon.png" alt="HR"
+                         onerror="this.onerror=null; this.src='/static/images/HR-chat-icon.jpg'">
+                </div>
+                <div class="message-content">
+                    <p>Here's a related video: <strong>${videoName}</strong></p>
+                    <div class="video-container">
+                        <video controls>
+                            <source src="${videoUrl}" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
+                </div>
+            `;
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function playAudio(audioUrl) {
+            if (currentAudio) {
+                currentAudio.pause();
+            }
+            currentAudio = new Audio(audioUrl);
+            currentAudio.play();
+        }
+
+        document.getElementById('fileInput').addEventListener('change', async function(e) {
+            const files = e.target.files;
+            if (files.length === 0) return;
+
+            const formData = new FormData();
+            formData.append('session_id', sessionId);
+            
+            for (let file of files) {
+                formData.append('files', file);
+            }
+
+            try {
+                addMessage('Uploading files...', false);
+                
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    addMessage(`Successfully uploaded ${data.files.length} file(s): ${data.files.join(', ')}`, false);
+                    updateFileList(data.files, 'uploaded');
+                    
+                    const currentCount = document.querySelectorAll('.file-item').length;
+                    document.getElementById('kbStatus').textContent = 
+                        `${currentCount} document(s) loaded. You can upload more documents to expand the knowledge base.`;
+                } else {
+                    addMessage('Error uploading files: ' + data.error, false);
+                }
+            } catch (error) {
+                addMessage('Error uploading files', false);
+                console.error('Upload error:', error);
+            }
+
+            e.target.value = '';
+        });
+
+        function updateFileList(files, type) {
+            const fileListDiv = document.getElementById('fileList');
+            
+            files.forEach(file => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/>
+                    </svg>
+                    <span>${file}</span>
+                `;
+                fileListDiv.appendChild(fileItem);
+            });
+        }
+
+        async function exportChat() {
+            try {
+                const response = await fetch('/export/json', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId })
+                });
+
+                const data = await response.json();
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `chat_export_${Date.now()}.json`;
+                a.click();
+            } catch (error) {
+                alert('Error exporting chat');
+                console.error('Export error:', error);
+            }
+        }
+
+        async function clearChat() {
+            if (!confirm('Are you sure you want to clear the chat history?')) return;
+
+            try {
+                await fetch('/clear', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId })
+                });
+
+                document.getElementById('chatMessages').innerHTML = `
+                    <div class="welcome-message">
+                        <div class="welcome-avatar">
+                            <img src="/static/images/HR-chat-icon.png" alt="HR"
+                                 onerror="this.onerror=null; this.src='/static/images/HR-chat-icon.jpg'">
+                        </div>
+                        <h2>Hello! I'm your HR Assistant.</h2>
+                        <p>I have access to the knowledge base and I'm ready to help. You can also upload additional documents if needed.</p>
+                    </div>
+                `;
+            } catch (error) {
+                alert('Error clearing chat');
+                console.error('Clear error:', error);
+            }
+        }
+
+        async function exportFeedback() {
+            try {
+                const response = await fetch('/export/feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    const blob = new Blob([data.csv_data], { type: 'text/csv' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = data.filename;
+                    a.click();
+                } else {
+                    alert(data.error || 'No feedback data available');
+                }
+            } catch (error) {
+                alert('Error exporting feedback');
+                console.error('Feedback export error:', error);
+            }
+        }
+
+        function showFeedbackDialog() {
+            const rating = prompt('Rate your experience (1-5):', '5');
+            if (rating === null) return;
+
+            const comment = prompt('Any additional comments? (optional):', '');
+
+            fetch('/feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    rating: parseInt(rating),
+                    comment: comment || ''
+                })
+            }).then(response => response.json())
+              .then(data => {
+                  if (data.success) {
+                      alert('Thank you for your feedback!');
+                      document.getElementById('feedbackStatus').textContent = 
+                          `Last rating: ${rating}/5`;
+                  }
+              });
+        }
+
+        window.addEventListener('load', initSession);
+    </script>
+</body>
+</html>
