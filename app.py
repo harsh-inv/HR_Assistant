@@ -388,7 +388,7 @@ def chat():
         try:
             all_text, processed_files = load_documents_from_directory(
                 app.config['DOCUMENTS_FOLDER'],
-                max_files=50  # Limit to prevent memory issues
+                max_files=50
             )
             
             if all_text:
@@ -425,16 +425,16 @@ def chat():
             'timestamp': datetime.now().isoformat()
         })
         
+        # Generate audio for goodbye message
         audio_url = None
-        if is_voice_input:
-            try:
-                audio_filename = f"response_{uuid.uuid4().hex}.mp3"
-                audio_path = os.path.join('static', 'audio', audio_filename)
-                tts = gTTS(text=response, lang='en', slow=False)
-                tts.save(audio_path)
-                audio_url = f'/static/audio/{audio_filename}'
-            except Exception as e:
-                print(f"TTS error: {e}")
+        try:
+            audio_filename = f"response_{uuid.uuid4().hex}.mp3"
+            audio_path = os.path.join('static', 'audio', audio_filename)
+            tts = gTTS(text=response, lang='en', slow=False)
+            tts.save(audio_path)
+            audio_url = f'/static/audio/{audio_filename}'
+        except Exception as e:
+            print(f"TTS error: {e}")
         
         return jsonify({
             'response': response,
@@ -461,15 +461,19 @@ def chat():
                 'should_speak': is_voice_input
             }
             
-            if is_voice_input:
-                try:
-                    audio_filename = f"response_{uuid.uuid4().hex}.mp3"
-                    audio_path = os.path.join('static', 'audio', audio_filename)
-                    tts = gTTS(text=response, lang='en', slow=False)
-                    tts.save(audio_path)
-                    response_data['audio_url'] = f'/static/audio/{audio_filename}'
-                except Exception as e:
-                    print(f"TTS error: {e}")
+            # ALWAYS generate audio for bot responses (not just voice input)
+            try:
+                audio_filename = f"response_{uuid.uuid4().hex}.mp3"
+                audio_path = os.path.join('static', 'audio', audio_filename)
+                tts = gTTS(text=response, lang='en', slow=False)
+                tts.save(audio_path)
+                response_data['audio_url'] = f'/static/audio/{audio_filename}'
+                
+                # Only auto-play if it was voice input
+                if is_voice_input:
+                    response_data['auto_play'] = True
+            except Exception as e:
+                print(f"TTS error: {e}")
             
             if related_video:
                 response_data['video'] = f'/static/videos/{related_video}'
@@ -484,6 +488,7 @@ def chat():
             return jsonify({'error': f'Error processing request: {str(e)}'}), 500
     else:
         return jsonify({'error': 'Knowledge base is loading. Please try again in a moment.'}), 400
+
 
 @app.route('/text_to_speech', methods=['POST'])
 def text_to_speech():
@@ -621,4 +626,5 @@ def get_loaded_files():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
 
