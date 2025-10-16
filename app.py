@@ -185,14 +185,23 @@ def load_documents_from_directory(directory, max_files=None):
 def similarity_score(str1, str2):
     return SequenceMatcher(None, str1.lower(), str2.lower()).ratio()
 
-def find_related_video(query, threshold=0.3):
+def find_related_video(query, threshold=0.5):  # Increased from 0.3 to 0.5
+    """Find related video with improved matching"""
     videos_folder = app.config['VIDEOS_FOLDER']
     
     if not os.path.exists(videos_folder):
         return None
     
+    # Clean query
     query_clean = re.sub(r'[^\w\s]', '', query.lower())
     query_words = set(query_clean.split())
+    
+    # Remove common stop words
+    stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can'}
+    query_words = query_words - stop_words
+    
+    if len(query_words) == 0:
+        return None
     
     best_match = None
     best_score = 0
@@ -202,19 +211,36 @@ def find_related_video(query, threshold=0.3):
             name_without_ext = os.path.splitext(filename)[0]
             name_clean = re.sub(r'[^\w\s]', ' ', name_without_ext.lower())
             name_words = set(name_clean.split())
+            name_words = name_words - stop_words
             
+            if len(name_words) == 0:
+                continue
+            
+            # Calculate word overlap (must have at least 2 matching words)
             common_words = query_words.intersection(name_words)
+            if len(common_words) < 2:  # Require at least 2 matching words
+                continue
+            
             word_overlap = len(common_words) / max(len(query_words), 1)
             
+            # String similarity
             string_sim = similarity_score(query_clean, name_clean)
             
-            combined_score = (word_overlap * 0.6) + (string_sim * 0.4)
+            # Combined score with stricter requirements
+            combined_score = (word_overlap * 0.7) + (string_sim * 0.3)
             
             if combined_score > best_score and combined_score >= threshold:
                 best_score = combined_score
                 best_match = filename
     
+    # Debug logging
+    if best_match:
+        print(f"Video match: '{query}' → '{best_match}' (score: {best_score:.2f})")
+    else:
+        print(f"No video match found for: '{query}'")
+    
     return best_match
+
 
 def create_chain(vectorstore):
     retriever = vectorstore.as_retriever(
@@ -595,3 +621,4 @@ def get_loaded_files():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
