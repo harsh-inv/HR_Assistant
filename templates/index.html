@@ -498,6 +498,7 @@
         }
 
         /* Speaker Button */
+        /* Speaker/Stop Button States */
         .speaker-btn {
             width: 30px;
             height: 30px;
@@ -507,18 +508,44 @@
             padding: 0;
             margin-left: 10px;
             opacity: 0.7;
-            transition: opacity 0.3s;
+            transition: all 0.3s;
+            position: relative;
         }
-
+        
         .speaker-btn:hover {
             opacity: 1;
+            transform: scale(1.1);
         }
-
+        
         .speaker-btn svg {
             width: 20px;
             height: 20px;
             fill: #3498db;
+            transition: fill 0.3s;
         }
+        
+        .speaker-btn.playing svg {
+            fill: #e74c3c;
+            animation: pulse-audio 1s infinite;
+        }
+        
+        @keyframes pulse-audio {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.6;
+            }
+        }
+        
+        .speaker-btn:hover svg {
+            fill: #2980b9;
+        }
+        
+        .speaker-btn.playing:hover svg {
+            fill: #c0392b;
+        }
+
 
         /* Responsive */
         @media (max-width: 768px) {
@@ -719,69 +746,76 @@
 
         // Send message
         async function sendMessage(isVoiceInput = false) {
-            const input = document.getElementById('messageInput');
-            const message = input.value.trim();
-            
-            if (!message) return;
+        const input = document.getElementById('messageInput');
+        const message = input.value.trim();
         
-            addMessage(message, true);
-            input.value = '';
-        
-            const loadingId = addMessage('<div class="loading"></div>', false);
-        
-            try {
-                const response = await fetch('/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        session_id: sessionId, 
-                        message: message,
-                        is_voice_input: isVoiceInput
-                    })
-                });
-        
-                const data = await response.json();
-                removeMessage(loadingId);
-        
-                if (data.error) {
-                    addMessage('Error: ' + data.error, false);
-                } else {
-                    let botMessage = data.response;
-                    
-                    // ALWAYS add speaker button if audio is available
-                    if (data.audio_url) {
-                        botMessage += `<button class="speaker-btn" onclick="playAudio('${data.audio_url}')">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
-                            </svg>
-                        </button>`;
-                        
-                        // Auto-play only if it was voice input
-                        if (data.auto_play || isVoiceInput) {
-                            playAudio(data.audio_url);
-                        }
-                    }
-                    
-                    addMessage(botMessage, false);
-        
-                    if (data.video) {
-                        addVideoMessage(data.video, data.video_name);
-                    }
-        
-                    if (data.session_ended) {
-                        setTimeout(() => {
-                            if (confirm('Would you like to rate your experience?')) {
-                                showFeedbackDialog();
-                            }
-                        }, 1000);
-                    }
+        if (!message) return;
+    
+        addMessage(message, true);
+        input.value = '';
+    
+        const loadingId = addMessage('<div class="loading"></div>', false);
+    
+        try {
+            const response = await fetch('/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    session_id: sessionId, 
+                    message: message,
+                    is_voice_input: isVoiceInput
+                })
+            });
+    
+            const data = await response.json();
+            removeMessage(loadingId);
+    
+            if (data.error) {
+                addMessage('Error: ' + data.error, false);
+            } else {
+                let botMessage = data.response;
+                
+                // Add speaker button with unique ID for each message
+                if (data.audio_url) {
+                    const btnId = 'audio-btn-' + Date.now();
+                    botMessage += `<button class="speaker-btn" id="${btnId}" onclick="toggleAudio('${data.audio_url}', this)">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+                        </svg>
+                    </button>`;
                 }
-            } catch (error) {
-                removeMessage(loadingId);
-                addMessage('Error: Failed to send message - ' + error.message, false);
-                console.error('Send error:', error);
+                
+                const messageId = addMessage(botMessage, false);
+                
+                // Auto-play only if it was voice input
+                if (data.audio_url && (data.auto_play || isVoiceInput)) {
+                    // Get the button element and play
+                    setTimeout(() => {
+                        const btnElement = document.querySelector(`#${messageId} .speaker-btn`);
+                        if (btnElement) {
+                            playAudio(data.audio_url, btnElement);
+                        }
+                    }, 100);
+                }
+    
+                if (data.video) {
+                    addVideoMessage(data.video, data.video_name);
+                }
+    
+                if (data.session_ended) {
+                    setTimeout(() => {
+                        if (confirm('Would you like to rate your experience?')) {
+                            showFeedbackDialog();
+                        }
+                    }, 1000);
+                }
             }
+        } catch (error) {
+            removeMessage(loadingId);
+            addMessage('Error: Failed to send message - ' + error.message, false);
+            console.error('Send error:', error);
         }
+    }
 
         function addMessage(content, isUser) {
             const messagesDiv = document.getElementById('chatMessages');
@@ -840,52 +874,122 @@
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
 
-        function playAudio(audioUrl) {
+        let sessionId = 'session_' + Date.now();
+        let isRecording = false;
+        let recognition = null;
+        let currentAudio = null;
+        let currentAudioButton = null; // Track which button is playing
+        
+        // Initialize speech recognition
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+        
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('messageInput').value = transcript;
+                sendMessage(true);
+            };
+        
+            recognition.onerror = function(event) {
+                console.error('Speech recognition error:', event.error);
+                stopRecording();
+            };
+        
+            recognition.onend = function() {
+                stopRecording();
+            };
+        }
+        
+        // Toggle audio play/stop
+        function toggleAudio(audioUrl, buttonElement) {
+            // If this button is currently playing, stop it
+            if (currentAudioButton === buttonElement && currentAudio && !currentAudio.paused) {
+                stopAudio();
+                return;
+            }
+            
+            // Stop any currently playing audio
+            stopAudio();
+            
+            // Play new audio
+            playAudio(audioUrl, buttonElement);
+        }
+        
+        // Play audio
+        function playAudio(audioUrl, buttonElement) {
+            // Stop any existing audio
             if (currentAudio) {
                 currentAudio.pause();
+                currentAudio = null;
             }
-            currentAudio = new Audio(audioUrl);
-            currentAudio.play();
-        }
-
-        document.getElementById('fileInput').addEventListener('change', async function(e) {
-            const files = e.target.files;
-            if (files.length === 0) return;
-
-            const formData = new FormData();
-            formData.append('session_id', sessionId);
             
-            for (let file of files) {
-                formData.append('files', file);
+            // Remove playing state from previous button
+            if (currentAudioButton) {
+                currentAudioButton.classList.remove('playing');
+                currentAudioButton.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+                    </svg>
+                `;
             }
-
-            try {
-                addMessage('Uploading files...', false);
-                
-                const response = await fetch('/upload', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const data = await response.json();
-                
-                if (data.success) {
-                    addMessage(`Successfully uploaded ${data.files.length} file(s): ${data.files.join(', ')}`, false);
-                    updateFileList(data.files, 'uploaded');
-                    
-                    const currentCount = document.querySelectorAll('.file-item').length;
-                    document.getElementById('kbStatus').textContent = 
-                        `${currentCount} document(s) loaded. You can upload more documents to expand the knowledge base.`;
-                } else {
-                    addMessage('Error uploading files: ' + data.error, false);
+            
+            // Create and play new audio
+            currentAudio = new Audio(audioUrl);
+            currentAudioButton = buttonElement || null;
+            
+            // Update button to stop icon if button element provided
+            if (buttonElement) {
+                buttonElement.classList.add('playing');
+                buttonElement.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M6 6h12v12H6z"/>
+                    </svg>
+                `;
+            }
+            
+            // When audio ends, reset button
+            currentAudio.onended = function() {
+                if (currentAudioButton) {
+                    currentAudioButton.classList.remove('playing');
+                    currentAudioButton.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+                        </svg>
+                    `;
                 }
-            } catch (error) {
-                addMessage('Error uploading files', false);
-                console.error('Upload error:', error);
+                currentAudio = null;
+                currentAudioButton = null;
+            };
+            
+            currentAudio.play().catch(err => {
+                console.error('Audio play error:', err);
+                if (currentAudioButton) {
+                    currentAudioButton.classList.remove('playing');
+                }
+            });
+        }
+        
+        // Stop audio
+        function stopAudio() {
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+                currentAudio = null;
             }
-
-            e.target.value = '';
-        });
+            
+            if (currentAudioButton) {
+                currentAudioButton.classList.remove('playing');
+                currentAudioButton.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+                    </svg>
+                `;
+                currentAudioButton = null;
+            }
+        }
 
         function updateFileList(files, type) {
             const fileListDiv = document.getElementById('fileList');
