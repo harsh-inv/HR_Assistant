@@ -723,12 +723,12 @@
             const message = input.value.trim();
             
             if (!message) return;
-
+        
             addMessage(message, true);
             input.value = '';
-
+        
             const loadingId = addMessage('<div class="loading"></div>', false);
-
+        
             try {
                 const response = await fetch('/chat', {
                     method: 'POST',
@@ -739,15 +739,16 @@
                         is_voice_input: isVoiceInput
                     })
                 });
-
+        
                 const data = await response.json();
                 removeMessage(loadingId);
-
+        
                 if (data.error) {
                     addMessage('Error: ' + data.error, false);
                 } else {
                     let botMessage = data.response;
                     
+                    // ALWAYS add speaker button if audio is available
                     if (data.audio_url) {
                         botMessage += `<button class="speaker-btn" onclick="playAudio('${data.audio_url}')">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
@@ -755,17 +756,18 @@
                             </svg>
                         </button>`;
                         
-                        if (isVoiceInput) {
+                        // Auto-play only if it was voice input
+                        if (data.auto_play || isVoiceInput) {
                             playAudio(data.audio_url);
                         }
                     }
                     
                     addMessage(botMessage, false);
-
+        
                     if (data.video) {
                         addVideoMessage(data.video, data.video_name);
                     }
-
+        
                     if (data.session_ended) {
                         setTimeout(() => {
                             if (confirm('Would you like to rate your experience?')) {
@@ -776,7 +778,7 @@
                 }
             } catch (error) {
                 removeMessage(loadingId);
-                addMessage('Error: Failed to send message', false);
+                addMessage('Error: Failed to send message - ' + error.message, false);
                 console.error('Send error:', error);
             }
         }
