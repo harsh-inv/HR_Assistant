@@ -82,7 +82,7 @@
             overflow: hidden;
         }
 
-        /* Sidebar - Narrower and Darker */
+        /* Sidebar */
         .sidebar {
             width: 300px;
             background: rgba(35, 47, 62, 0.98);
@@ -215,7 +215,7 @@
             background: #c0392b;
         }
 
-        /* Chat Area - Darker Background */
+        /* Chat Area */
         .chat-area {
             flex: 1;
             display: flex;
@@ -507,17 +507,41 @@
             padding: 0;
             margin-left: 10px;
             opacity: 0.7;
-            transition: opacity 0.3s;
+            transition: all 0.3s;
         }
 
         .speaker-btn:hover {
             opacity: 1;
+            transform: scale(1.1);
         }
 
         .speaker-btn svg {
             width: 20px;
             height: 20px;
             fill: #3498db;
+            transition: fill 0.3s;
+        }
+
+        .speaker-btn.playing svg {
+            fill: #e74c3c !important;
+            animation: pulse-audio 1s infinite;
+        }
+
+        @keyframes pulse-audio {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.6;
+            }
+        }
+
+        .speaker-btn:hover svg {
+            fill: #2980b9;
+        }
+
+        .speaker-btn.playing:hover svg {
+            fill: #c0392b;
         }
 
         /* Responsive */
@@ -563,7 +587,7 @@
     </div>
 
     <div class="container">
-        <!-- Sidebar - Floating Card -->
+        <!-- Sidebar -->
         <div class="sidebar" id="sidebar">
             <!-- Knowledge Base Section -->
             <div class="sidebar-section">
@@ -604,7 +628,7 @@
             </div>
         </div>
 
-        <!-- Chat Area - Floating Card -->
+        <!-- Chat Area -->
         <div class="chat-area">
             <div class="chat-messages" id="chatMessages">
                 <div class="welcome-message">
@@ -638,6 +662,7 @@
         let isRecording = false;
         let recognition = null;
         let currentAudio = null;
+        let currentAudioButton = null;
 
         // Initialize speech recognition
         if ('webkitSpeechRecognition' in window) {
@@ -660,6 +685,84 @@
             recognition.onend = function() {
                 stopRecording();
             };
+        }
+
+        // Toggle audio play/stop
+        function toggleAudio(audioUrl, buttonElement) {
+            if (currentAudioButton === buttonElement && currentAudio && !currentAudio.paused) {
+                stopAudio();
+                return;
+            }
+            stopAudio();
+            playAudio(audioUrl, buttonElement);
+        }
+
+        // Play audio
+        function playAudio(audioUrl, buttonElement) {
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
+            
+            if (currentAudioButton) {
+                currentAudioButton.classList.remove('playing');
+                currentAudioButton.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+                    </svg>
+                `;
+            }
+            
+            currentAudio = new Audio(audioUrl);
+            currentAudioButton = buttonElement || null;
+            
+            if (buttonElement) {
+                buttonElement.classList.add('playing');
+                buttonElement.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M6 6h12v12H6z"/>
+                    </svg>
+                `;
+            }
+            
+            currentAudio.onended = function() {
+                if (currentAudioButton) {
+                    currentAudioButton.classList.remove('playing');
+                    currentAudioButton.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+                        </svg>
+                    `;
+                }
+                currentAudio = null;
+                currentAudioButton = null;
+            };
+            
+            currentAudio.play().catch(err => {
+                console.error('Audio play error:', err);
+                if (currentAudioButton) {
+                    currentAudioButton.classList.remove('playing');
+                }
+            });
+        }
+
+        // Stop audio
+        function stopAudio() {
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+                currentAudio = null;
+            }
+            
+            if (currentAudioButton) {
+                currentAudioButton.classList.remove('playing');
+                currentAudioButton.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+                    </svg>
+                `;
+                currentAudioButton = null;
+            }
         }
 
         // Initialize session
@@ -748,21 +851,27 @@
                 } else {
                     let botMessage = data.response;
                     
-                    // ALWAYS add speaker button if audio is available
+                    // Add speaker button with toggle functionality
                     if (data.audio_url) {
-                        botMessage += `<button class="speaker-btn" onclick="playAudio('${data.audio_url}')">
+                        const btnId = 'audio-btn-' + Date.now();
+                        botMessage += `<button class="speaker-btn" id="${btnId}" onclick="toggleAudio('${data.audio_url}', this)">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                                 <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
                             </svg>
                         </button>`;
-                        
-                        // Auto-play only if it was voice input
-                        if (data.auto_play || isVoiceInput) {
-                            playAudio(data.audio_url);
-                        }
                     }
                     
-                    addMessage(botMessage, false);
+                    const messageId = addMessage(botMessage, false);
+                    
+                    // Auto-play only if it was voice input
+                    if (data.audio_url && (data.auto_play || isVoiceInput)) {
+                        setTimeout(() => {
+                            const btnElement = document.querySelector(`#${messageId} .speaker-btn`);
+                            if (btnElement) {
+                                playAudio(data.audio_url, btnElement);
+                            }
+                        }, 100);
+                    }
         
                     if (data.video) {
                         addVideoMessage(data.video, data.video_name);
@@ -838,14 +947,6 @@
             
             messagesDiv.appendChild(messageDiv);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-
-        function playAudio(audioUrl) {
-            if (currentAudio) {
-                currentAudio.pause();
-            }
-            currentAudio = new Audio(audioUrl);
-            currentAudio.play();
         }
 
         document.getElementById('fileInput').addEventListener('change', async function(e) {
