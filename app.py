@@ -38,13 +38,12 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['DOCUMENTS_FOLDER'] = os.getenv('DOCUMENTS_FOLDER', '/opt/render/project/src/documents')
-app.config['MAX_DOCUMENTS'] = 100  # Maximum number of documents to load
+app.config['MAX_DOCUMENTS'] = 50  # Reduced to prevent memory issues
 app.config['VIDEOS_FOLDER'] = 'static/videos'
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 
-# Validate that the key exists
 if not OPENAI_API_KEY:
     raise ValueError("OPENAI_API_KEY environment variable is not set. Please configure it in Render dashboard.")
 
@@ -65,7 +64,8 @@ def get_session(session_id):
             'chat_history': [],
             'uploaded_files': [],
             'feedback_history': [],
-            'preloaded_files': []
+            'preloaded_files': [],
+            'documents_loaded': False
         }
     return sessions[session_id]
 
@@ -142,25 +142,44 @@ def process_file(file_path_or_obj, filename):
             return extract_txt_text(file_path_or_obj)
     return ""
 
-def load_documents_from_directory(directory):
+def load_documents_from_directory(directory, max_files=None):
+    """Load documents with memory optimization"""
     all_text = ""
     processed_files = []
     
     if not os.path.exists(directory):
+        print(f"Directory does not exist: {directory}")
         return all_text, processed_files
     
+    # Get all valid files (including subdirectories)
+    all_files = []
     for root, dirs, files in os.walk(directory):
         for filename in files:
             if filename.lower().endswith(('.pdf', '.docx', '.doc', '.txt')):
-                file_path = os.path.join(root, filename)
-                try:
-                    text = process_file(file_path, filename)
-                    if text:
-                        all_text += f"\n\n--- {filename} ---\n{text}"
-                        processed_files.append(filename)
-                except Exception as e:
-                    print(f"Error processing {filename}: {e}")
+                all_files.append((root, filename))
     
+    # Limit files to prevent memory issues
+    if max_files is None:
+        max_files = app.config.get('MAX_DOCUMENTS', 50)
+    
+    if len(all_files) > max_files:
+        print(f"⚠ Limiting to {max_files} documents (found {len(all_files)})")
+        all_files = all_files[:max_files]
+    
+    print(f"Processing {len(all_files)} documents...")
+    
+    # Process files
+    for root, filename in all_files:
+        file_path = os.path.join(root, filename)
+        try:
+            text = process_file(file_path, filename)
+            if text:
+                all_text += f"\n\n--- {filename} ---\n{text}"
+                processed_files.append(filename)
+        except Exception as e:
+            print(f"Error processing {filename}: {e}")
+    
+    print(f"Successfully processed {len(processed_files)} files")
     return all_text, processed_files
 
 def similarity_score(str1, str2):
@@ -198,7 +217,10 @@ def find_related_video(query, threshold=0.3):
     return best_match
 
 def create_chain(vectorstore):
-    retriever = vectorstore.as_retriever()
+    retriever = vectorstore.as_retriever(
+        search_type="similarity",
+        search_kwargs={"k": 3}  # Reduced from 5 to save memory
+    )
     
     prompt = ChatPromptTemplate.from_template("""
 You are an HR Assistant for Invenio Business Solutions. Answer questions ONLY using the provided context from HR policy documents.
@@ -217,7 +239,7 @@ IMPORTANT RULES:
 Answer:
 """)
     
-    llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.0)  # Changed to 0.0 for less creativity
+    llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.0)
     document_chain = create_stuff_documents_chain(llm, prompt)
     return create_retrieval_chain(retriever, document_chain)
 
@@ -228,95 +250,100 @@ def index():
 
 @app.route('/init_session', methods=['POST'])
 def init_session():
-    session_id = request.json.get('session_id', 'default')
-    session = get_session(session_id)
-    
-    # Debug: Check documents folder
-    print(f"Documents folder path: {os.path.abspath(app.config['DOCUMENTS_FOLDER'])}")
-    print(f"Documents folder exists: {os.path.exists(app.config['DOCUMENTS_FOLDER'])}")
-    if os.path.exists(app.config['DOCUMENTS_FOLDER']):
-        files_in_folder = os.listdir(app.config['DOCUMENTS_FOLDER'])
-        print(f"Files in documents folder: {len(files_in_folder)} files found")
-        if len(files_in_folder) > app.config['MAX_DOCUMENTS']:
-            print(f"WARNING: Found {len(files_in_folder)} files, limiting to {app.config['MAX_DOCUMENTS']} files")
-    
-    all_text, processed_files = load_documents_from_directory(app.config['DOCUMENTS_FOLDER'])
-    
-    if all_text:
-        text_splitter = CharacterTextSplitter(
-            separator="\n",
-            chunk_size=1000,
-            chunk_overlap=200,
-            length_function=len
-        )
-        texts = text_splitter.split_text(all_text)
-        embeddings = OpenAIEmbeddings()
-        vectorstore = FAISS.from_texts(texts, embeddings)
-        session['vectorstore'] = vectorstore
-        session['conversation_chain'] = create_chain(vectorstore)
-        session['preloaded_files'] = processed_files
+    """Initialize session WITHOUT loading documents - just count them"""
+    try:
+        session_id = request.json.get('session_id', 'default')
+        session = get_session(session_id)
+        
+        docs_folder = app.config['DOCUMENTS_FOLDER']
+        
+        # Just count files, don't load them
+        file_count = 0
+        file_list = []
+        
+        if os.path.exists(docs_folder):
+            for root, dirs, files in os.walk(docs_folder):
+                for filename in files:
+                    if filename.lower().endswith(('.pdf', '.docx', '.doc', '.txt')):
+                        file_count += 1
+                        file_list.append(filename)
+        
+        if file_count > 0:
+            return jsonify({
+                'success': True,
+                'files': file_list[:10],  # Show first 10 files only
+                'message': f'{file_count} documents available (will load on first message to save memory)'
+            })
         
         return jsonify({
             'success': True,
-            'files': processed_files,
-            'message': f'Loaded {len(processed_files)} documents from knowledge base'
+            'files': [],
+            'message': 'No documents found. You can upload documents to get started.'
         })
-    
-    return jsonify({
-        'success': True,
-        'files': [],
-        'message': 'No documents found in knowledge base. You can upload documents to get started.'
-    })
+        
+    except Exception as e:
+        import traceback
+        print(f"ERROR in init_session: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/upload', methods=['POST'])
 def upload_files():
-    session_id = request.form.get('session_id', 'default')
-    session = get_session(session_id)
-    
-    if 'files' not in request.files:
-        return jsonify({'error': 'No files provided'}), 400
-    
-    files = request.files.getlist('files')
-    all_text = ""
-    processed_files = []
-    
-    for file in files:
-        if file.filename:
-            filename = secure_filename(file.filename)
-            text = process_file(file, filename)
-            if text:
-                all_text += f"\n\n--- {filename} ---\n{text}"
-                processed_files.append(filename)
-                
-                file.seek(0)
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-    
-    if all_text:
-        text_splitter = CharacterTextSplitter(
-            separator="\n",
-            chunk_size=1000,
-            chunk_overlap=200,
-            length_function=len
-        )
-        texts = text_splitter.split_text(all_text)
-        embeddings = OpenAIEmbeddings()
+    try:
+        session_id = request.form.get('session_id', 'default')
+        session = get_session(session_id)
         
-        if session['vectorstore']:
-            session['vectorstore'].add_texts(texts)
-        else:
-            vectorstore = FAISS.from_texts(texts, embeddings)
-            session['vectorstore'] = vectorstore
+        if 'files' not in request.files:
+            return jsonify({'error': 'No files provided'}), 400
         
-        session['conversation_chain'] = create_chain(session['vectorstore'])
-        session['uploaded_files'].extend(processed_files)
+        files = request.files.getlist('files')
+        all_text = ""
+        processed_files = []
         
-        return jsonify({
-            'success': True,
-            'files': processed_files,
-            'message': f'Successfully processed {len(processed_files)} files'
-        })
-    
-    return jsonify({'error': 'No text could be extracted from files'}), 400
+        for file in files:
+            if file.filename:
+                filename = secure_filename(file.filename)
+                text = process_file(file, filename)
+                if text:
+                    all_text += f"\n\n--- {filename} ---\n{text}"
+                    processed_files.append(filename)
+                    
+                    file.seek(0)
+                    file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        
+        if all_text:
+            text_splitter = CharacterTextSplitter(
+                separator="\n",
+                chunk_size=1000,
+                chunk_overlap=200,
+                length_function=len
+            )
+            texts = text_splitter.split_text(all_text)
+            embeddings = OpenAIEmbeddings()
+            
+            if session['vectorstore']:
+                session['vectorstore'].add_texts(texts)
+            else:
+                vectorstore = FAISS.from_texts(texts, embeddings)
+                session['vectorstore'] = vectorstore
+            
+            session['conversation_chain'] = create_chain(session['vectorstore'])
+            session['uploaded_files'].extend(processed_files)
+            session['documents_loaded'] = True
+            
+            return jsonify({
+                'success': True,
+                'files': processed_files,
+                'message': f'Successfully processed {len(processed_files)} files'
+            })
+        
+        return jsonify({'error': 'No text could be extracted from files'}), 400
+        
+    except Exception as e:
+        import traceback
+        print(f"Upload error: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -328,6 +355,34 @@ def chat():
     
     if not message:
         return jsonify({'error': 'No message provided'}), 400
+    
+    # LAZY LOADING: Load documents on first chat message
+    if not session.get('documents_loaded') and session['conversation_chain'] is None:
+        print("🔄 Loading documents on first message...")
+        try:
+            all_text, processed_files = load_documents_from_directory(
+                app.config['DOCUMENTS_FOLDER'],
+                max_files=50  # Limit to prevent memory issues
+            )
+            
+            if all_text:
+                text_splitter = CharacterTextSplitter(
+                    separator="\n",
+                    chunk_size=1000,
+                    chunk_overlap=200,
+                    length_function=len
+                )
+                texts = text_splitter.split_text(all_text)
+                embeddings = OpenAIEmbeddings()
+                vectorstore = FAISS.from_texts(texts, embeddings)
+                session['vectorstore'] = vectorstore
+                session['conversation_chain'] = create_chain(vectorstore)
+                session['preloaded_files'] = processed_files
+                session['documents_loaded'] = True
+                print(f"✅ Loaded {len(processed_files)} documents successfully")
+        except Exception as e:
+            print(f"❌ Error loading documents: {e}")
+            return jsonify({'error': f'Error loading knowledge base: {str(e)}'}), 500
     
     session['chat_history'].append({
         'message': message,
@@ -344,7 +399,6 @@ def chat():
             'timestamp': datetime.now().isoformat()
         })
         
-        # Generate audio for voice input
         audio_url = None
         if is_voice_input:
             try:
@@ -381,7 +435,6 @@ def chat():
                 'should_speak': is_voice_input
             }
             
-            # Generate audio automatically if voice input
             if is_voice_input:
                 try:
                     audio_filename = f"response_{uuid.uuid4().hex}.mp3"
@@ -399,9 +452,12 @@ def chat():
             return jsonify(response_data)
             
         except Exception as e:
+            import traceback
+            print(f"Chat error: {str(e)}")
+            print(traceback.format_exc())
             return jsonify({'error': f'Error processing request: {str(e)}'}), 500
     else:
-        return jsonify({'error': 'Please upload documents first or wait for knowledge base to load'}), 400
+        return jsonify({'error': 'Knowledge base is loading. Please try again in a moment.'}), 400
 
 @app.route('/text_to_speech', methods=['POST'])
 def text_to_speech():
@@ -494,13 +550,20 @@ def export_feedback():
 def clear_session():
     session_id = request.json.get('session_id', 'default')
     if session_id in sessions:
+        # Keep vectorstore to avoid reloading
+        vectorstore = sessions[session_id].get('vectorstore')
+        conversation_chain = sessions[session_id].get('conversation_chain')
+        preloaded_files = sessions[session_id].get('preloaded_files', [])
+        documents_loaded = sessions[session_id].get('documents_loaded', False)
+        
         sessions[session_id] = {
-            'vectorstore': None,
-            'conversation_chain': None,
+            'vectorstore': vectorstore,
+            'conversation_chain': conversation_chain,
             'chat_history': [],
             'uploaded_files': [],
             'feedback_history': [],
-            'preloaded_files': []
+            'preloaded_files': preloaded_files,
+            'documents_loaded': documents_loaded
         }
     return jsonify({'success': True})
 
@@ -532,4 +595,3 @@ def get_loaded_files():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
-
