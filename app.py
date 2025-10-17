@@ -14,6 +14,7 @@ import re
 from gtts import gTTS
 import uuid
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 warnings.filterwarnings("ignore")
@@ -57,7 +58,6 @@ os.makedirs(app.config['VIDEOS_FOLDER'], exist_ok=True)
 os.makedirs(os.path.join('static', 'audio'), exist_ok=True)
 os.makedirs(app.config['SESSION_CACHE_FOLDER'], exist_ok=True)
 
-# CHANGED: Use FAISS native format instead of pickle
 FAISS_INDEX_PATH = os.path.join(app.config['DOCUMENTS_FOLDER'], '.faiss_index')
 CACHE_HASH_FILE = os.path.join(app.config['DOCUMENTS_FOLDER'], '.cache_hash.txt')
 
@@ -67,6 +67,12 @@ global_state_lock = threading.Lock()
 
 # In-memory sessions for current worker
 sessions = {}
+
+# CHANGED: Lazy loading - vectorstore is None until first request
+global_vectorstore = None
+global_chain = None
+vectorstore_lock = threading.Lock()
+loading_thread = None
 
 GREETING_PATTERNS = [
     'hi', 'hello', 'hey', 'greetings', 'good morning', 'good afternoon',
@@ -150,70 +156,59 @@ def get_directory_hash(directory):
                         file_count += 1
                     except:
                         pass
-        print(f"Directory hash calculated for {file_count} files")
     except Exception as e:
         print(f"Error calculating directory hash: {e}")
     return hash_obj.hexdigest()
 
+# OPTIMIZED: Use only PyMuPDF (fastest)
 def extract_pdf_text(pdf_file):
+    """Extract text using only PyMuPDF - fastest method"""
     text = ""
     try:
         pdf_bytes = pdf_file.read()
         pdf_file.seek(0)
-        import sys
-        from contextlib import redirect_stderr
-        from io import StringIO
-        f = StringIO()
-        with redirect_stderr(f):
-            doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-            # CHANGED: Reduce to 30 pages instead of 50
-            for page_num in range(min(doc.page_count, 30)):
-                try:
-                    page = doc.load_page(page_num)
-                    text += page.get_text() + "\n"
-                except:
-                    continue
-            doc.close()
-        if text.strip():
-            return text
-    except:
-        pass
-    
-    try:
-        pdf_file.seek(0)
-        with pdfplumber.open(pdf_file) as pdf:
-            # CHANGED: Reduce to 30 pages
-            for page in pdf.pages[:30]:
-                try:
-                    page_text = page.extract_text()
-                    if page_text:
-                        text += page_text + "\n"
-                except:
-                    continue
-    except:
-        pass
-    
-    return text if text.strip() else "Could not extract text from PDF"
+        
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        # CHANGED: Reduced to 20 pages for speed
+        for page_num in range(min(doc.page_count, 20)):
+            try:
+                page = doc.load_page(page_num)
+                text += page.get_text() + "\n"
+            except:
+                continue
+        doc.close()
+        
+        return text if text.strip() else "Could not extract text from PDF"
+    except Exception as e:
+        print(f"PDF extraction error: {e}")
+        return "Error reading PDF file"
 
 def extract_docx_text(docx_file):
     try:
         doc = Document(docx_file)
-        return "\n".join([para.text for para in doc.paragraphs if para.text.strip()])
+        # CHANGED: Limit to 100 paragraphs for speed
+        paragraphs = [para.text for para in doc.paragraphs if para.text.strip()]
+        return "\n".join(paragraphs[:100])
     except:
         return "Error reading DOCX file"
 
 def extract_txt_text(txt_file):
     try:
-        return txt_file.read().decode('utf-8')
+        content = txt_file.read().decode('utf-8')
+        # CHANGED: Limit to 10000 chars for speed
+        return content[:10000]
     except:
         try:
             txt_file.seek(0)
-            return txt_file.read().decode('latin-1')
+            content = txt_file.read().decode('latin-1')
+            return content[:10000]
         except:
             return "Error reading TXT file"
 
 def process_file(file_path_or_obj, filename):
+    """Process single file with timeout protection"""
     file_ext = filename.lower().split('.')[-1]
+    
     if isinstance(file_path_or_obj, str):
         with open(file_path_or_obj, 'rb') as f:
             if file_ext == 'pdf':
@@ -231,8 +226,9 @@ def process_file(file_path_or_obj, filename):
             return extract_txt_text(file_path_or_obj)
     return ""
 
-# OPTIMIZED: Faster document loading
+# OPTIMIZED: Parallel document processing with ThreadPoolExecutor
 def load_documents_from_directory(directory, max_files=10):
+    """Load documents in parallel for faster processing"""
     all_text = ""
     processed_files = []
     
@@ -242,6 +238,7 @@ def load_documents_from_directory(directory, max_files=10):
     
     print(f"Scanning directory: {directory}")
     
+    # Collect files
     all_files_with_size = []
     for root, dirs, files in os.walk(directory):
         for filename in files:
@@ -249,7 +246,9 @@ def load_documents_from_directory(directory, max_files=10):
                 filepath = os.path.join(root, filename)
                 try:
                     size = os.path.getsize(filepath)
-                    all_files_with_size.append((root, filename, size))
+                    # CHANGED: Strict 1MB limit for speed
+                    if size <= 1 * 1024 * 1024:
+                        all_files_with_size.append((root, filename, size, filepath))
                 except Exception as e:
                     print(f"Could not get size for {filename}: {e}")
     
@@ -259,45 +258,50 @@ def load_documents_from_directory(directory, max_files=10):
     
     print(f"Found {len(all_files_with_size)} documents")
     
-    # CHANGED: Sort by size (smallest first for faster processing)
+    # Sort by size (smallest first)
     all_files_with_size.sort(key=lambda x: x[2])
     
     if len(all_files_with_size) > max_files:
         print(f"Limiting to {max_files} documents")
         all_files_with_size = all_files_with_size[:max_files]
     
-    for idx, (root, filename, size) in enumerate(all_files_with_size, 1):
-        file_path = os.path.join(root, filename)
+    # CHANGED: Parallel processing with ThreadPoolExecutor
+    def process_single_file(file_info):
+        root, filename, size, filepath = file_info
         try:
-            # CHANGED: Reduced from 3MB to 2MB
-            if size > 2 * 1024 * 1024:
-                print(f"Skipping large file: {filename}")
-                continue
-            
-            print(f"Processing [{idx}/{len(all_files_with_size)}]: {filename}")
-            text = process_file(file_path, filename)
+            print(f"Processing: {filename}")
+            text = process_file(filepath, filename)
             
             if text and len(text) > 50:
-                # CHANGED: Reduced truncation from 30000 to 15000
-                if len(text) > 15000:
-                    text = text[:15000] + "...[truncated]"
+                # CHANGED: Reduced to 10000 chars
+                if len(text) > 10000:
+                    text = text[:10000] + "...[truncated]"
+                return filename, text
+        except Exception as e:
+            print(f"Error processing {filename}: {e}")
+        return None, None
+    
+    # Process files in parallel with max 4 workers
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        future_to_file = {executor.submit(process_single_file, file_info): file_info 
+                         for file_info in all_files_with_size}
+        
+        for future in as_completed(future_to_file):
+            filename, text = future.result()
+            if filename and text:
                 all_text += f"\n\n--- {filename} ---\n{text}"
                 processed_files.append(filename)
                 print(f"Processed: {filename}")
-            else:
-                print(f"No text from: {filename}")
-        except Exception as e:
-            print(f"Error processing {filename}: {e}")
     
     print(f"Successfully processed {len(processed_files)} files")
     return all_text, processed_files
 
-# OPTIMIZED: Use FAISS native save/load instead of pickle
 def load_or_create_vectorstore(docs_folder):
+    """Load or create vectorstore with optimizations"""
     print("Checking for cached vectorstore...")
     current_hash = get_directory_hash(docs_folder)
     
-    # CHANGED: Use FAISS native format
+    # Try loading from cache first
     if os.path.exists(FAISS_INDEX_PATH) and os.path.exists(CACHE_HASH_FILE):
         try:
             with open(CACHE_HASH_FILE, 'r') as f:
@@ -311,7 +315,7 @@ def load_or_create_vectorstore(docs_folder):
                     embeddings,
                     allow_dangerous_deserialization=True
                 )
-                print("Loaded from cache!")
+                print("✓ Loaded from cache!")
                 return vectorstore, True
         except Exception as e:
             print(f"Cache load error: {e}")
@@ -323,45 +327,72 @@ def load_or_create_vectorstore(docs_folder):
         print("No documents to process")
         return None, False
     
+    # CHANGED: Smaller chunks for faster embedding
     text_splitter = CharacterTextSplitter(
         separator="\n",
-        chunk_size=800,
-        chunk_overlap=150,
+        chunk_size=600,  # Reduced from 800
+        chunk_overlap=100,  # Reduced from 150
         length_function=len
     )
     
     texts = text_splitter.split_text(all_text)
     print(f"Created {len(texts)} chunks")
     
-    embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+    # CHANGED: Batch embeddings for speed
+    embeddings = OpenAIEmbeddings(
+        model="text-embedding-3-small",
+        chunk_size=100  # Process 100 texts at once
+    )
+    
+    print("Generating embeddings...")
     vectorstore = FAISS.from_texts(texts, embeddings)
     
-    # CHANGED: Use FAISS native save
+    # Save to cache
     try:
         vectorstore.save_local(FAISS_INDEX_PATH)
         with open(CACHE_HASH_FILE, 'w') as f:
             f.write(current_hash)
-        print("Cached successfully using FAISS format")
+        print("✓ Cached successfully")
     except Exception as e:
         print(f"Cache save error: {e}")
     
     return vectorstore, False
 
-# Global vectorstore (shared across all requests in this worker)
-global_vectorstore = None
-global_chain = None
-vectorstore_lock = threading.Lock()
+# CRITICAL: Lazy loading function - only loads when needed
+def ensure_vectorstore_loaded():
+    """Ensure vectorstore is loaded (lazy loading)"""
+    global global_vectorstore, global_chain, loading_thread
+    
+    with vectorstore_lock:
+        # If already loaded, return immediately
+        if global_vectorstore is not None:
+            return True
+        
+        # Check if loading is in progress
+        state = get_global_state()
+        if state.get('loading_in_progress'):
+            return False
+    
+    # Start loading in background
+    if loading_thread is None or not loading_thread.is_alive():
+        loading_thread = threading.Thread(
+            target=load_docs_background,
+            args=(app.config['DOCUMENTS_FOLDER'],),
+            daemon=True
+        )
+        loading_thread.start()
+    
+    return False
 
 def load_docs_background(docs_folder):
-    """Background document loading with global state"""
+    """Background document loading"""
     global global_vectorstore, global_chain
     
     print("=" * 60)
-    print("STARTING BACKGROUND LOADING")
+    print("STARTING LAZY LOADING")
     print("=" * 60)
     
     try:
-        # Set loading flag
         update_global_state(
             loading_in_progress=True,
             loading_error=None,
@@ -382,7 +413,6 @@ def load_docs_background(docs_folder):
                 global_vectorstore = vectorstore
                 global_chain = create_chain(vectorstore)
             
-            # Update global state
             update_global_state(
                 documents_loaded=True,
                 loading_in_progress=False,
@@ -392,7 +422,7 @@ def load_docs_background(docs_folder):
             
             cache_status = "FROM CACHE" if was_cached else "NEWLY CREATED"
             print("=" * 60)
-            print(f"SUCCESS! Loaded {len(processed_files)} documents {cache_status}")
+            print(f"✓ SUCCESS! Loaded {len(processed_files)} documents {cache_status}")
             print("=" * 60)
         else:
             update_global_state(
@@ -400,7 +430,7 @@ def load_docs_background(docs_folder):
                 loading_in_progress=False,
                 loading_error="No documents found"
             )
-            print("FAILED: No documents found")
+            print("✗ FAILED: No documents found")
     except Exception as e:
         import traceback
         error_msg = str(e)
@@ -409,7 +439,7 @@ def load_docs_background(docs_folder):
             loading_in_progress=False,
             loading_error=error_msg
         )
-        print(f"ERROR: {error_msg}")
+        print(f"✗ ERROR: {error_msg}")
         print(traceback.format_exc())
 
 def generate_tts(text):
@@ -417,7 +447,6 @@ def generate_tts(text):
         clean_text = re.sub(r'<[^>]+>', '', text)
         clean_text = re.sub(r'\*\*', '', clean_text)
         
-        # CHANGED: Reduced from 500 to 300 for faster generation
         if len(clean_text) > 300:
             clean_text = clean_text[:300] + "..."
         
@@ -476,9 +505,7 @@ def find_related_video(query, threshold=0.5):
     
     return best_match
 
-# OPTIMIZED: Reduced k and added max_tokens
 def create_chain(vectorstore):
-    # CHANGED: Reduced from k=3 to k=2 for faster retrieval
     retriever = vectorstore.as_retriever(
         search_type="similarity",
         search_kwargs={"k": 2}
@@ -499,7 +526,6 @@ IMPORTANT RULES:
 Answer:
 """)
     
-    # CHANGED: Added max_tokens=300 for faster responses
     llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.0, max_tokens=300)
     document_chain = create_stuff_documents_chain(llm, prompt)
     
@@ -511,14 +537,16 @@ def index():
 
 @app.route('/init_session', methods=['POST'])
 def init_session():
+    """Initialize session and trigger lazy loading"""
     try:
         session_id = request.json.get('session_id', 'default')
         get_session(session_id)
         
-        docs_folder = app.config['DOCUMENTS_FOLDER']
+        # Trigger lazy loading
+        ensure_vectorstore_loaded()
+        
         state = get_global_state()
         
-        # Check if already loaded
         if state['documents_loaded']:
             files = state.get('preloaded_files', [])
             return jsonify({
@@ -528,7 +556,6 @@ def init_session():
                 'status': 'ready'
             })
         
-        # Check if there was an error
         if state.get('loading_error'):
             return jsonify({
                 'success': True,
@@ -537,43 +564,18 @@ def init_session():
                 'status': 'error'
             })
         
-        # Check if loading is in progress
         if state.get('loading_in_progress'):
-            # Check if loading has been stuck for too long
-            if state.get('load_started_at'):
-                try:
-                    start_time = datetime.fromisoformat(state['load_started_at'])
-                    elapsed = (datetime.now() - start_time).total_seconds()
-                    if elapsed > 300:  # 5 minutes
-                        print("Loading stuck, resetting...")
-                        update_global_state(loading_in_progress=False)
-                    else:
-                        return jsonify({
-                            'success': True,
-                            'files': [],
-                            'message': 'Loading documents...',
-                            'status': 'loading'
-                        })
-                except:
-                    pass
-        
-        # Start loading
-        update_global_state(
-            loading_in_progress=True,
-            load_started_at=datetime.now().isoformat()
-        )
-        
-        thread = threading.Thread(
-            target=load_docs_background,
-            args=(docs_folder,),
-            daemon=True
-        )
-        thread.start()
+            return jsonify({
+                'success': True,
+                'files': [],
+                'message': 'Loading documents...',
+                'status': 'loading'
+            })
         
         return jsonify({
             'success': True,
             'files': [],
-            'message': 'Loading documents...',
+            'message': 'Initializing...',
             'status': 'loading'
         })
     except Exception as e:
@@ -584,7 +586,11 @@ def init_session():
 
 @app.route('/check_status', methods=['GET'])
 def check_status():
+    """Check loading status"""
     try:
+        # Ensure loading has started
+        ensure_vectorstore_loaded()
+        
         state = get_global_state()
         
         if state.get('documents_loaded'):
@@ -646,6 +652,9 @@ def upload_files():
                     text = process_file(file, filename)
                     
                     if text and text.strip():
+                        # Limit uploaded file text
+                        if len(text) > 10000:
+                            text = text[:10000]
                         all_text += f"\n\n--- {filename} ---\n{text}"
                         processed_files.append(filename)
                         
@@ -659,15 +668,21 @@ def upload_files():
         
         text_splitter = CharacterTextSplitter(
             separator="\n",
-            chunk_size=800,
-            chunk_overlap=150,
+            chunk_size=600,
+            chunk_overlap=100,
             length_function=len
         )
         
         texts = text_splitter.split_text(all_text)
-        embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+        embeddings = OpenAIEmbeddings(
+            model="text-embedding-3-small",
+            chunk_size=100
+        )
         
         global global_vectorstore, global_chain
+        
+        # Ensure vectorstore exists
+        ensure_vectorstore_loaded()
         
         with vectorstore_lock:
             if global_vectorstore:
@@ -677,7 +692,6 @@ def upload_files():
             
             global_chain = create_chain(global_vectorstore)
             
-            # CHANGED: Save updated index
             try:
                 global_vectorstore.save_local(FAISS_INDEX_PATH)
                 current_hash = get_directory_hash(app.config['DOCUMENTS_FOLDER'])
@@ -686,7 +700,6 @@ def upload_files():
             except Exception as e:
                 print(f"Error saving updated index: {e}")
         
-        # Update global state
         state = get_global_state()
         current_files = state.get('preloaded_files', [])
         current_files.extend(processed_files)
@@ -754,7 +767,9 @@ def chat():
                 'show_feedback': True
             })
         
-        # Check if ready
+        # Ensure vectorstore is loaded
+        ensure_vectorstore_loaded()
+        
         state = get_global_state()
         if not state.get('documents_loaded'):
             if state.get('loading_in_progress'):
@@ -788,7 +803,6 @@ def chat():
             'timestamp': datetime.now().isoformat()
         })
         
-        # Always generate TTS
         audio_url = generate_tts(response)
         
         response_data = {
@@ -797,7 +811,6 @@ def chat():
             'auto_play': is_voice_input
         }
         
-        # Check for video
         related_video = find_related_video(message)
         if related_video:
             response_data['video'] = f'/static/videos/{related_video}'
