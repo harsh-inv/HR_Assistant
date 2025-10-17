@@ -953,6 +953,56 @@
                 console.error('Stats error:', error);
             }
         }
+        function startStatusPolling() {
+            console.log('🔄 Starting status polling...');
+            
+            if (statusCheckInterval) {
+                clearInterval(statusCheckInterval);
+            }
+            
+            let pollCount = 0;
+            const maxPolls = 60; // Poll for max 2 minutes (60 * 2 seconds)
+            
+            statusCheckInterval = setInterval(async () => {
+                pollCount++;
+                console.log(`📡 Status check #${pollCount}...`);
+                
+                try {
+                    const response = await fetch(`/check_status?session_id=${sessionId}`);
+                    const data = await response.json();
+                    
+                    console.log('Status:', data);
+                    
+                    if (data.ready) {
+                        console.log('✅ Documents loaded!');
+                        updateStatus(`Ready - ${data.files_count} documents loaded`, 'ready');
+                        if (data.files && data.files.length > 0) {
+                            updateFileList(data.files);
+                        }
+                        clearInterval(statusCheckInterval);
+                        statusCheckInterval = null;
+                    } else if (data.error) {
+                        console.error('❌ Loading error:', data.message);
+                        updateStatus(data.message || 'Error loading documents', 'error');
+                        clearInterval(statusCheckInterval);
+                        statusCheckInterval = null;
+                    } else if (data.loading) {
+                        updateStatus('Loading documents...', 'loading');
+                    }
+                    
+                    // Timeout after max polls
+                    if (pollCount >= maxPolls) {
+                        console.warn('⏰ Status polling timeout');
+                        updateStatus('Document loading is taking longer than expected...', 'loading');
+                        clearInterval(statusCheckInterval);
+                        statusCheckInterval = null;
+                    }
+                } catch (error) {
+                    console.error('Status check error:', error);
+                    pollCount = maxPolls; // Stop polling on error
+                }
+            }, 2000); // Poll every 2 seconds
+        }
 
         // Toggle audio play/stop
         function toggleAudio(audioUrl, buttonElement) {
@@ -963,7 +1013,7 @@
             stopAudio();
             playAudio(audioUrl, buttonElement);
         }
-
+        
         // Play audio
         function playAudio(audioUrl, buttonElement) {
             if (currentAudio) {
