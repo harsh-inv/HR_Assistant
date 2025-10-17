@@ -3,6 +3,8 @@ import warnings
 import logging
 import json
 import threading
+import pickle
+import hashlib
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, send_file
 from werkzeug.utils import secure_filename
@@ -12,6 +14,7 @@ from difflib import SequenceMatcher
 import re
 from gtts import gTTS
 import uuid
+import time
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 warnings.filterwarnings("ignore")
@@ -39,7 +42,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['DOCUMENTS_FOLDER'] = os.getenv('DOCUMENTS_FOLDER', '/opt/render/project/src/documents')
-app.config['MAX_DOCUMENTS'] = 50
+app.config['MAX_DOCUMENTS'] = 20  # Reduced for faster loading
 app.config['VIDEOS_FOLDER'] = 'static/videos'
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 
@@ -54,6 +57,9 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['DOCUMENTS_FOLDER'], exist_ok=True)
 os.makedirs(app.config['VIDEOS_FOLDER'], exist_ok=True)
 os.makedirs(os.path.join('static', 'audio'), exist_ok=True)
+
+VECTORSTORE_CACHE = os.path.join(app.config['DOCUMENTS_FOLDER'], '.vectorstore_cache.pkl')
+CACHE_HASH_FILE = os.path.join(app.config['DOCUMENTS_FOLDER'], '.cache_hash.txt')
 
 sessions = {}
 vectorstore_lock = threading.Lock()
@@ -83,7 +89,8 @@ def get_session(session_id):
             'feedback_history': [],
             'preloaded_files': [],
             'documents_loaded': False,
-            'loading_in_progress': False
+            'loading_in_progress': False,
+            'loading_error': None
         }
     return sessions[session_id]
 
@@ -96,6 +103,26 @@ def is_farewell(message):
     """Check if message is a farewell"""
     msg_lower = message.lower().strip()
     return any(pattern in msg_lower for pattern in FAREWELL_PATTERNS)
+
+def get_directory_hash(directory):
+    """Calculate hash of all files in directory"""
+    hash_obj = hashlib.md5()
+    try:
+        file_count = 0
+        for root, dirs, files in os.walk(directory):
+            for filename in sorted(files):
+                if not filename.startswith('.') and filename.lower().endswith(('.pdf', '.docx', '.doc', '.txt')):
+                    filepath = os.path.join(root, filename)
+                    hash_obj.update(filename.encode())
+                    try:
+                        hash_obj.update(str(os.path.getmtime(filepath)).encode())
+                        file_count += 1
+                    except:
+                        pass
+        print(f"Directory hash calculated for {file_count} files")
+    except Exception as e:
+        print(f"Error calculating directory hash: {e}")
+    return hash_obj.hexdigest()
 
 def extract_pdf_text(pdf_file):
     text = ""
@@ -170,42 +197,189 @@ def process_file(file_path_or_obj, filename):
             return extract_txt_text(file_path_or_obj)
     return ""
 
-def load_documents_from_directory(directory, max_files=None):
-    """Load documents with memory optimization"""
+def load_documents_from_directory(directory, max_files=20):
+    """Load documents with optimization"""
     all_text = ""
     processed_files = []
     
     if not os.path.exists(directory):
-        print(f"Directory does not exist: {directory}")
+        print(f"❌ Directory does not exist: {directory}")
         return all_text, processed_files
     
-    all_files = []
+    print(f"📂 Scanning directory: {directory}")
+    
+    all_files_with_size = []
     for root, dirs, files in os.walk(directory):
         for filename in files:
             if filename.lower().endswith(('.pdf', '.docx', '.doc', '.txt')):
-                all_files.append((root, filename))
+                filepath = os.path.join(root, filename)
+                try:
+                    size = os.path.getsize(filepath)
+                    all_files_with_size.append((root, filename, size))
+                except Exception as e:
+                    print(f"⚠ Could not get size for {filename}: {e}")
     
-    if max_files is None:
-        max_files = app.config.get('MAX_DOCUMENTS', 50)
+    if len(all_files_with_size) == 0:
+        print("❌ No documents found in directory")
+        return all_text, processed_files
     
-    if len(all_files) > max_files:
-        print(f"⚠ Limiting to {max_files} documents (found {len(all_files)})")
-        all_files = all_files[:max_files]
+    print(f"📊 Found {len(all_files_with_size)} documents")
     
-    print(f"Processing {len(all_files)} documents...")
+    # Sort by size (smaller files first)
+    all_files_with_size.sort(key=lambda x: x[2])
     
-    for root, filename in all_files:
+    if len(all_files_with_size) > max_files:
+        print(f"⚠ Limiting to {max_files} documents (found {len(all_files_with_size)})")
+        all_files_with_size = all_files_with_size[:max_files]
+    
+    print(f"🔄 Processing {len(all_files_with_size)} documents...")
+    
+    for idx, (root, filename, size) in enumerate(all_files_with_size, 1):
         file_path = os.path.join(root, filename)
         try:
+            # Skip very large files
+            if size > 5 * 1024 * 1024:  # 5MB
+                print(f"⏭ Skipping large file [{idx}/{len(all_files_with_size)}]: {filename} ({size/1024/1024:.1f}MB)")
+                continue
+            
+            print(f"📄 Processing [{idx}/{len(all_files_with_size)}]: {filename} ({size/1024:.1f}KB)")
             text = process_file(file_path, filename)
-            if text:
+            
+            if text and len(text) > 50:
+                # Truncate very long texts
+                if len(text) > 50000:
+                    text = text[:50000] + "...[truncated]"
+                
                 all_text += f"\n\n--- {filename} ---\n{text}"
                 processed_files.append(filename)
+                print(f"✅ Processed: {filename}")
+            else:
+                print(f"⚠ No text extracted from: {filename}")
+                
         except Exception as e:
-            print(f"Error processing {filename}: {e}")
+            print(f"❌ Error processing {filename}: {e}")
     
-    print(f"Successfully processed {len(processed_files)} files")
+    print(f"✅ Successfully processed {len(processed_files)}/{len(all_files_with_size)} files")
     return all_text, processed_files
+
+def load_or_create_vectorstore(docs_folder):
+    """Load cached vectorstore or create new one"""
+    print("🔍 Checking for cached vectorstore...")
+    current_hash = get_directory_hash(docs_folder)
+    
+    # Check if cache exists and is valid
+    if os.path.exists(VECTORSTORE_CACHE) and os.path.exists(CACHE_HASH_FILE):
+        try:
+            with open(CACHE_HASH_FILE, 'r') as f:
+                cached_hash = f.read().strip()
+            
+            print(f"Cache hash: {cached_hash}")
+            print(f"Current hash: {current_hash}")
+            
+            if cached_hash == current_hash:
+                print("📦 Loading vectorstore from cache...")
+                start_time = time.time()
+                with open(VECTORSTORE_CACHE, 'rb') as f:
+                    vectorstore = pickle.load(f)
+                load_time = time.time() - start_time
+                print(f"✅ Vectorstore loaded from cache in {load_time:.2f}s")
+                return vectorstore, True
+            else:
+                print("🔄 Cache is stale, will rebuild")
+        except Exception as e:
+            print(f"⚠ Cache load error: {e}")
+    else:
+        print("📭 No cache found, will create new vectorstore")
+    
+    # Create new vectorstore
+    print("🔄 Creating new vectorstore...")
+    start_time = time.time()
+    
+    all_text, processed_files = load_documents_from_directory(docs_folder, max_files=20)
+    
+    if not all_text or len(processed_files) == 0:
+        print("❌ No documents to process")
+        return None, False
+    
+    print(f"📝 Splitting text from {len(processed_files)} documents...")
+    text_splitter = CharacterTextSplitter(
+        separator="\n",
+        chunk_size=1000,
+        chunk_overlap=200,
+        length_function=len
+    )
+    texts = text_splitter.split_text(all_text)
+    print(f"✂️ Created {len(texts)} text chunks")
+    
+    print("🤖 Creating embeddings...")
+    embeddings = OpenAIEmbeddings(model="text-embedding-3-small")  # Faster model
+    
+    print("🏗️ Building FAISS index...")
+    vectorstore = FAISS.from_texts(texts, embeddings)
+    
+    create_time = time.time() - start_time
+    print(f"✅ Vectorstore created in {create_time:.2f}s")
+    
+    # Save cache
+    try:
+        print("💾 Saving vectorstore cache...")
+        with open(VECTORSTORE_CACHE, 'wb') as f:
+            pickle.dump(vectorstore, f)
+        with open(CACHE_HASH_FILE, 'w') as f:
+            f.write(current_hash)
+        print("✅ Vectorstore cached successfully")
+    except Exception as e:
+        print(f"⚠ Cache save error: {e}")
+    
+    return vectorstore, False
+
+def load_docs_background(session, docs_folder):
+    """Background document loading with caching"""
+    print("=" * 60)
+    print("🚀 STARTING BACKGROUND DOCUMENT LOADING")
+    print("=" * 60)
+    
+    try:
+        vectorstore, was_cached = load_or_create_vectorstore(docs_folder)
+        
+        if vectorstore:
+            # Get file list
+            processed_files = []
+            for root, dirs, files in os.walk(docs_folder):
+                for filename in files:
+                    if filename.lower().endswith(('.pdf', '.docx', '.doc', '.txt')):
+                        processed_files.append(filename)
+            
+            processed_files = processed_files[:20]  # Limit display
+            
+            with vectorstore_lock:
+                session['vectorstore'] = vectorstore
+                session['conversation_chain'] = create_chain(vectorstore)
+                session['preloaded_files'] = processed_files
+                session['documents_loaded'] = True
+                session['loading_in_progress'] = False
+                session['loading_error'] = None
+            
+            cache_status = "✅ FROM CACHE" if was_cached else "🆕 NEWLY CREATED"
+            print("=" * 60)
+            print(f"🎉 SUCCESS! Loaded {len(processed_files)} documents {cache_status}")
+            print("=" * 60)
+        else:
+            session['loading_in_progress'] = False
+            session['loading_error'] = "No documents found"
+            print("=" * 60)
+            print("❌ FAILED: No documents found to load")
+            print("=" * 60)
+            
+    except Exception as e:
+        import traceback
+        error_msg = str(e)
+        session['loading_in_progress'] = False
+        session['loading_error'] = error_msg
+        print("=" * 60)
+        print(f"❌ ERROR in background loading: {error_msg}")
+        print(traceback.format_exc())
+        print("=" * 60)
 
 def similarity_score(str1, str2):
     return SequenceMatcher(None, str1.lower(), str2.lower()).ratio()
@@ -289,7 +463,7 @@ def index():
 
 @app.route('/init_session', methods=['POST'])
 def init_session():
-    """Initialize session and start background document loading"""
+    """Initialize session with cached vectorstore"""
     try:
         session_id = request.json.get('session_id', 'default')
         session = get_session(session_id)
@@ -298,11 +472,21 @@ def init_session():
         
         # Check if already loaded
         if session.get('documents_loaded'):
+            files = session.get('preloaded_files', [])
             return jsonify({
                 'success': True,
-                'files': session.get('preloaded_files', [])[:10],
-                'message': f'{len(session.get("preloaded_files", []))} documents loaded and ready',
+                'files': files[:10],
+                'message': f'{len(files)} documents loaded and ready',
                 'status': 'ready'
+            })
+        
+        # Check if there was a loading error
+        if session.get('loading_error'):
+            return jsonify({
+                'success': True,
+                'files': [],
+                'message': f'Error loading documents: {session["loading_error"]}',
+                'status': 'error'
             })
         
         # Check if loading is in progress
@@ -316,46 +500,14 @@ def init_session():
         
         # Start background loading
         session['loading_in_progress'] = True
-        
-        def load_docs_background():
-            try:
-                print("🔄 Background loading documents...")
-                all_text, processed_files = load_documents_from_directory(
-                    docs_folder,
-                    max_files=50
-                )
-                
-                if all_text:
-                    text_splitter = CharacterTextSplitter(
-                        separator="\n",
-                        chunk_size=1000,
-                        chunk_overlap=200,
-                        length_function=len
-                    )
-                    texts = text_splitter.split_text(all_text)
-                    embeddings = OpenAIEmbeddings()
-                    
-                    with vectorstore_lock:
-                        vectorstore = FAISS.from_texts(texts, embeddings)
-                        session['vectorstore'] = vectorstore
-                        session['conversation_chain'] = create_chain(vectorstore)
-                        session['preloaded_files'] = processed_files
-                        session['documents_loaded'] = True
-                        session['loading_in_progress'] = False
-                    
-                    print(f"✅ Background loaded {len(processed_files)} documents")
-                else:
-                    session['loading_in_progress'] = False
-                    print("⚠ No documents found to load")
-                    
-            except Exception as e:
-                import traceback
-                print(f"ERROR in background loading: {str(e)}")
-                print(traceback.format_exc())
-                session['loading_in_progress'] = False
+        session['loading_error'] = None
         
         # Start thread
-        thread = threading.Thread(target=load_docs_background, daemon=True)
+        thread = threading.Thread(
+            target=load_docs_background,
+            args=(session, docs_folder),
+            daemon=True
+        )
         thread.start()
         
         return jsonify({
@@ -378,11 +530,19 @@ def check_status():
     session = get_session(session_id)
     
     if session.get('documents_loaded'):
+        files = session.get('preloaded_files', [])
         return jsonify({
             'ready': True,
-            'files_count': len(session.get('preloaded_files', [])),
-            'message': 'Ready',
-            'files': session.get('preloaded_files', [])[:10]
+            'files_count': len(files),
+            'message': f'Ready - {len(files)} documents loaded',
+            'files': files[:10]
+        })
+    elif session.get('loading_error'):
+        return jsonify({
+            'ready': False,
+            'loading': False,
+            'error': True,
+            'message': f'Error: {session["loading_error"]}'
         })
     elif session.get('loading_in_progress'):
         return jsonify({
@@ -763,3 +923,4 @@ def get_loaded_files():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
