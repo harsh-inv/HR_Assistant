@@ -844,30 +844,31 @@
         let currentAudio = null;
         let currentAudioButton = null;
         let selectedRating = 0;
-
+        let statusCheckInterval = null;
+        
         // Initialize speech recognition
         if ('webkitSpeechRecognition' in window) {
             recognition = new webkitSpeechRecognition();
             recognition.continuous = false;
             recognition.interimResults = false;
             recognition.lang = 'en-US';
-
+        
             recognition.onresult = function(event) {
                 const transcript = event.results[0][0].transcript;
                 document.getElementById('messageInput').value = transcript;
                 sendMessage(true);
             };
-
+        
             recognition.onerror = function(event) {
                 console.error('Speech recognition error:', event.error);
                 stopRecording();
             };
-
+        
             recognition.onend = function() {
                 stopRecording();
             };
         }
-
+        
         // Star rating functionality
         document.querySelectorAll('.star').forEach(star => {
             star.addEventListener('click', function() {
@@ -875,17 +876,17 @@
                 updateStarRating(selectedRating);
                 document.getElementById('submitFeedbackBtn').disabled = false;
             });
-
+        
             star.addEventListener('mouseenter', function() {
                 const rating = parseInt(this.dataset.rating);
                 updateStarRating(rating);
             });
         });
-
+        
         document.getElementById('starRating').addEventListener('mouseleave', function() {
             updateStarRating(selectedRating);
         });
-
+        
         function updateStarRating(rating) {
             document.querySelectorAll('.star').forEach((star, index) => {
                 if (index < rating) {
@@ -895,7 +896,7 @@
                 }
             });
         }
-
+        
         function showFeedbackModal() {
             document.getElementById('feedbackModal').classList.add('active');
             selectedRating = 0;
@@ -903,19 +904,19 @@
             document.getElementById('feedbackComment').value = '';
             document.getElementById('submitFeedbackBtn').disabled = true;
         }
-
+        
         function closeFeedbackModal() {
             document.getElementById('feedbackModal').classList.remove('active');
         }
-
+        
         async function submitFeedback() {
             if (selectedRating === 0) {
                 alert('Please select a rating');
                 return;
             }
-
+        
             const comment = document.getElementById('feedbackComment').value.trim();
-
+        
             try {
                 const response = await fetch('/feedback', {
                     method: 'POST',
@@ -926,7 +927,7 @@
                         comment: comment
                     })
                 });
-
+        
                 const data = await response.json();
                 
                 if (data.success) {
@@ -939,7 +940,7 @@
                 alert('Error submitting feedback');
             }
         }
-
+        
         async function updateFeedbackStatus() {
             try {
                 const response = await fetch(`/feedback/stats?session_id=${sessionId}`);
@@ -953,6 +954,7 @@
                 console.error('Stats error:', error);
             }
         }
+        
         function startStatusPolling() {
             console.log('🔄 Starting status polling...');
             
@@ -961,7 +963,7 @@
             }
             
             let pollCount = 0;
-            const maxPolls = 60; // Poll for max 2 minutes (60 * 2 seconds)
+            const maxPolls = 60;
             
             statusCheckInterval = setInterval(async () => {
                 pollCount++;
@@ -990,7 +992,6 @@
                         updateStatus('Loading documents...', 'loading');
                     }
                     
-                    // Timeout after max polls
                     if (pollCount >= maxPolls) {
                         console.warn('⏰ Status polling timeout');
                         updateStatus('Document loading is taking longer than expected...', 'loading');
@@ -999,11 +1000,24 @@
                     }
                 } catch (error) {
                     console.error('Status check error:', error);
-                    pollCount = maxPolls; // Stop polling on error
+                    pollCount = maxPolls;
                 }
-            }, 2000); // Poll every 2 seconds
+            }, 2000);
         }
-
+        
+        function updateStatus(message, status) {
+            const statusElement = document.getElementById('kbStatus');
+            statusElement.textContent = message;
+            
+            if (status === 'ready') {
+                statusElement.style.color = '#2ecc71';
+            } else if (status === 'error') {
+                statusElement.style.color = '#e74c3c';
+            } else {
+                statusElement.style.color = '#bdc3c7';
+            }
+        }
+        
         // Toggle audio play/stop
         function toggleAudio(audioUrl, buttonElement) {
             if (currentAudioButton === buttonElement && currentAudio && !currentAudio.paused) {
@@ -1062,7 +1076,7 @@
                 }
             });
         }
-
+        
         // Stop audio
         function stopAudio() {
             if (currentAudio) {
@@ -1081,43 +1095,54 @@
                 currentAudioButton = null;
             }
         }
-
+        
         // Initialize session
         async function initSession() {
+            console.log('🚀 Initializing session...');
+            
             try {
                 const response = await fetch('/init_session', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ session_id: sessionId })
                 });
+                
                 const data = await response.json();
+                console.log('Init response:', data);
                 
                 if (data.success) {
-                    document.getElementById('kbStatus').textContent = data.message;
-                    if (data.files && data.files.length > 0) {
-                        updateFileList(data.files, 'preloaded');
+                    if (data.status === 'ready') {
+                        updateStatus(data.message, 'ready');
+                        if (data.files && data.files.length > 0) {
+                            updateFileList(data.files);
+                        }
+                    } else if (data.status === 'loading') {
+                        updateStatus(data.message, 'loading');
+                        // Start polling for status
+                        startStatusPolling();
+                    } else if (data.status === 'error') {
+                        updateStatus(data.message, 'error');
                     }
                 }
             } catch (error) {
                 console.error('Init error:', error);
-                document.getElementById('kbStatus').textContent = 
-                    'Error loading knowledge base. Please refresh the page.';
+                updateStatus('Error initializing. Please refresh.', 'error');
             }
         }
-
+        
         // Toggle sidebar
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             sidebar.classList.toggle('collapsed');
         }
-
+        
         // Toggle voice recording
         function toggleRecording() {
             if (!recognition) {
                 alert('Speech recognition is not supported in your browser.');
                 return;
             }
-
+        
             if (isRecording) {
                 recognition.stop();
             } else {
@@ -1126,12 +1151,12 @@
                 isRecording = true;
             }
         }
-
+        
         function stopRecording() {
             isRecording = false;
             document.getElementById('micBtn').classList.remove('recording');
         }
-
+        
         // Handle key press
         function handleKeyPress(event) {
             if (event.key === 'Enter' && !event.shiftKey) {
@@ -1139,13 +1164,19 @@
                 sendMessage();
             }
         }
-
-        // Send message
+        
+        // Send message - FIXED VERSION
         async function sendMessage(isVoiceInput = false) {
             const input = document.getElementById('messageInput');
             const message = input.value.trim();
             
             if (!message) return;
+        
+            // Disable send button during processing
+            const sendBtn = document.getElementById('sendBtn');
+            const originalBtnText = sendBtn.textContent;
+            sendBtn.disabled = true;
+            sendBtn.textContent = '...';
         
             addMessage(message, true);
             input.value = '';
@@ -1162,16 +1193,31 @@
                         is_voice_input: isVoiceInput
                     })
                 });
-
+        
+                // Remove loading indicator
+                removeMessage(loadingId);
+        
                 if (!response.ok) {
-                    throw new Error(`Server error: ${response.status}`);
+                    const errorData = await response.json().catch(() => ({}));
+                    
+                    if (response.status === 503) {
+                        addMessage('⏳ System is still loading. Please wait a moment and try again.', false);
+                    } else if (response.status === 500) {
+                        addMessage(`❌ Server error: ${errorData.error || 'Please try again'}`, false);
+                    } else {
+                        addMessage(`❌ Error (${response.status}): ${errorData.error || 'Unknown error'}`, false);
+                    }
+                    
+                    // Re-enable send button
+                    sendBtn.disabled = false;
+                    sendBtn.textContent = originalBtnText;
+                    return;
                 }
         
                 const data = await response.json();
-                removeMessage(loadingId);
         
                 if (data.error) {
-                    addMessage('Error: ' + data.error, false);
+                    addMessage('❌ ' + data.error, false);
                 } else {
                     let botMessage = data.response;
                     
@@ -1188,7 +1234,7 @@
                     const messageId = addMessage(botMessage, false);
                     
                     // Auto-play only if it was voice input
-                    if (data.audio_url && (data.auto_play || isVoiceInput)) {
+                    if (data.audio_url && data.auto_play) {
                         setTimeout(() => {
                             const btnElement = document.querySelector(`#${messageId} .speaker-btn`);
                             if (btnElement) {
@@ -1210,16 +1256,20 @@
                 }
             } catch (error) {
                 removeMessage(loadingId);
-                addMessage('Error: Failed to send message - ' + error.message, false);
+                addMessage('❌ Network error. Please check your connection and try again.', false);
                 console.error('Send error:', error);
+            } finally {
+                // Always re-enable send button
+                sendBtn.disabled = false;
+                sendBtn.textContent = originalBtnText;
             }
         }
-
+        
         function addMessage(content, isUser) {
             const messagesDiv = document.getElementById('chatMessages');
             const welcomeMsg = messagesDiv.querySelector('.welcome-message');
             if (welcomeMsg) welcomeMsg.remove();
-
+        
             const messageId = 'msg_' + Date.now();
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message ' + (isUser ? 'user-message' : 'bot-message');
@@ -1241,12 +1291,12 @@
             
             return messageId;
         }
-
+        
         function removeMessage(messageId) {
             const msg = document.getElementById(messageId);
             if (msg) msg.remove();
         }
-
+        
         function addVideoMessage(videoUrl, videoName) {
             const messagesDiv = document.getElementById('chatMessages');
             const messageDiv = document.createElement('div');
@@ -1271,40 +1321,43 @@
             messagesDiv.appendChild(messageDiv);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
-
+        
+        // File upload handler
         document.getElementById('fileInput').addEventListener('change', async function(e) {
             const files = e.target.files;
             if (files.length === 0) return;
-
+        
             const formData = new FormData();
             formData.append('session_id', sessionId);
             
             for (let file of files) {
                 formData.append('files', file);
             }
-
-            const uploadingMsgId = addMessage('Uploading and processing files...', false);
-
+        
+            const uploadingMsgId = addMessage('📤 Uploading and processing files...', false);
+        
             try {
                 const response = await fetch('/upload', {
                     method: 'POST',
                     body: formData
                 });
-
-                if (!response.ok) {
-                    throw new Error(`Upload failed: ${response.status}`);
-                }
-
-                const data = await response.json();
+        
                 removeMessage(uploadingMsgId);
+        
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    addMessage(`❌ Upload failed: ${errorData.error || 'Unknown error'}`, false);
+                    return;
+                }
+        
+                const data = await response.json();
                 
                 if (data.success) {
                     addMessage(`✅ Successfully uploaded ${data.files.length} file(s): ${data.files.join(', ')}`, false);
                     updateFileList(data.files, 'uploaded');
                     
                     const currentCount = document.querySelectorAll('.file-item').length;
-                    document.getElementById('kbStatus').textContent = 
-                        `${currentCount} document(s) loaded and ready`;
+                    updateStatus(`${currentCount} document(s) loaded and ready`, 'ready');
                 } else {
                     addMessage('❌ Error uploading files: ' + data.error, false);
                 }
@@ -1313,10 +1366,10 @@
                 addMessage('❌ Error uploading files: ' + error.message, false);
                 console.error('Upload error:', error);
             }
-
+        
             e.target.value = '';
         });
-
+        
         function updateFileList(files, type) {
             const fileListDiv = document.getElementById('fileList');
             
@@ -1332,7 +1385,7 @@
                 fileListDiv.appendChild(fileItem);
             });
         }
-
+        
         async function exportChat() {
             try {
                 const response = await fetch('/export/json', {
@@ -1340,11 +1393,11 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ session_id: sessionId })
                 });
-
+        
                 if (!response.ok) {
                     throw new Error('Export failed');
                 }
-
+        
                 const data = await response.json();
                 const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
@@ -1358,21 +1411,21 @@
                 console.error('Export error:', error);
             }
         }
-
+        
         async function clearChat() {
             if (!confirm('Are you sure you want to clear the chat history?')) return;
-
+        
             try {
                 const response = await fetch('/clear', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ session_id: sessionId })
                 });
-
+        
                 if (!response.ok) {
                     throw new Error('Clear failed');
                 }
-
+        
                 document.getElementById('chatMessages').innerHTML = `
                     <div class="welcome-message">
                         <div class="welcome-avatar">
@@ -1388,7 +1441,7 @@
                 console.error('Clear error:', error);
             }
         }
-
+        
         async function exportFeedback() {
             try {
                 const response = await fetch('/export/feedback', {
@@ -1396,11 +1449,11 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ session_id: sessionId })
                 });
-
+        
                 if (!response.ok) {
                     throw new Error('Export failed');
                 }
-
+        
                 const data = await response.json();
                 
                 if (data.success) {
@@ -1419,8 +1472,9 @@
                 console.error('Feedback export error:', error);
             }
         }
-
+        
+        // Initialize on page load
         window.addEventListener('load', initSession);
-    </script>
+            </script>
 </body>
 </html>
