@@ -544,6 +544,151 @@
             fill: #c0392b;
         }
 
+        /* Feedback Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .feedback-modal {
+            background: rgba(35, 47, 62, 0.98);
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 450px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            animation: modalSlideIn 0.3s ease;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .feedback-modal h2 {
+            color: #ecf0f1;
+            margin-bottom: 10px;
+            font-size: 22px;
+            text-align: center;
+        }
+
+        .feedback-modal p {
+            color: #95a5a6;
+            margin-bottom: 25px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .star-rating {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        .star {
+            font-size: 40px;
+            cursor: pointer;
+            color: #4a5f7f;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .star:hover,
+        .star.active {
+            color: #f39c12;
+            transform: scale(1.2);
+        }
+
+        .star.active {
+            text-shadow: 0 0 10px rgba(243, 156, 18, 0.5);
+        }
+
+        .feedback-textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 12px 15px;
+            border: 1px solid rgba(74, 95, 127, 0.5);
+            border-radius: 8px;
+            background: rgba(30, 40, 54, 0.8);
+            color: #ecf0f1;
+            font-size: 14px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            resize: vertical;
+            margin-bottom: 20px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .feedback-textarea:focus {
+            border-color: #3498db;
+            background: rgba(30, 40, 54, 1);
+        }
+
+        .feedback-textarea::placeholder {
+            color: #7f8c8d;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-submit {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-submit:hover {
+            background: #c0392b;
+        }
+
+        .btn-submit:disabled {
+            background: #4a5f7f;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .btn-cancel {
+            background: rgba(55, 67, 82, 0.9);
+            color: #ecf0f1;
+        }
+
+        .btn-cancel:hover {
+            background: rgba(65, 77, 92, 1);
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .container {
@@ -570,10 +715,45 @@
             .header {
                 padding: 15px 20px;
             }
+
+            .feedback-modal {
+                padding: 20px;
+            }
+
+            .star {
+                font-size: 35px;
+            }
         }
     </style>
 </head>
 <body>
+    <!-- Feedback Modal -->
+    <div class="modal-overlay" id="feedbackModal">
+        <div class="feedback-modal">
+            <h2>Rate Your Experience</h2>
+            <p>How would you rate your interaction with the HR Assistant?</p>
+            
+            <div class="star-rating" id="starRating">
+                <span class="star" data-rating="1">★</span>
+                <span class="star" data-rating="2">★</span>
+                <span class="star" data-rating="3">★</span>
+                <span class="star" data-rating="4">★</span>
+                <span class="star" data-rating="5">★</span>
+            </div>
+            
+            <textarea 
+                class="feedback-textarea" 
+                id="feedbackComment" 
+                placeholder="Any additional comments? (optional)"
+            ></textarea>
+            
+            <div class="modal-buttons">
+                <button class="modal-btn btn-cancel" onclick="closeFeedbackModal()">Skip</button>
+                <button class="modal-btn btn-submit" id="submitFeedbackBtn" onclick="submitFeedback()" disabled>Submit</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Header -->
     <div class="header">
         <button class="header-menu-btn" onclick="toggleSidebar()">
@@ -593,7 +773,7 @@
             <div class="sidebar-section">
                 <h3>Knowledge Base</h3>
                 <div class="info-box">
-                    <p id="kbStatus">No documents found in knowledge base. You can upload documents to get started.</p>
+                    <p id="kbStatus">Loading knowledge base...</p>
                 </div>
             </div>
 
@@ -637,7 +817,7 @@
                              onerror="this.onerror=null; this.src='/static/images/HR-chat-icon.jpg'">
                     </div>
                     <h2>Hello! I'm your HR Assistant.</h2>
-                    <p>I have access to the knowledge base and I'm ready to help. You can also upload additional documents if needed.</p>
+                    <p>I'm loading the knowledge base now. Once ready, I'll be able to help you with HR policies and procedures.</p>
                 </div>
             </div>
 
@@ -663,6 +843,7 @@
         let recognition = null;
         let currentAudio = null;
         let currentAudioButton = null;
+        let selectedRating = 0;
 
         // Initialize speech recognition
         if ('webkitSpeechRecognition' in window) {
@@ -685,6 +866,92 @@
             recognition.onend = function() {
                 stopRecording();
             };
+        }
+
+        // Star rating functionality
+        document.querySelectorAll('.star').forEach(star => {
+            star.addEventListener('click', function() {
+                selectedRating = parseInt(this.dataset.rating);
+                updateStarRating(selectedRating);
+                document.getElementById('submitFeedbackBtn').disabled = false;
+            });
+
+            star.addEventListener('mouseenter', function() {
+                const rating = parseInt(this.dataset.rating);
+                updateStarRating(rating);
+            });
+        });
+
+        document.getElementById('starRating').addEventListener('mouseleave', function() {
+            updateStarRating(selectedRating);
+        });
+
+        function updateStarRating(rating) {
+            document.querySelectorAll('.star').forEach((star, index) => {
+                if (index < rating) {
+                    star.classList.add('active');
+                } else {
+                    star.classList.remove('active');
+                }
+            });
+        }
+
+        function showFeedbackModal() {
+            document.getElementById('feedbackModal').classList.add('active');
+            selectedRating = 0;
+            updateStarRating(0);
+            document.getElementById('feedbackComment').value = '';
+            document.getElementById('submitFeedbackBtn').disabled = true;
+        }
+
+        function closeFeedbackModal() {
+            document.getElementById('feedbackModal').classList.remove('active');
+        }
+
+        async function submitFeedback() {
+            if (selectedRating === 0) {
+                alert('Please select a rating');
+                return;
+            }
+
+            const comment = document.getElementById('feedbackComment').value.trim();
+
+            try {
+                const response = await fetch('/feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        rating: selectedRating,
+                        comment: comment
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    closeFeedbackModal();
+                    updateFeedbackStatus();
+                    alert('Thank you for your feedback!');
+                }
+            } catch (error) {
+                console.error('Feedback error:', error);
+                alert('Error submitting feedback');
+            }
+        }
+
+        async function updateFeedbackStatus() {
+            try {
+                const response = await fetch(`/feedback/stats?session_id=${sessionId}`);
+                const data = await response.json();
+                
+                if (data.count > 0) {
+                    document.getElementById('feedbackStatus').textContent = 
+                        `${data.count} feedback(s) submitted • Avg: ${data.average}/5 ⭐`;
+                }
+            } catch (error) {
+                console.error('Stats error:', error);
+            }
         }
 
         // Toggle audio play/stop
@@ -775,13 +1042,16 @@
                 });
                 const data = await response.json();
                 
-                if (data.files && data.files.length > 0) {
-                    document.getElementById('kbStatus').textContent = 
-                        `${data.files.length} document(s) loaded. You can upload more documents to expand the knowledge base.`;
-                    updateFileList(data.files, 'preloaded');
+                if (data.success) {
+                    document.getElementById('kbStatus').textContent = data.message;
+                    if (data.files && data.files.length > 0) {
+                        updateFileList(data.files, 'preloaded');
+                    }
                 }
             } catch (error) {
                 console.error('Init error:', error);
+                document.getElementById('kbStatus').textContent = 
+                    'Error loading knowledge base. Please refresh the page.';
             }
         }
 
@@ -842,6 +1112,10 @@
                         is_voice_input: isVoiceInput
                     })
                 });
+
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                }
         
                 const data = await response.json();
                 removeMessage(loadingId);
@@ -877,11 +1151,10 @@
                         addVideoMessage(data.video, data.video_name);
                     }
         
-                    if (data.session_ended) {
+                    // Show feedback modal if session ended
+                    if (data.show_feedback) {
                         setTimeout(() => {
-                            if (confirm('Would you like to rate your experience?')) {
-                                showFeedbackDialog();
-                            }
+                            showFeedbackModal();
                         }, 1000);
                     }
                 }
@@ -960,28 +1233,34 @@
                 formData.append('files', file);
             }
 
+            const uploadingMsgId = addMessage('Uploading and processing files...', false);
+
             try {
-                addMessage('Uploading files...', false);
-                
                 const response = await fetch('/upload', {
                     method: 'POST',
                     body: formData
                 });
 
+                if (!response.ok) {
+                    throw new Error(`Upload failed: ${response.status}`);
+                }
+
                 const data = await response.json();
+                removeMessage(uploadingMsgId);
                 
                 if (data.success) {
-                    addMessage(`Successfully uploaded ${data.files.length} file(s): ${data.files.join(', ')}`, false);
+                    addMessage(`✅ Successfully uploaded ${data.files.length} file(s): ${data.files.join(', ')}`, false);
                     updateFileList(data.files, 'uploaded');
                     
                     const currentCount = document.querySelectorAll('.file-item').length;
                     document.getElementById('kbStatus').textContent = 
-                        `${currentCount} document(s) loaded. You can upload more documents to expand the knowledge base.`;
+                        `${currentCount} document(s) loaded and ready`;
                 } else {
-                    addMessage('Error uploading files: ' + data.error, false);
+                    addMessage('❌ Error uploading files: ' + data.error, false);
                 }
             } catch (error) {
-                addMessage('Error uploading files', false);
+                removeMessage(uploadingMsgId);
+                addMessage('❌ Error uploading files: ' + error.message, false);
                 console.error('Upload error:', error);
             }
 
@@ -1012,6 +1291,10 @@
                     body: JSON.stringify({ session_id: sessionId })
                 });
 
+                if (!response.ok) {
+                    throw new Error('Export failed');
+                }
+
                 const data = await response.json();
                 const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
@@ -1019,8 +1302,9 @@
                 a.href = url;
                 a.download = `chat_export_${Date.now()}.json`;
                 a.click();
+                URL.revokeObjectURL(url);
             } catch (error) {
-                alert('Error exporting chat');
+                alert('Error exporting chat: ' + error.message);
                 console.error('Export error:', error);
             }
         }
@@ -1029,11 +1313,15 @@
             if (!confirm('Are you sure you want to clear the chat history?')) return;
 
             try {
-                await fetch('/clear', {
+                const response = await fetch('/clear', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ session_id: sessionId })
                 });
+
+                if (!response.ok) {
+                    throw new Error('Clear failed');
+                }
 
                 document.getElementById('chatMessages').innerHTML = `
                     <div class="welcome-message">
@@ -1042,11 +1330,11 @@
                                  onerror="this.onerror=null; this.src='/static/images/HR-chat-icon.jpg'">
                         </div>
                         <h2>Hello! I'm your HR Assistant.</h2>
-                        <p>I have access to the knowledge base and I'm ready to help. You can also upload additional documents if needed.</p>
+                        <p>Chat cleared! I'm ready to help with any HR-related questions.</p>
                     </div>
                 `;
             } catch (error) {
-                alert('Error clearing chat');
+                alert('Error clearing chat: ' + error.message);
                 console.error('Clear error:', error);
             }
         }
@@ -1059,6 +1347,10 @@
                     body: JSON.stringify({ session_id: sessionId })
                 });
 
+                if (!response.ok) {
+                    throw new Error('Export failed');
+                }
+
                 const data = await response.json();
                 
                 if (data.success) {
@@ -1068,37 +1360,14 @@
                     a.href = url;
                     a.download = data.filename;
                     a.click();
+                    URL.revokeObjectURL(url);
                 } else {
                     alert(data.error || 'No feedback data available');
                 }
             } catch (error) {
-                alert('Error exporting feedback');
+                alert('Error exporting feedback: ' + error.message);
                 console.error('Feedback export error:', error);
             }
-        }
-
-        function showFeedbackDialog() {
-            const rating = prompt('Rate your experience (1-5):', '5');
-            if (rating === null) return;
-
-            const comment = prompt('Any additional comments? (optional):', '');
-
-            fetch('/feedback', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    session_id: sessionId,
-                    rating: parseInt(rating),
-                    comment: comment || ''
-                })
-            }).then(response => response.json())
-              .then(data => {
-                  if (data.success) {
-                      alert('Thank you for your feedback!');
-                      document.getElementById('feedbackStatus').textContent = 
-                          `Last rating: ${rating}/5`;
-                  }
-              });
         }
 
         window.addEventListener('load', initSession);
