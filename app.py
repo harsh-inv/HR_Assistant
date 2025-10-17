@@ -41,8 +41,9 @@ except ImportError:
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 app.config['UPLOAD_FOLDER'] = 'uploads'
-# FIXED: Use environment variable for Render disk path
-app.config['DOCUMENTS_FOLDER'] = os.getenv('DOCUMENTS_FOLDER', '/var/data/documents')
+
+# FIXED: Use your actual Render disk mount path
+app.config['DOCUMENTS_FOLDER'] = os.getenv('DOCUMENTS_FOLDER', '/opt/render/project/src/documents')
 app.config['MAX_DOCUMENTS'] = 20
 app.config['VIDEOS_FOLDER'] = 'static/videos'
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
@@ -53,8 +54,17 @@ if not OPENAI_API_KEY:
 
 os.environ['OPENAI_API_KEY'] = OPENAI_API_KEY
 
+# Create directories safely
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.makedirs(app.config['DOCUMENTS_FOLDER'], exist_ok=True)
+
+# The disk is already mounted at /opt/render/project/src/documents by Render
+# So we just check if it exists, don't try to create it
+if os.path.exists(app.config['DOCUMENTS_FOLDER']):
+    print(f"✅ Disk mounted at: {app.config['DOCUMENTS_FOLDER']}")
+else:
+    print(f"⚠️ Disk not found, creating local folder")
+    os.makedirs(app.config['DOCUMENTS_FOLDER'], exist_ok=True)
+
 os.makedirs(app.config['VIDEOS_FOLDER'], exist_ok=True)
 os.makedirs(os.path.join('static', 'audio'), exist_ok=True)
 
@@ -907,3 +917,4 @@ start_background_loading()
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
