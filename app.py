@@ -2,6 +2,7 @@ import os
 import warnings
 import logging
 import json
+import threading
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, send_file
 from werkzeug.utils import secure_filename
@@ -55,6 +56,7 @@ os.makedirs(app.config['VIDEOS_FOLDER'], exist_ok=True)
 os.makedirs(os.path.join('static', 'audio'), exist_ok=True)
 
 sessions = {}
+vectorstore_lock = threading.Lock()
 
 # Greeting patterns
 GREETING_PATTERNS = [
@@ -80,7 +82,8 @@ def get_session(session_id):
             'uploaded_files': [],
             'feedback_history': [],
             'preloaded_files': [],
-            'documents_loaded': False
+            'documents_loaded': False,
+            'loading_in_progress': False
         }
     return sessions[session_id]
 
@@ -286,47 +289,80 @@ def index():
 
 @app.route('/init_session', methods=['POST'])
 def init_session():
-    """Initialize session and preload documents in background"""
+    """Initialize session and start background document loading"""
     try:
         session_id = request.json.get('session_id', 'default')
         session = get_session(session_id)
         
         docs_folder = app.config['DOCUMENTS_FOLDER']
         
-        # Immediately load documents during initialization
-        if not session.get('documents_loaded'):
-            print("🔄 Preloading documents during initialization...")
-            all_text, processed_files = load_documents_from_directory(
-                docs_folder,
-                max_files=50
-            )
-            
-            if all_text:
-                text_splitter = CharacterTextSplitter(
-                    separator="\n",
-                    chunk_size=1000,
-                    chunk_overlap=200,
-                    length_function=len
+        # Check if already loaded
+        if session.get('documents_loaded'):
+            return jsonify({
+                'success': True,
+                'files': session.get('preloaded_files', [])[:10],
+                'message': f'{len(session.get("preloaded_files", []))} documents loaded and ready',
+                'status': 'ready'
+            })
+        
+        # Check if loading is in progress
+        if session.get('loading_in_progress'):
+            return jsonify({
+                'success': True,
+                'files': [],
+                'message': 'Documents are being loaded in background...',
+                'status': 'loading'
+            })
+        
+        # Start background loading
+        session['loading_in_progress'] = True
+        
+        def load_docs_background():
+            try:
+                print("🔄 Background loading documents...")
+                all_text, processed_files = load_documents_from_directory(
+                    docs_folder,
+                    max_files=50
                 )
-                texts = text_splitter.split_text(all_text)
-                embeddings = OpenAIEmbeddings()
-                vectorstore = FAISS.from_texts(texts, embeddings)
-                session['vectorstore'] = vectorstore
-                session['conversation_chain'] = create_chain(vectorstore)
-                session['preloaded_files'] = processed_files
-                session['documents_loaded'] = True
-                print(f"✅ Preloaded {len(processed_files)} documents successfully")
                 
-                return jsonify({
-                    'success': True,
-                    'files': processed_files[:10],
-                    'message': f'{len(processed_files)} documents loaded and ready'
-                })
+                if all_text:
+                    text_splitter = CharacterTextSplitter(
+                        separator="\n",
+                        chunk_size=1000,
+                        chunk_overlap=200,
+                        length_function=len
+                    )
+                    texts = text_splitter.split_text(all_text)
+                    embeddings = OpenAIEmbeddings()
+                    
+                    with vectorstore_lock:
+                        vectorstore = FAISS.from_texts(texts, embeddings)
+                        session['vectorstore'] = vectorstore
+                        session['conversation_chain'] = create_chain(vectorstore)
+                        session['preloaded_files'] = processed_files
+                        session['documents_loaded'] = True
+                        session['loading_in_progress'] = False
+                    
+                    print(f"✅ Background loaded {len(processed_files)} documents")
+                else:
+                    session['loading_in_progress'] = False
+                    print("⚠ No documents found to load")
+                    
+            except Exception as e:
+                import traceback
+                print(f"ERROR in background loading: {str(e)}")
+                print(traceback.format_exc())
+                session['loading_in_progress'] = False
+        
+        # Start thread
+        thread = threading.Thread(target=load_docs_background, daemon=True)
+        thread.start()
         
         return jsonify({
             'success': True,
             'files': [],
-            'message': 'No documents found. You can upload documents to get started.'
+            'message': 'Loading documents in background...',
+            'status': 'loading'
         })
         
     except Exception as e:
@@ -334,6 +370,32 @@ def init_session():
         print(f"ERROR in init_session: {str(e)}")
         print(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/check_status', methods=['GET'])
+def check_status():
+    """Check if documents are loaded"""
+    session_id = request.args.get('session_id', 'default')
+    session = get_session(session_id)
+    
+    if session.get('documents_loaded'):
+        return jsonify({
+            'ready': True,
+            'files_count': len(session.get('preloaded_files', [])),
+            'message': 'Ready',
+            'files': session.get('preloaded_files', [])[:10]
+        })
+    elif session.get('loading_in_progress'):
+        return jsonify({
+            'ready': False,
+            'loading': True,
+            'message': 'Loading documents...'
+        })
+    else:
+        return jsonify({
+            'ready': False,
+            'loading': False,
+            'message': 'No documents loaded'
+        })
 
 @app.route('/upload', methods=['POST'])
 def upload_files():
@@ -391,13 +453,15 @@ def upload_files():
             
             embeddings = OpenAIEmbeddings()
             
-            if session['vectorstore']:
-                session['vectorstore'].add_texts(texts)
-            else:
-                vectorstore = FAISS.from_texts(texts, embeddings)
-                session['vectorstore'] = vectorstore
+            with vectorstore_lock:
+                if session['vectorstore']:
+                    session['vectorstore'].add_texts(texts)
+                else:
+                    vectorstore = FAISS.from_texts(texts, embeddings)
+                    session['vectorstore'] = vectorstore
+                
+                session['conversation_chain'] = create_chain(session['vectorstore'])
             
-            session['conversation_chain'] = create_chain(session['vectorstore'])
             session['uploaded_files'].extend(processed_files)
             session['documents_loaded'] = True
             
@@ -426,87 +490,27 @@ def upload_files():
 
 @app.route('/chat', methods=['POST'])
 def chat():
-    session_id = request.json.get('session_id', 'default')
-    message = request.json.get('message', '')
-    is_voice_input = request.json.get('is_voice_input', False)
-    
-    session = get_session(session_id)
-    
-    if not message:
-        return jsonify({'error': 'No message provided'}), 400
-    
-    session['chat_history'].append({
-        'message': message,
-        'is_user': True,
-        'is_voice': is_voice_input,
-        'timestamp': datetime.now().isoformat()
-    })
-    
-    # Handle greetings without loading knowledge base
-    if is_greeting(message):
-        import random
-        response = random.choice(GREETING_RESPONSES)
+    try:
+        session_id = request.json.get('session_id', 'default')
+        message = request.json.get('message', '')
+        is_voice_input = request.json.get('is_voice_input', False)
+        
+        session = get_session(session_id)
+        
+        if not message:
+            return jsonify({'error': 'No message provided'}), 400
         
         session['chat_history'].append({
-            'message': response,
-            'is_user': False,
+            'message': message,
+            'is_user': True,
+            'is_voice': is_voice_input,
             'timestamp': datetime.now().isoformat()
         })
         
-        audio_url = None
-        try:
-            audio_filename = f"response_{uuid.uuid4().hex}.mp3"
-            audio_path = os.path.join('static', 'audio', audio_filename)
-            tts = gTTS(text=response, lang='en', slow=False)
-            tts.save(audio_path)
-            audio_url = f'/static/audio/{audio_filename}'
-        except Exception as e:
-            print(f"TTS error: {e}")
-        
-        return jsonify({
-            'response': response,
-            'should_speak': is_voice_input,
-            'audio_url': audio_url,
-            'auto_play': is_voice_input
-        })
-    
-    # Handle farewells
-    if is_farewell(message):
-        response = "Thank you for using HR Assistant! Have a great day!"
-        session['chat_history'].append({
-            'message': response,
-            'is_user': False,
-            'timestamp': datetime.now().isoformat()
-        })
-        
-        audio_url = None
-        try:
-            audio_filename = f"response_{uuid.uuid4().hex}.mp3"
-            audio_path = os.path.join('static', 'audio', audio_filename)
-            tts = gTTS(text=response, lang='en', slow=False)
-            tts.save(audio_path)
-            audio_url = f'/static/audio/{audio_filename}'
-        except Exception as e:
-            print(f"TTS error: {e}")
-        
-        return jsonify({
-            'response': response,
-            'session_ended': True,
-            'should_speak': is_voice_input,
-            'audio_url': audio_url,
-            'show_feedback': True
-        })
-    
-    # Load documents if not already loaded
-    if not session.get('documents_loaded') and session['conversation_chain'] is None:
-        return jsonify({'error': 'Knowledge base is still loading. Please wait a moment and try again.'}), 400
-    
-    related_video = find_related_video(message)
-    
-    if session['conversation_chain']:
-        try:
-            result = session['conversation_chain'].invoke({'input': message})
-            response = result['answer']
+        # Handle greetings
+        if is_greeting(message):
+            import random
+            response = random.choice(GREETING_RESPONSES)
             
             session['chat_history'].append({
                 'message': response,
@@ -514,36 +518,114 @@ def chat():
                 'timestamp': datetime.now().isoformat()
             })
             
-            response_data = {
-                'response': response,
-                'should_speak': is_voice_input
-            }
+            audio_url = None
+            if is_voice_input:
+                try:
+                    audio_filename = f"response_{uuid.uuid4().hex}.mp3"
+                    audio_path = os.path.join('static', 'audio', audio_filename)
+                    tts = gTTS(text=response, lang='en', slow=False)
+                    tts.save(audio_path)
+                    audio_url = f'/static/audio/{audio_filename}'
+                except Exception as e:
+                    print(f"TTS error: {e}")
             
+            return jsonify({
+                'response': response,
+                'should_speak': is_voice_input,
+                'audio_url': audio_url,
+                'auto_play': is_voice_input
+            })
+        
+        # Handle farewells
+        if is_farewell(message):
+            response = "Thank you for using HR Assistant! Have a great day!"
+            session['chat_history'].append({
+                'message': response,
+                'is_user': False,
+                'timestamp': datetime.now().isoformat()
+            })
+            
+            audio_url = None
+            if is_voice_input:
+                try:
+                    audio_filename = f"response_{uuid.uuid4().hex}.mp3"
+                    audio_path = os.path.join('static', 'audio', audio_filename)
+                    tts = gTTS(text=response, lang='en', slow=False)
+                    tts.save(audio_path)
+                    audio_url = f'/static/audio/{audio_filename}'
+                except Exception as e:
+                    print(f"TTS error: {e}")
+            
+            return jsonify({
+                'response': response,
+                'session_ended': True,
+                'should_speak': is_voice_input,
+                'audio_url': audio_url,
+                'show_feedback': True
+            })
+        
+        # Check if knowledge base is ready
+        if not session.get('documents_loaded'):
+            if session.get('loading_in_progress'):
+                return jsonify({
+                    'error': 'Knowledge base is still loading. Please wait a moment and try again.',
+                    'loading': True
+                }), 503  # Service Unavailable
+            else:
+                return jsonify({
+                    'error': 'No knowledge base loaded. Please upload documents or wait for initialization.',
+                    'loading': False
+                }), 503
+        
+        if not session['conversation_chain']:
+            return jsonify({
+                'error': 'Knowledge base initialization failed. Please refresh and try again.'
+            }), 500
+        
+        related_video = find_related_video(message)
+        
+        # Process with conversation chain
+        with vectorstore_lock:
+            result = session['conversation_chain'].invoke({'input': message})
+            response = result['answer']
+        
+        session['chat_history'].append({
+            'message': response,
+            'is_user': False,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+        response_data = {
+            'response': response,
+            'should_speak': is_voice_input
+        }
+        
+        # Generate TTS if needed
+        if is_voice_input:
             try:
                 audio_filename = f"response_{uuid.uuid4().hex}.mp3"
                 audio_path = os.path.join('static', 'audio', audio_filename)
                 tts = gTTS(text=response, lang='en', slow=False)
                 tts.save(audio_path)
                 response_data['audio_url'] = f'/static/audio/{audio_filename}'
-                
-                if is_voice_input:
-                    response_data['auto_play'] = True
+                response_data['auto_play'] = True
             except Exception as e:
                 print(f"TTS error: {e}")
-            
-            if related_video:
-                response_data['video'] = f'/static/videos/{related_video}'
-                response_data['video_name'] = os.path.splitext(related_video)[0].replace('_', ' ').title()
-            
-            return jsonify(response_data)
-            
-        except Exception as e:
-            import traceback
-            print(f"Chat error: {str(e)}")
-            print(traceback.format_exc())
-            return jsonify({'error': f'Error processing request: {str(e)}'}), 500
-    else:
-        return jsonify({'error': 'Knowledge base is loading. Please try again in a moment.'}), 400
+        
+        if related_video:
+            response_data['video'] = f'/static/videos/{related_video}'
+            response_data['video_name'] = os.path.splitext(related_video)[0].replace('_', ' ').title()
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        import traceback
+        print(f"Chat error: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({
+            'error': f'Error processing request: {str(e)}',
+            'details': 'Please try again or contact support if the issue persists.'
+        }), 500
 
 @app.route('/text_to_speech', methods=['POST'])
 def text_to_speech():
@@ -648,7 +730,8 @@ def clear_session():
             'uploaded_files': [],
             'feedback_history': [],
             'preloaded_files': preloaded_files,
-            'documents_loaded': documents_loaded
+            'documents_loaded': documents_loaded,
+            'loading_in_progress': False
         }
     return jsonify({'success': True})
 
