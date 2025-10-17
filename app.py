@@ -42,7 +42,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['DOCUMENTS_FOLDER'] = os.getenv('DOCUMENTS_FOLDER', '/opt/render/project/src/documents')
-app.config['MAX_DOCUMENTS'] = 20  # Reduced for faster loading
+app.config['MAX_DOCUMENTS'] = 10  # Reduced for faster loading
 app.config['VIDEOS_FOLDER'] = 'static/videos'
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 
@@ -64,7 +64,6 @@ CACHE_HASH_FILE = os.path.join(app.config['DOCUMENTS_FOLDER'], '.cache_hash.txt'
 sessions = {}
 vectorstore_lock = threading.Lock()
 
-# Greeting patterns
 GREETING_PATTERNS = [
     'hi', 'hello', 'hey', 'greetings', 'good morning', 'good afternoon', 
     'good evening', 'howdy', 'hiya', 'whats up', "what's up", 'sup'
@@ -95,17 +94,14 @@ def get_session(session_id):
     return sessions[session_id]
 
 def is_greeting(message):
-    """Check if message is a greeting"""
     msg_lower = message.lower().strip()
     return any(pattern in msg_lower for pattern in GREETING_PATTERNS)
 
 def is_farewell(message):
-    """Check if message is a farewell"""
     msg_lower = message.lower().strip()
     return any(pattern in msg_lower for pattern in FAREWELL_PATTERNS)
 
 def get_directory_hash(directory):
-    """Calculate hash of all files in directory"""
     hash_obj = hashlib.md5()
     try:
         file_count = 0
@@ -135,7 +131,7 @@ def extract_pdf_text(pdf_file):
         f = StringIO()
         with redirect_stderr(f):
             doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-            for page_num in range(doc.page_count):
+            for page_num in range(min(doc.page_count, 50)):  # Limit pages
                 try:
                     page = doc.load_page(page_num)
                     text += page.get_text() + "\n"
@@ -149,7 +145,7 @@ def extract_pdf_text(pdf_file):
     try:
         pdf_file.seek(0)
         with pdfplumber.open(pdf_file) as pdf:
-            for page in pdf.pages:
+            for page in pdf.pages[:50]:  # Limit pages
                 try:
                     page_text = page.extract_text()
                     if page_text:
@@ -197,16 +193,15 @@ def process_file(file_path_or_obj, filename):
             return extract_txt_text(file_path_or_obj)
     return ""
 
-def load_documents_from_directory(directory, max_files=20):
-    """Load documents with optimization"""
+def load_documents_from_directory(directory, max_files=10):
     all_text = ""
     processed_files = []
     
     if not os.path.exists(directory):
-        print(f"❌ Directory does not exist: {directory}")
+        print(f"Directory does not exist: {directory}")
         return all_text, processed_files
     
-    print(f"📂 Scanning directory: {directory}")
+    print(f"Scanning directory: {directory}")
     
     all_files_with_size = []
     for root, dirs, files in os.walk(directory):
@@ -217,140 +212,114 @@ def load_documents_from_directory(directory, max_files=20):
                     size = os.path.getsize(filepath)
                     all_files_with_size.append((root, filename, size))
                 except Exception as e:
-                    print(f"⚠ Could not get size for {filename}: {e}")
+                    print(f"Could not get size for {filename}: {e}")
     
     if len(all_files_with_size) == 0:
-        print("❌ No documents found in directory")
+        print("No documents found in directory")
         return all_text, processed_files
     
-    print(f"📊 Found {len(all_files_with_size)} documents")
+    print(f"Found {len(all_files_with_size)} documents")
     
-    # Sort by size (smaller files first)
+    # Sort by size (smaller first)
     all_files_with_size.sort(key=lambda x: x[2])
     
     if len(all_files_with_size) > max_files:
-        print(f"⚠ Limiting to {max_files} documents (found {len(all_files_with_size)})")
+        print(f"Limiting to {max_files} documents")
         all_files_with_size = all_files_with_size[:max_files]
-    
-    print(f"🔄 Processing {len(all_files_with_size)} documents...")
     
     for idx, (root, filename, size) in enumerate(all_files_with_size, 1):
         file_path = os.path.join(root, filename)
         try:
             # Skip very large files
-            if size > 5 * 1024 * 1024:  # 5MB
-                print(f"⏭ Skipping large file [{idx}/{len(all_files_with_size)}]: {filename} ({size/1024/1024:.1f}MB)")
+            if size > 3 * 1024 * 1024:  # 3MB limit
+                print(f"Skipping large file: {filename}")
                 continue
             
-            print(f"📄 Processing [{idx}/{len(all_files_with_size)}]: {filename} ({size/1024:.1f}KB)")
+            print(f"Processing [{idx}/{len(all_files_with_size)}]: {filename}")
             text = process_file(file_path, filename)
             
             if text and len(text) > 50:
-                # Truncate very long texts
-                if len(text) > 50000:
-                    text = text[:50000] + "...[truncated]"
+                # Truncate long texts
+                if len(text) > 30000:
+                    text = text[:30000] + "...[truncated]"
                 
                 all_text += f"\n\n--- {filename} ---\n{text}"
                 processed_files.append(filename)
-                print(f"✅ Processed: {filename}")
+                print(f"Processed: {filename}")
             else:
-                print(f"⚠ No text extracted from: {filename}")
+                print(f"No text from: {filename}")
                 
         except Exception as e:
-            print(f"❌ Error processing {filename}: {e}")
+            print(f"Error processing {filename}: {e}")
     
-    print(f"✅ Successfully processed {len(processed_files)}/{len(all_files_with_size)} files")
+    print(f"Successfully processed {len(processed_files)} files")
     return all_text, processed_files
 
 def load_or_create_vectorstore(docs_folder):
-    """Load cached vectorstore or create new one"""
-    print("🔍 Checking for cached vectorstore...")
+    print("Checking for cached vectorstore...")
     current_hash = get_directory_hash(docs_folder)
     
-    # Check if cache exists and is valid
     if os.path.exists(VECTORSTORE_CACHE) and os.path.exists(CACHE_HASH_FILE):
         try:
             with open(CACHE_HASH_FILE, 'r') as f:
                 cached_hash = f.read().strip()
             
-            print(f"Cache hash: {cached_hash}")
-            print(f"Current hash: {current_hash}")
-            
             if cached_hash == current_hash:
-                print("📦 Loading vectorstore from cache...")
-                start_time = time.time()
+                print("Loading from cache...")
                 with open(VECTORSTORE_CACHE, 'rb') as f:
                     vectorstore = pickle.load(f)
-                load_time = time.time() - start_time
-                print(f"✅ Vectorstore loaded from cache in {load_time:.2f}s")
+                print("Loaded from cache!")
                 return vectorstore, True
-            else:
-                print("🔄 Cache is stale, will rebuild")
         except Exception as e:
-            print(f"⚠ Cache load error: {e}")
-    else:
-        print("📭 No cache found, will create new vectorstore")
+            print(f"Cache load error: {e}")
     
-    # Create new vectorstore
-    print("🔄 Creating new vectorstore...")
-    start_time = time.time()
-    
-    all_text, processed_files = load_documents_from_directory(docs_folder, max_files=20)
+    print("Creating new vectorstore...")
+    all_text, processed_files = load_documents_from_directory(docs_folder, max_files=10)
     
     if not all_text or len(processed_files) == 0:
-        print("❌ No documents to process")
+        print("No documents to process")
         return None, False
     
-    print(f"📝 Splitting text from {len(processed_files)} documents...")
     text_splitter = CharacterTextSplitter(
         separator="\n",
-        chunk_size=1000,
-        chunk_overlap=200,
+        chunk_size=800,  # Smaller chunks
+        chunk_overlap=150,
         length_function=len
     )
     texts = text_splitter.split_text(all_text)
-    print(f"✂️ Created {len(texts)} text chunks")
+    print(f"Created {len(texts)} chunks")
     
-    print("🤖 Creating embeddings...")
-    embeddings = OpenAIEmbeddings(model="text-embedding-3-small")  # Faster model
-    
-    print("🏗️ Building FAISS index...")
+    embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
     vectorstore = FAISS.from_texts(texts, embeddings)
-    
-    create_time = time.time() - start_time
-    print(f"✅ Vectorstore created in {create_time:.2f}s")
     
     # Save cache
     try:
-        print("💾 Saving vectorstore cache...")
         with open(VECTORSTORE_CACHE, 'wb') as f:
             pickle.dump(vectorstore, f)
         with open(CACHE_HASH_FILE, 'w') as f:
             f.write(current_hash)
-        print("✅ Vectorstore cached successfully")
+        print("Cached successfully")
     except Exception as e:
-        print(f"⚠ Cache save error: {e}")
+        print(f"Cache save error: {e}")
     
     return vectorstore, False
 
 def load_docs_background(session, docs_folder):
-    """Background document loading with caching"""
     print("=" * 60)
-    print("🚀 STARTING BACKGROUND DOCUMENT LOADING")
+    print("STARTING BACKGROUND LOADING")
     print("=" * 60)
     
     try:
         vectorstore, was_cached = load_or_create_vectorstore(docs_folder)
         
         if vectorstore:
-            # Get file list
             processed_files = []
             for root, dirs, files in os.walk(docs_folder):
                 for filename in files:
                     if filename.lower().endswith(('.pdf', '.docx', '.doc', '.txt')):
                         processed_files.append(filename)
             
-            processed_files = processed_files[:20]  # Limit display
+            processed_files = processed_files[:10]
             
             with vectorstore_lock:
                 session['vectorstore'] = vectorstore
@@ -360,32 +329,46 @@ def load_docs_background(session, docs_folder):
                 session['loading_in_progress'] = False
                 session['loading_error'] = None
             
-            cache_status = "✅ FROM CACHE" if was_cached else "🆕 NEWLY CREATED"
             print("=" * 60)
-            print(f"🎉 SUCCESS! Loaded {len(processed_files)} documents {cache_status}")
+            print(f"SUCCESS! Loaded {len(processed_files)} documents")
             print("=" * 60)
         else:
             session['loading_in_progress'] = False
             session['loading_error'] = "No documents found"
-            print("=" * 60)
-            print("❌ FAILED: No documents found to load")
-            print("=" * 60)
+            print("FAILED: No documents")
             
     except Exception as e:
         import traceback
-        error_msg = str(e)
         session['loading_in_progress'] = False
-        session['loading_error'] = error_msg
-        print("=" * 60)
-        print(f"❌ ERROR in background loading: {error_msg}")
+        session['loading_error'] = str(e)
+        print(f"ERROR: {e}")
         print(traceback.format_exc())
-        print("=" * 60)
+
+def generate_tts(text):
+    """Generate TTS and return audio URL"""
+    try:
+        # Clean text for TTS
+        clean_text = re.sub(r'<[^>]+>', '', text)  # Remove HTML
+        clean_text = re.sub(r'\*\*', '', clean_text)  # Remove markdown bold
+        
+        if len(clean_text) > 500:  # Limit length for TTS
+            clean_text = clean_text[:500] + "..."
+        
+        audio_filename = f"response_{uuid.uuid4().hex}.mp3"
+        audio_path = os.path.join('static', 'audio', audio_filename)
+        
+        tts = gTTS(text=clean_text, lang='en', slow=False)
+        tts.save(audio_path)
+        
+        return f'/static/audio/{audio_filename}'
+    except Exception as e:
+        print(f"TTS error: {e}")
+        return None
 
 def similarity_score(str1, str2):
     return SequenceMatcher(None, str1.lower(), str2.lower()).ratio()
 
 def find_related_video(query, threshold=0.5):
-    """Find related video with improved matching"""
     videos_folder = app.config['VIDEOS_FOLDER']
     
     if not os.path.exists(videos_folder):
@@ -425,9 +408,6 @@ def find_related_video(query, threshold=0.5):
                 best_score = combined_score
                 best_match = filename
     
-    if best_match:
-        print(f"Video match: '{query}' → '{best_match}' (score: {best_score:.2f})")
-    
     return best_match
 
 def create_chain(vectorstore):
@@ -463,14 +443,12 @@ def index():
 
 @app.route('/init_session', methods=['POST'])
 def init_session():
-    """Initialize session with cached vectorstore"""
     try:
         session_id = request.json.get('session_id', 'default')
         session = get_session(session_id)
         
         docs_folder = app.config['DOCUMENTS_FOLDER']
         
-        # Check if already loaded
         if session.get('documents_loaded'):
             files = session.get('preloaded_files', [])
             return jsonify({
@@ -480,29 +458,26 @@ def init_session():
                 'status': 'ready'
             })
         
-        # Check if there was a loading error
         if session.get('loading_error'):
             return jsonify({
                 'success': True,
                 'files': [],
-                'message': f'Error loading documents: {session["loading_error"]}',
+                'message': f'Error: {session["loading_error"]}',
                 'status': 'error'
             })
         
-        # Check if loading is in progress
         if session.get('loading_in_progress'):
             return jsonify({
                 'success': True,
                 'files': [],
-                'message': 'Documents are being loaded in background...',
+                'message': 'Loading documents...',
                 'status': 'loading'
             })
         
-        # Start background loading
+        # Start loading
         session['loading_in_progress'] = True
         session['loading_error'] = None
         
-        # Start thread
         thread = threading.Thread(
             target=load_docs_background,
             args=(session, docs_folder),
@@ -513,7 +488,7 @@ def init_session():
         return jsonify({
             'success': True,
             'files': [],
-            'message': 'Loading documents in background...',
+            'message': 'Loading documents...',
             'status': 'loading'
         })
         
@@ -525,7 +500,6 @@ def init_session():
 
 @app.route('/check_status', methods=['GET'])
 def check_status():
-    """Check if documents are loaded"""
     session_id = request.args.get('session_id', 'default')
     session = get_session(session_id)
     
@@ -554,7 +528,7 @@ def check_status():
         return jsonify({
             'ready': False,
             'loading': False,
-            'message': 'No documents loaded'
+            'message': 'Not initialized'
         })
 
 @app.route('/upload', methods=['POST'])
@@ -573,7 +547,6 @@ def upload_files():
         
         all_text = ""
         processed_files = []
-        errors = []
         
         for file in files:
             if file.filename:
@@ -584,69 +557,45 @@ def upload_files():
                         all_text += f"\n\n--- {filename} ---\n{text}"
                         processed_files.append(filename)
                         
-                        # Save file
                         file.seek(0)
                         file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                    else:
-                        errors.append(f"{filename}: No text extracted")
                 except Exception as e:
-                    errors.append(f"{filename}: {str(e)}")
+                    print(f"Error with {filename}: {e}")
         
-        if not all_text or not processed_files:
-            error_msg = 'No text could be extracted from files'
-            if errors:
-                error_msg += f": {'; '.join(errors)}"
-            return jsonify({'success': False, 'error': error_msg}), 400
+        if not all_text:
+            return jsonify({'success': False, 'error': 'No text extracted'}), 400
         
-        # Process the extracted text
-        try:
-            text_splitter = CharacterTextSplitter(
-                separator="\n",
-                chunk_size=1000,
-                chunk_overlap=200,
-                length_function=len
-            )
-            texts = text_splitter.split_text(all_text)
+        text_splitter = CharacterTextSplitter(
+            separator="\n",
+            chunk_size=800,
+            chunk_overlap=150,
+            length_function=len
+        )
+        texts = text_splitter.split_text(all_text)
+        
+        embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+        
+        with vectorstore_lock:
+            if session['vectorstore']:
+                session['vectorstore'].add_texts(texts)
+            else:
+                vectorstore = FAISS.from_texts(texts, embeddings)
+                session['vectorstore'] = vectorstore
             
-            if not texts:
-                return jsonify({'success': False, 'error': 'Failed to split text into chunks'}), 400
-            
-            embeddings = OpenAIEmbeddings()
-            
-            with vectorstore_lock:
-                if session['vectorstore']:
-                    session['vectorstore'].add_texts(texts)
-                else:
-                    vectorstore = FAISS.from_texts(texts, embeddings)
-                    session['vectorstore'] = vectorstore
-                
-                session['conversation_chain'] = create_chain(session['vectorstore'])
-            
-            session['uploaded_files'].extend(processed_files)
-            session['documents_loaded'] = True
-            
-            response_data = {
-                'success': True,
-                'files': processed_files,
-                'message': f'Successfully processed {len(processed_files)} file(s)'
-            }
-            
-            if errors:
-                response_data['warnings'] = errors
-            
-            return jsonify(response_data)
-            
-        except Exception as e:
-            import traceback
-            print(f"Processing error: {str(e)}")
-            print(traceback.format_exc())
-            return jsonify({'success': False, 'error': f'Error processing files: {str(e)}'}), 500
+            session['conversation_chain'] = create_chain(session['vectorstore'])
+        
+        session['uploaded_files'].extend(processed_files)
+        session['documents_loaded'] = True
+        
+        return jsonify({
+            'success': True,
+            'files': processed_files
+        })
         
     except Exception as e:
         import traceback
-        print(f"Upload error: {str(e)}")
         print(traceback.format_exc())
-        return jsonify({'success': False, 'error': f'Upload failed: {str(e)}'}), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -663,7 +612,6 @@ def chat():
         session['chat_history'].append({
             'message': message,
             'is_user': True,
-            'is_voice': is_voice_input,
             'timestamp': datetime.now().isoformat()
         })
         
@@ -678,20 +626,10 @@ def chat():
                 'timestamp': datetime.now().isoformat()
             })
             
-            audio_url = None
-            if is_voice_input:
-                try:
-                    audio_filename = f"response_{uuid.uuid4().hex}.mp3"
-                    audio_path = os.path.join('static', 'audio', audio_filename)
-                    tts = gTTS(text=response, lang='en', slow=False)
-                    tts.save(audio_path)
-                    audio_url = f'/static/audio/{audio_filename}'
-                except Exception as e:
-                    print(f"TTS error: {e}")
+            audio_url = generate_tts(response)
             
             return jsonify({
                 'response': response,
-                'should_speak': is_voice_input,
                 'audio_url': audio_url,
                 'auto_play': is_voice_input
             })
@@ -705,46 +643,28 @@ def chat():
                 'timestamp': datetime.now().isoformat()
             })
             
-            audio_url = None
-            if is_voice_input:
-                try:
-                    audio_filename = f"response_{uuid.uuid4().hex}.mp3"
-                    audio_path = os.path.join('static', 'audio', audio_filename)
-                    tts = gTTS(text=response, lang='en', slow=False)
-                    tts.save(audio_path)
-                    audio_url = f'/static/audio/{audio_filename}'
-                except Exception as e:
-                    print(f"TTS error: {e}")
+            audio_url = generate_tts(response)
             
             return jsonify({
                 'response': response,
-                'session_ended': True,
-                'should_speak': is_voice_input,
                 'audio_url': audio_url,
                 'show_feedback': True
             })
         
-        # Check if knowledge base is ready
+        # Check if ready
         if not session.get('documents_loaded'):
-            if session.get('loading_in_progress'):
-                return jsonify({
-                    'error': 'Knowledge base is still loading. Please wait a moment and try again.',
-                    'loading': True
-                }), 503  # Service Unavailable
-            else:
-                return jsonify({
-                    'error': 'No knowledge base loaded. Please upload documents or wait for initialization.',
-                    'loading': False
-                }), 503
+            error_msg = 'Knowledge base is still loading. Please wait...'
+            return jsonify({
+                'error': error_msg,
+                'loading': True
+            }), 503
         
         if not session['conversation_chain']:
             return jsonify({
-                'error': 'Knowledge base initialization failed. Please refresh and try again.'
+                'error': 'System not ready. Please refresh.'
             }), 500
         
-        related_video = find_related_video(message)
-        
-        # Process with conversation chain
+        # Process with chain
         with vectorstore_lock:
             result = session['conversation_chain'].invoke({'input': message})
             response = result['answer']
@@ -755,23 +675,17 @@ def chat():
             'timestamp': datetime.now().isoformat()
         })
         
+        # Always generate TTS
+        audio_url = generate_tts(response)
+        
         response_data = {
             'response': response,
-            'should_speak': is_voice_input
+            'audio_url': audio_url,
+            'auto_play': is_voice_input
         }
         
-        # Generate TTS if needed
-        if is_voice_input:
-            try:
-                audio_filename = f"response_{uuid.uuid4().hex}.mp3"
-                audio_path = os.path.join('static', 'audio', audio_filename)
-                tts = gTTS(text=response, lang='en', slow=False)
-                tts.save(audio_path)
-                response_data['audio_url'] = f'/static/audio/{audio_filename}'
-                response_data['auto_play'] = True
-            except Exception as e:
-                print(f"TTS error: {e}")
-        
+        # Check for video
+        related_video = find_related_video(message)
         if related_video:
             response_data['video'] = f'/static/videos/{related_video}'
             response_data['video_name'] = os.path.splitext(related_video)[0].replace('_', ' ').title()
@@ -780,34 +694,10 @@ def chat():
         
     except Exception as e:
         import traceback
-        print(f"Chat error: {str(e)}")
         print(traceback.format_exc())
         return jsonify({
-            'error': f'Error processing request: {str(e)}',
-            'details': 'Please try again or contact support if the issue persists.'
+            'error': f'Error: {str(e)}'
         }), 500
-
-@app.route('/text_to_speech', methods=['POST'])
-def text_to_speech():
-    text = request.json.get('text', '')
-    session_id = request.json.get('session_id', 'default')
-    
-    if not text:
-        return jsonify({'error': 'No text provided'}), 400
-    
-    try:
-        audio_filename = f"response_{uuid.uuid4().hex}.mp3"
-        audio_path = os.path.join('static', 'audio', audio_filename)
-        
-        tts = gTTS(text=text, lang='en', slow=False)
-        tts.save(audio_path)
-        
-        return jsonify({
-            'success': True,
-            'audio_url': f'/static/audio/{audio_filename}'
-        })
-    except Exception as e:
-        return jsonify({'error': f'TTS error: {str(e)}'}), 500
 
 @app.route('/feedback', methods=['POST'])
 def submit_feedback():
@@ -911,16 +801,5 @@ def feedback_stats():
         'average': round(avg_rating, 1)
     })
 
-@app.route('/get_loaded_files', methods=['GET'])
-def get_loaded_files():
-    session_id = request.args.get('session_id', 'default')
-    session = get_session(session_id)
-    
-    return jsonify({
-        'preloaded': session.get('preloaded_files', []),
-        'uploaded': session.get('uploaded_files', [])
-    })
-
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
-
