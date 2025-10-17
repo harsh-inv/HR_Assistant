@@ -38,7 +38,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['DOCUMENTS_FOLDER'] = os.getenv('DOCUMENTS_FOLDER', '/opt/render/project/src/documents')
-app.config['MAX_DOCUMENTS'] = 50  # Reduced to prevent memory issues
+app.config['MAX_DOCUMENTS'] = 50
 app.config['VIDEOS_FOLDER'] = 'static/videos'
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 
@@ -56,6 +56,21 @@ os.makedirs(os.path.join('static', 'audio'), exist_ok=True)
 
 sessions = {}
 
+# Greeting patterns
+GREETING_PATTERNS = [
+    'hi', 'hello', 'hey', 'greetings', 'good morning', 'good afternoon', 
+    'good evening', 'howdy', 'hiya', 'whats up', "what's up", 'sup'
+]
+
+GREETING_RESPONSES = [
+    "Hello! I'm your HR Assistant. How can I help you today?",
+    "Hi there! I'm here to help with any HR-related questions you have.",
+    "Greetings! What HR information can I assist you with today?",
+    "Hello! Feel free to ask me anything about HR policies and procedures."
+]
+
+FAREWELL_PATTERNS = ['bye', 'goodbye', 'exit', 'quit', 'end', 'see you', 'farewell']
+
 def get_session(session_id):
     if session_id not in sessions:
         sessions[session_id] = {
@@ -68,6 +83,16 @@ def get_session(session_id):
             'documents_loaded': False
         }
     return sessions[session_id]
+
+def is_greeting(message):
+    """Check if message is a greeting"""
+    msg_lower = message.lower().strip()
+    return any(pattern in msg_lower for pattern in GREETING_PATTERNS)
+
+def is_farewell(message):
+    """Check if message is a farewell"""
+    msg_lower = message.lower().strip()
+    return any(pattern in msg_lower for pattern in FAREWELL_PATTERNS)
 
 def extract_pdf_text(pdf_file):
     text = ""
@@ -151,14 +176,12 @@ def load_documents_from_directory(directory, max_files=None):
         print(f"Directory does not exist: {directory}")
         return all_text, processed_files
     
-    # Get all valid files (including subdirectories)
     all_files = []
     for root, dirs, files in os.walk(directory):
         for filename in files:
             if filename.lower().endswith(('.pdf', '.docx', '.doc', '.txt')):
                 all_files.append((root, filename))
     
-    # Limit files to prevent memory issues
     if max_files is None:
         max_files = app.config.get('MAX_DOCUMENTS', 50)
     
@@ -168,7 +191,6 @@ def load_documents_from_directory(directory, max_files=None):
     
     print(f"Processing {len(all_files)} documents...")
     
-    # Process files
     for root, filename in all_files:
         file_path = os.path.join(root, filename)
         try:
@@ -185,18 +207,16 @@ def load_documents_from_directory(directory, max_files=None):
 def similarity_score(str1, str2):
     return SequenceMatcher(None, str1.lower(), str2.lower()).ratio()
 
-def find_related_video(query, threshold=0.5):  # Increased from 0.3 to 0.5
+def find_related_video(query, threshold=0.5):
     """Find related video with improved matching"""
     videos_folder = app.config['VIDEOS_FOLDER']
     
     if not os.path.exists(videos_folder):
         return None
     
-    # Clean query
     query_clean = re.sub(r'[^\w\s]', '', query.lower())
     query_words = set(query_clean.split())
     
-    # Remove common stop words
     stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can'}
     query_words = query_words - stop_words
     
@@ -216,36 +236,27 @@ def find_related_video(query, threshold=0.5):  # Increased from 0.3 to 0.5
             if len(name_words) == 0:
                 continue
             
-            # Calculate word overlap (must have at least 2 matching words)
             common_words = query_words.intersection(name_words)
-            if len(common_words) < 2:  # Require at least 2 matching words
+            if len(common_words) < 2:
                 continue
             
             word_overlap = len(common_words) / max(len(query_words), 1)
-            
-            # String similarity
             string_sim = similarity_score(query_clean, name_clean)
-            
-            # Combined score with stricter requirements
             combined_score = (word_overlap * 0.7) + (string_sim * 0.3)
             
             if combined_score > best_score and combined_score >= threshold:
                 best_score = combined_score
                 best_match = filename
     
-    # Debug logging
     if best_match:
         print(f"Video match: '{query}' → '{best_match}' (score: {best_score:.2f})")
-    else:
-        print(f"No video match found for: '{query}'")
     
     return best_match
-
 
 def create_chain(vectorstore):
     retriever = vectorstore.as_retriever(
         search_type="similarity",
-        search_kwargs={"k": 3}  # Reduced from 5 to save memory
+        search_kwargs={"k": 3}
     )
     
     prompt = ChatPromptTemplate.from_template("""
@@ -269,37 +280,48 @@ Answer:
     document_chain = create_stuff_documents_chain(llm, prompt)
     return create_retrieval_chain(retriever, document_chain)
 
-
 @app.route('/')
 def index():
     return render_template('index.html')
 
 @app.route('/init_session', methods=['POST'])
 def init_session():
-    """Initialize session WITHOUT loading documents - just count them"""
+    """Initialize session and preload documents in background"""
     try:
         session_id = request.json.get('session_id', 'default')
         session = get_session(session_id)
         
         docs_folder = app.config['DOCUMENTS_FOLDER']
         
-        # Just count files, don't load them
-        file_count = 0
-        file_list = []
-        
-        if os.path.exists(docs_folder):
-            for root, dirs, files in os.walk(docs_folder):
-                for filename in files:
-                    if filename.lower().endswith(('.pdf', '.docx', '.doc', '.txt')):
-                        file_count += 1
-                        file_list.append(filename)
-        
-        if file_count > 0:
-            return jsonify({
-                'success': True,
-                'files': file_list[:10],  # Show first 10 files only
-                'message': f'{file_count} documents available (will load on first message to save memory)'
-            })
+        # Immediately load documents during initialization
+        if not session.get('documents_loaded'):
+            print("🔄 Preloading documents during initialization...")
+            all_text, processed_files = load_documents_from_directory(
+                docs_folder,
+                max_files=50
+            )
+            
+            if all_text:
+                text_splitter = CharacterTextSplitter(
+                    separator="\n",
+                    chunk_size=1000,
+                    chunk_overlap=200,
+                    length_function=len
+                )
+                texts = text_splitter.split_text(all_text)
+                embeddings = OpenAIEmbeddings()
+                vectorstore = FAISS.from_texts(texts, embeddings)
+                session['vectorstore'] = vectorstore
+                session['conversation_chain'] = create_chain(vectorstore)
+                session['preloaded_files'] = processed_files
+                session['documents_loaded'] = True
+                print(f"✅ Preloaded {len(processed_files)} documents successfully")
+                
+                return jsonify({
+                    'success': True,
+                    'files': processed_files[:10],
+                    'message': f'{len(processed_files)} documents loaded and ready'
+                })
         
         return jsonify({
             'success': True,
@@ -320,24 +342,42 @@ def upload_files():
         session = get_session(session_id)
         
         if 'files' not in request.files:
-            return jsonify({'error': 'No files provided'}), 400
+            return jsonify({'success': False, 'error': 'No files provided'}), 400
         
         files = request.files.getlist('files')
+        
+        if not files or len(files) == 0:
+            return jsonify({'success': False, 'error': 'No files selected'}), 400
+        
         all_text = ""
         processed_files = []
+        errors = []
         
         for file in files:
             if file.filename:
-                filename = secure_filename(file.filename)
-                text = process_file(file, filename)
-                if text:
-                    all_text += f"\n\n--- {filename} ---\n{text}"
-                    processed_files.append(filename)
-                    
-                    file.seek(0)
-                    file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                try:
+                    filename = secure_filename(file.filename)
+                    text = process_file(file, filename)
+                    if text and text.strip():
+                        all_text += f"\n\n--- {filename} ---\n{text}"
+                        processed_files.append(filename)
+                        
+                        # Save file
+                        file.seek(0)
+                        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                    else:
+                        errors.append(f"{filename}: No text extracted")
+                except Exception as e:
+                    errors.append(f"{filename}: {str(e)}")
         
-        if all_text:
+        if not all_text or not processed_files:
+            error_msg = 'No text could be extracted from files'
+            if errors:
+                error_msg += f": {'; '.join(errors)}"
+            return jsonify({'success': False, 'error': error_msg}), 400
+        
+        # Process the extracted text
+        try:
             text_splitter = CharacterTextSplitter(
                 separator="\n",
                 chunk_size=1000,
@@ -345,6 +385,10 @@ def upload_files():
                 length_function=len
             )
             texts = text_splitter.split_text(all_text)
+            
+            if not texts:
+                return jsonify({'success': False, 'error': 'Failed to split text into chunks'}), 400
+            
             embeddings = OpenAIEmbeddings()
             
             if session['vectorstore']:
@@ -357,19 +401,28 @@ def upload_files():
             session['uploaded_files'].extend(processed_files)
             session['documents_loaded'] = True
             
-            return jsonify({
+            response_data = {
                 'success': True,
                 'files': processed_files,
-                'message': f'Successfully processed {len(processed_files)} files'
-            })
-        
-        return jsonify({'error': 'No text could be extracted from files'}), 400
+                'message': f'Successfully processed {len(processed_files)} file(s)'
+            }
+            
+            if errors:
+                response_data['warnings'] = errors
+            
+            return jsonify(response_data)
+            
+        except Exception as e:
+            import traceback
+            print(f"Processing error: {str(e)}")
+            print(traceback.format_exc())
+            return jsonify({'success': False, 'error': f'Error processing files: {str(e)}'}), 500
         
     except Exception as e:
         import traceback
         print(f"Upload error: {str(e)}")
         print(traceback.format_exc())
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'success': False, 'error': f'Upload failed: {str(e)}'}), 500
 
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -382,34 +435,6 @@ def chat():
     if not message:
         return jsonify({'error': 'No message provided'}), 400
     
-    # LAZY LOADING: Load documents on first chat message
-    if not session.get('documents_loaded') and session['conversation_chain'] is None:
-        print("🔄 Loading documents on first message...")
-        try:
-            all_text, processed_files = load_documents_from_directory(
-                app.config['DOCUMENTS_FOLDER'],
-                max_files=50
-            )
-            
-            if all_text:
-                text_splitter = CharacterTextSplitter(
-                    separator="\n",
-                    chunk_size=1000,
-                    chunk_overlap=200,
-                    length_function=len
-                )
-                texts = text_splitter.split_text(all_text)
-                embeddings = OpenAIEmbeddings()
-                vectorstore = FAISS.from_texts(texts, embeddings)
-                session['vectorstore'] = vectorstore
-                session['conversation_chain'] = create_chain(vectorstore)
-                session['preloaded_files'] = processed_files
-                session['documents_loaded'] = True
-                print(f"✅ Loaded {len(processed_files)} documents successfully")
-        except Exception as e:
-            print(f"❌ Error loading documents: {e}")
-            return jsonify({'error': f'Error loading knowledge base: {str(e)}'}), 500
-    
     session['chat_history'].append({
         'message': message,
         'is_user': True,
@@ -417,7 +442,36 @@ def chat():
         'timestamp': datetime.now().isoformat()
     })
     
-    if message.lower().strip() in ['bye', 'goodbye', 'exit', 'quit', 'end']:
+    # Handle greetings without loading knowledge base
+    if is_greeting(message):
+        import random
+        response = random.choice(GREETING_RESPONSES)
+        
+        session['chat_history'].append({
+            'message': response,
+            'is_user': False,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+        audio_url = None
+        try:
+            audio_filename = f"response_{uuid.uuid4().hex}.mp3"
+            audio_path = os.path.join('static', 'audio', audio_filename)
+            tts = gTTS(text=response, lang='en', slow=False)
+            tts.save(audio_path)
+            audio_url = f'/static/audio/{audio_filename}'
+        except Exception as e:
+            print(f"TTS error: {e}")
+        
+        return jsonify({
+            'response': response,
+            'should_speak': is_voice_input,
+            'audio_url': audio_url,
+            'auto_play': is_voice_input
+        })
+    
+    # Handle farewells
+    if is_farewell(message):
         response = "Thank you for using HR Assistant! Have a great day!"
         session['chat_history'].append({
             'message': response,
@@ -425,7 +479,6 @@ def chat():
             'timestamp': datetime.now().isoformat()
         })
         
-        # Generate audio for goodbye message
         audio_url = None
         try:
             audio_filename = f"response_{uuid.uuid4().hex}.mp3"
@@ -440,8 +493,13 @@ def chat():
             'response': response,
             'session_ended': True,
             'should_speak': is_voice_input,
-            'audio_url': audio_url
+            'audio_url': audio_url,
+            'show_feedback': True
         })
+    
+    # Load documents if not already loaded
+    if not session.get('documents_loaded') and session['conversation_chain'] is None:
+        return jsonify({'error': 'Knowledge base is still loading. Please wait a moment and try again.'}), 400
     
     related_video = find_related_video(message)
     
@@ -461,7 +519,6 @@ def chat():
                 'should_speak': is_voice_input
             }
             
-            # ALWAYS generate audio for bot responses (not just voice input)
             try:
                 audio_filename = f"response_{uuid.uuid4().hex}.mp3"
                 audio_path = os.path.join('static', 'audio', audio_filename)
@@ -469,7 +526,6 @@ def chat():
                 tts.save(audio_path)
                 response_data['audio_url'] = f'/static/audio/{audio_filename}'
                 
-                # Only auto-play if it was voice input
                 if is_voice_input:
                     response_data['auto_play'] = True
             except Exception as e:
@@ -488,7 +544,6 @@ def chat():
             return jsonify({'error': f'Error processing request: {str(e)}'}), 500
     else:
         return jsonify({'error': 'Knowledge base is loading. Please try again in a moment.'}), 400
-
 
 @app.route('/text_to_speech', methods=['POST'])
 def text_to_speech():
@@ -581,7 +636,6 @@ def export_feedback():
 def clear_session():
     session_id = request.json.get('session_id', 'default')
     if session_id in sessions:
-        # Keep vectorstore to avoid reloading
         vectorstore = sessions[session_id].get('vectorstore')
         conversation_chain = sessions[session_id].get('conversation_chain')
         preloaded_files = sessions[session_id].get('preloaded_files', [])
@@ -626,5 +680,3 @@ def get_loaded_files():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
-
-
