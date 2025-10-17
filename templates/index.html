@@ -24,6 +24,7 @@
             background-attachment: fixed;
         }
 
+        /* Header */
         .header {
             background: transparent;
             padding: 20px 30px;
@@ -72,6 +73,7 @@
             color: #ffffff;
         }
 
+        /* Main Container */
         .container {
             display: flex;
             gap: 20px;
@@ -80,6 +82,7 @@
             overflow: hidden;
         }
 
+        /* Sidebar */
         .sidebar {
             width: 300px;
             background: rgba(35, 47, 62, 0.98);
@@ -170,6 +173,17 @@
             color: #7f8c8d;
         }
 
+        .feedback-section {
+            background: rgba(45, 57, 72, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .feedback-section p {
+            font-size: 13px;
+            color: #bdc3c7;
+        }
+
         .action-btn {
             width: 100%;
             padding: 12px;
@@ -183,28 +197,30 @@
         }
 
         .btn-primary {
-            background: rgba(52, 152, 219, 0.8);
-            color: white;
+            background: rgba(55, 67, 82, 0.9);
+            color: #ecf0f1;
         }
 
         .btn-primary:hover {
-            background: rgba(52, 152, 219, 1);
+            background: rgba(65, 77, 92, 1);
         }
 
-        .btn-secondary {
-            background: rgba(45, 57, 72, 0.8);
+        .btn-danger {
+            background: #e74c3c;
             color: white;
+            font-weight: 600;
         }
 
-        .btn-secondary:hover {
-            background: rgba(45, 57, 72, 1);
+        .btn-danger:hover {
+            background: #c0392b;
         }
 
-        .chat-container {
+        /* Chat Area */
+        .chat-area {
             flex: 1;
             display: flex;
             flex-direction: column;
-            background: rgba(35, 47, 62, 0.95);
+            background: rgba(35, 47, 62, 0.98);
             border-radius: 16px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
             backdrop-filter: blur(10px);
@@ -219,7 +235,7 @@
         }
 
         .chat-messages::-webkit-scrollbar {
-            width: 8px;
+            width: 6px;
         }
 
         .chat-messages::-webkit-scrollbar-track {
@@ -228,40 +244,13 @@
 
         .chat-messages::-webkit-scrollbar-thumb {
             background: rgba(74, 95, 127, 0.5);
-            border-radius: 4px;
-        }
-
-        .welcome-message {
-            text-align: center;
-            padding: 40px 20px;
-        }
-
-        .welcome-message h2 {
-            font-size: 28px;
-            margin-bottom: 15px;
-            color: #3498db;
-        }
-
-        .welcome-message p {
-            font-size: 16px;
-            color: #bdc3c7;
-            margin-bottom: 20px;
-        }
-
-        .welcome-message ul {
-            text-align: left;
-            max-width: 500px;
-            margin: 0 auto;
-            color: #95a5a6;
-        }
-
-        .welcome-message li {
-            margin-bottom: 10px;
+            border-radius: 3px;
         }
 
         .message {
             display: flex;
-            gap: 15px;
+            align-items: start;
+            gap: 12px;
             margin-bottom: 20px;
             animation: fadeIn 0.3s ease;
         }
@@ -284,142 +273,279 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: bold;
             flex-shrink: 0;
-        }
-
-        .user-avatar {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            font-weight: 600;
+            font-size: 16px;
+            overflow: hidden;
         }
 
         .bot-avatar {
-            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-            overflow: hidden;
+            background: #e74c3c;
+            color: white;
+            padding: 0;
         }
 
         .bot-avatar img {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain;
+            background: transparent;
+        }
+
+        .user-avatar {
+            background: #3498db;
+            color: white;
         }
 
         .message-content {
             flex: 1;
             background: rgba(45, 57, 72, 0.7);
-            padding: 15px 20px;
+            padding: 15px 18px;
             border-radius: 12px;
             line-height: 1.6;
-            position: relative;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
 
         .user-message .message-content {
-            background: rgba(102, 126, 234, 0.2);
-            border: 1px solid rgba(102, 126, 234, 0.3);
+            background: rgba(52, 73, 94, 0.8);
         }
 
-        .speaker-btn {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            width: 32px;
-            height: 32px;
+        .welcome-message {
+            text-align: center;
+            padding: 60px 20px;
+            color: #ecf0f1;
+        }
+
+        .welcome-avatar {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            background: #e74c3c;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4);
+        }
+
+        .welcome-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .welcome-message h2 {
+            font-size: 24px;
+            margin-bottom: 12px;
+            color: #ecf0f1;
+            font-weight: 500;
+        }
+
+        .welcome-message p {
+            color: #95a5a6;
+            font-size: 14px;
+            line-height: 1.6;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Input Area */
+        .input-area {
+            padding: 20px 30px;
+            background: rgba(26, 31, 46, 0.6);
+            backdrop-filter: blur(10px);
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .input-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #messageInput {
+            width: 100%;
+            padding: 14px 20px;
+            border: 1px solid rgba(74, 95, 127, 0.5);
+            border-radius: 25px;
+            background: rgba(30, 40, 54, 0.8);
+            color: #ecf0f1;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        #messageInput:focus {
+            border-color: #3498db;
+            background: rgba(30, 40, 54, 1);
+        }
+
+        #messageInput::placeholder {
+            color: #7f8c8d;
+        }
+
+        .icon-btn {
+            width: 45px;
+            height: 45px;
             border: none;
-            background: rgba(52, 152, 219, 0.2);
             border-radius: 50%;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.3s;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
         }
 
-        .speaker-btn:hover {
-            background: rgba(52, 152, 219, 0.4);
+        .mic-btn {
+            background: rgba(61, 82, 102, 0.8);
         }
 
-        .speaker-btn svg {
+        .mic-btn:hover {
+            background: rgba(74, 95, 127, 0.9);
+        }
+
+        .mic-btn.recording {
+            background: #e74c3c;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        .send-btn {
+            background: #e74c3c;
+            width: 65px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .send-btn:hover {
+            background: #c0392b;
+        }
+
+        .send-btn:disabled {
+            background: #4a5f7f;
+            cursor: not-allowed;
+        }
+
+        .icon-btn svg {
+            width: 20px;
+            height: 20px;
+            fill: white;
+        }
+
+        /* File List */
+        .file-list {
+            margin-top: 10px;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: rgba(26, 31, 46, 0.6);
+            border-radius: 6px;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+
+        .file-item svg {
             width: 16px;
             height: 16px;
             fill: #3498db;
         }
 
+        /* Loading Spinner */
         .loading {
             display: inline-block;
             width: 20px;
             height: 20px;
-            border: 3px solid rgba(52, 152, 219, 0.3);
-            border-top-color: #3498db;
+            border: 3px solid rgba(255,255,255,.3);
             border-radius: 50%;
-            animation: spin 1s linear infinite;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
         }
 
         @keyframes spin {
-            to {
-                transform: rotate(360deg);
+            to { transform: rotate(360deg); }
+        }
+
+        /* Video Player */
+        .video-container {
+            margin-top: 15px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .video-container video {
+            width: 100%;
+            max-width: 500px;
+            border-radius: 8px;
+        }
+
+        /* Speaker Button */
+        .speaker-btn {
+            width: 30px;
+            height: 30px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            padding: 0;
+            margin-left: 10px;
+            opacity: 0.7;
+            transition: all 0.3s;
+        }
+
+        .speaker-btn:hover {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+
+        .speaker-btn svg {
+            width: 20px;
+            height: 20px;
+            fill: #3498db;
+            transition: fill 0.3s;
+        }
+
+        .speaker-btn.playing svg {
+            fill: #e74c3c !important;
+            animation: pulse-audio 1s infinite;
+        }
+
+        @keyframes pulse-audio {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.6;
             }
         }
 
-        .chat-input-area {
-            padding: 20px 30px;
-            background: rgba(28, 37, 48, 0.95);
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        .speaker-btn:hover svg {
+            fill: #2980b9;
         }
 
-        .input-container {
-            display: flex;
-            gap: 10px;
-            align-items: center;
+        .speaker-btn.playing:hover svg {
+            fill: #c0392b;
         }
 
-        #messageInput {
-            flex: 1;
-            padding: 15px 20px;
-            border: 2px solid rgba(90, 112, 133, 0.3);
-            border-radius: 12px;
-            background: rgba(45, 57, 72, 0.7);
-            color: white;
-            font-size: 15px;
-            resize: none;
-            max-height: 120px;
-            transition: all 0.3s;
-        }
-
-        #messageInput:focus {
-            outline: none;
-            border-color: #3498db;
-            background: rgba(45, 57, 72, 0.9);
-        }
-
-        .input-btn {
-            width: 48px;
-            height: 48px;
-            border: none;
-            border-radius: 12px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s;
-        }
-
-        #micBtn {
-            background: rgba(52, 152, 219, 0.8);
-        }
-
-        #micBtn:hover {
-            background: rgba(52, 152, 219, 1);
-        }
-
-        #sendBtn {
-            background: rgba(46, 204, 113, 0.8);
-        }
-
-        #sendBtn:hover {
-            background: rgba(46, 204, 113, 1);
-        }
-
-        .feedback-modal {
+        /* Feedback Modal */
+        .modal-overlay {
             display: none;
             position: fixed;
             top: 0;
@@ -427,497 +553,766 @@
             right: 0;
             bottom: 0;
             background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
             align-items: center;
             justify-content: center;
-            z-index: 1000;
         }
 
-        .feedback-content {
-            background: rgba(35, 47, 62, 0.98);
-            padding: 30px;
-            border-radius: 16px;
-            max-width: 500px;
-            width: 90%;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-        }
-
-        .feedback-content h2 {
-            margin-bottom: 20px;
-            color: #3498db;
-        }
-
-        .stars {
+        .modal-overlay.active {
             display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
+        }
+
+        .feedback-modal {
+            background: rgba(35, 47, 62, 0.98);
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 450px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            animation: modalSlideIn 0.3s ease;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .feedback-modal h2 {
+            color: #ecf0f1;
+            margin-bottom: 10px;
+            font-size: 22px;
+            text-align: center;
+        }
+
+        .feedback-modal p {
+            color: #95a5a6;
+            margin-bottom: 25px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .star-rating {
+            display: flex;
             justify-content: center;
+            gap: 10px;
+            margin-bottom: 25px;
         }
 
         .star {
-            font-size: 32px;
+            font-size: 40px;
             cursor: pointer;
-            color: #7f8c8d;
-            transition: all 0.3s;
+            color: #4a5f7f;
+            transition: all 0.2s ease;
+            user-select: none;
         }
 
         .star:hover,
-        .star.selected {
+        .star.active {
             color: #f39c12;
+            transform: scale(1.2);
         }
 
-        #feedbackComment {
+        .star.active {
+            text-shadow: 0 0 10px rgba(243, 156, 18, 0.5);
+        }
+
+        .feedback-textarea {
             width: 100%;
-            padding: 15px;
-            border: 2px solid rgba(90, 112, 133, 0.3);
-            border-radius: 8px;
-            background: rgba(45, 57, 72, 0.7);
-            color: white;
-            font-size: 14px;
-            resize: vertical;
             min-height: 100px;
+            padding: 12px 15px;
+            border: 1px solid rgba(74, 95, 127, 0.5);
+            border-radius: 8px;
+            background: rgba(30, 40, 54, 0.8);
+            color: #ecf0f1;
+            font-size: 14px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            resize: vertical;
             margin-bottom: 20px;
-        }
-
-        #feedbackComment:focus {
             outline: none;
-            border-color: #3498db;
+            transition: all 0.3s ease;
         }
 
-        .feedback-buttons {
+        .feedback-textarea:focus {
+            border-color: #3498db;
+            background: rgba(30, 40, 54, 1);
+        }
+
+        .feedback-textarea::placeholder {
+            color: #7f8c8d;
+        }
+
+        .modal-buttons {
             display: flex;
             gap: 10px;
         }
 
-        .feedback-buttons button {
+        .modal-btn {
             flex: 1;
             padding: 12px;
             border: none;
             border-radius: 8px;
             font-size: 14px;
-            font-weight: 500;
+            font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.3s ease;
         }
 
-        .file-item {
-            padding: 8px 12px;
-            background: rgba(45, 57, 72, 0.5);
-            border-radius: 6px;
-            margin-bottom: 8px;
-            font-size: 13px;
-            color: #bdc3c7;
+        .btn-submit {
+            background: #e74c3c;
+            color: white;
         }
 
+        .btn-submit:hover {
+            background: #c0392b;
+        }
+
+        .btn-submit:disabled {
+            background: #4a5f7f;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .btn-cancel {
+            background: rgba(55, 67, 82, 0.9);
+            color: #ecf0f1;
+        }
+
+        .btn-cancel:hover {
+            background: rgba(65, 77, 92, 1);
+        }
+
+        /* Responsive */
         @media (max-width: 768px) {
-            .sidebar {
-                position: absolute;
-                left: 0;
-                top: 0;
-                height: 100vh;
-                z-index: 100;
-                margin-left: -340px;
+            .container {
+                gap: 10px;
+                padding: 0 10px 10px 10px;
             }
 
-            .sidebar.active {
-                margin-left: 0;
+            .sidebar {
+                position: absolute;
+                left: 10px;
+                top: 89px;
+                height: calc(100vh - 109px);
+                z-index: 100;
+            }
+
+            .sidebar.collapsed {
+                margin-left: -340px;
+            }
+            
+            .input-area {
+                padding: 15px;
+            }
+
+            .header {
+                padding: 15px 20px;
+            }
+
+            .feedback-modal {
+                padding: 20px;
+            }
+
+            .star {
+                font-size: 35px;
             }
         }
     </style>
 </head>
 <body>
+    <!-- Feedback Modal -->
+    <div class="modal-overlay" id="feedbackModal">
+        <div class="feedback-modal">
+            <h2>Rate Your Experience</h2>
+            <p>How would you rate your interaction with the HR Assistant?</p>
+            
+            <div class="star-rating" id="starRating">
+                <span class="star" data-rating="1">â˜…</span>
+                <span class="star" data-rating="2">â˜…</span>
+                <span class="star" data-rating="3">â˜…</span>
+                <span class="star" data-rating="4">â˜…</span>
+                <span class="star" data-rating="5">â˜…</span>
+            </div>
+            
+            <textarea 
+                class="feedback-textarea" 
+                id="feedbackComment" 
+                placeholder="Any additional comments? (optional)"
+            ></textarea>
+            
+            <div class="modal-buttons">
+                <button class="modal-btn btn-cancel" onclick="closeFeedbackModal()">Skip</button>
+                <button class="modal-btn btn-submit" id="submitFeedbackBtn" onclick="submitFeedback()" disabled>Submit</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header -->
     <div class="header">
         <button class="header-menu-btn" onclick="toggleSidebar()">
             <span></span>
             <span></span>
             <span></span>
         </button>
-        <img src="static/images/HR-chat-icon.png" alt="HR Assistant" class="header-logo" onerror="this.onerror=null; this.src='static/images/HR-chat-icon.jpg'">
+        <img src="/static/images/InChat-white.png" alt="InChat Logo" class="header-logo" 
+             onerror="this.onerror=null; this.src='/static/images/InChat-white.jpg'">
         <h1>HR ASSISTANT</h1>
     </div>
 
     <div class="container">
+        <!-- Sidebar -->
         <div class="sidebar" id="sidebar">
+            <!-- Knowledge Base Section -->
             <div class="sidebar-section">
-                <h3>Information</h3>
+                <h3>Knowledge Base</h3>
                 <div class="info-box">
-                    <p>Upload HR policy documents (PDF, DOCX, TXT) to enable intelligent Q&A.</p>
+                    <p id="kbStatus">Loading knowledge base...</p>
                 </div>
             </div>
 
+            <!-- Upload Documents Section -->
             <div class="sidebar-section">
                 <h3>Upload Documents</h3>
-                <input type="file" id="fileInput" multiple accept=".pdf,.docx,.doc,.txt" style="display: none;">
                 <div class="upload-area" onclick="document.getElementById('fileInput').click()">
-                    <div class="upload-icon">📁</div>
-                    <p>Click to upload files</p>
-                    <span>PDF, DOCX, TXT supported</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="upload-icon">
+                        <path fill="#7f8c8d" d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+                    </svg>
+                    <p>Click to upload documents</p>
+                    <span>PDF, DOCX, TXT</span>
                 </div>
-                <button class="action-btn btn-primary" onclick="uploadFiles()">Upload Selected Files</button>
+                <input type="file" id="fileInput" multiple accept=".pdf,.docx,.doc,.txt" style="display: none;">
+                <div class="file-list" id="fileList"></div>
             </div>
 
+            <!-- Feedback Section -->
             <div class="sidebar-section">
-                <h3>Loaded Files</h3>
-                <div id="fileList">
-                    <div style="color: #7f8c8d;">Loading...</div>
+                <h3>Feedback</h3>
+                <div class="feedback-section">
+                    <p id="feedbackStatus">No feedback yet</p>
                 </div>
             </div>
 
+            <!-- Actions Section -->
             <div class="sidebar-section">
                 <h3>Actions</h3>
-                <button class="action-btn btn-secondary" onclick="clearChat()">Clear Chat</button>
-                <button class="action-btn btn-secondary" onclick="exportChat()">Export Chat</button>
-                <button class="action-btn btn-secondary" onclick="showFeedbackModal()">Give Feedback</button>
+                <button class="action-btn btn-primary" onclick="exportChat()">Export Chat</button>
+                <button class="action-btn btn-primary" onclick="clearChat()">Clear Chat</button>
+                <button class="action-btn btn-danger" onclick="exportFeedback()">Export Feedback</button>
             </div>
         </div>
 
-        <div class="chat-container">
+        <!-- Chat Area -->
+        <div class="chat-area">
             <div class="chat-messages" id="chatMessages">
                 <div class="welcome-message">
-                    <h2>Welcome to HR Assistant! 👋</h2>
-                    <p>I'm here to help you with HR policies and procedures.</p>
-                    <p>You can ask me questions about:</p>
-                    <ul>
-                        <li>Leave policies</li>
-                        <li>Benefits and compensation</li>
-                        <li>Company policies</li>
-                        <li>And more!</li>
-                    </ul>
+                    <div class="welcome-avatar">
+                        <img src="/static/images/HR-chat-icon.png" alt="HR"
+                             onerror="this.onerror=null; this.src='/static/images/HR-chat-icon.jpg'">
+                    </div>
+                    <h2>Hello! I'm your HR Assistant.</h2>
+                    <p>I'm loading the knowledge base now. Once ready, I'll be able to help you with HR policies and procedures.</p>
                 </div>
             </div>
 
-            <div class="chat-input-area">
+            <!-- Input Area -->
+            <div class="input-area">
                 <div class="input-container">
-                    <textarea id="messageInput" placeholder="Type your message..." onkeypress="handleKeyPress(event)"></textarea>
-                    <button class="input-btn" id="micBtn" onclick="toggleVoiceInput()">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="white">
-                            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-                            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-                        </svg>
-                    </button>
-                    <button class="input-btn" id="sendBtn" onclick="sendMessage()">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="white">
-                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                        </svg>
-                    </button>
+                    <input type="text" id="messageInput" placeholder="Type your message here..." onkeypress="handleKeyPress(event)">
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="feedback-modal" id="feedbackModal">
-        <div class="feedback-content">
-            <h2>How was your experience?</h2>
-            <div class="stars">
-                <span class="star" onclick="selectRating(1)">★</span>
-                <span class="star" onclick="selectRating(2)">★</span>
-                <span class="star" onclick="selectRating(3)">★</span>
-                <span class="star" onclick="selectRating(4)">★</span>
-                <span class="star" onclick="selectRating(5)">★</span>
-            </div>
-            <input type="hidden" id="selectedRating" value="">
-            <textarea id="feedbackComment" placeholder="Any additional comments? (optional)"></textarea>
-            <div class="feedback-buttons">
-                <button class="btn-secondary" onclick="closeFeedbackModal()">Cancel</button>
-                <button class="btn-primary" onclick="submitFeedback()">Submit</button>
+                <button class="icon-btn mic-btn" id="micBtn" onclick="toggleRecording()">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                        <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                    </svg>
+                </button>
+                <button class="icon-btn send-btn" id="sendBtn" onclick="sendMessage()">Send</button>
             </div>
         </div>
     </div>
 
     <script>
+        // Fixed JavaScript for HR Assistant
+
         let sessionId = 'session_' + Date.now();
+        let isRecording = false;
+        let recognition = null;
         let currentAudio = null;
         let currentAudioButton = null;
-        let recognition = null;
-        let isListening = false;
-
-        window.addEventListener('DOMContentLoaded', function() {
-            initializeSession();
-            setupVoiceRecognition();
-            
-            const statusCheck = setInterval(async () => {
-                const response = await fetch(`/check_status?session_id=${sessionId}`);
-                const data = await response.json();
-                
-                if (data.ready) {
-                    console.log('Documents ready:', data.message);
-                    clearInterval(statusCheck);
-                } else if (data.error) {
-                    console.error('Loading error:', data.message);
-                    clearInterval(statusCheck);
-                }
-            }, 3000);
+        let selectedRating = 0;
+        let statusCheckInterval = null;
+        
+        // Initialize speech recognition
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+        
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('messageInput').value = transcript;
+                sendMessage(true);
+            };
+        
+            recognition.onerror = function(event) {
+                console.error('Speech recognition error:', event.error);
+                stopRecording();
+            };
+        
+            recognition.onend = function() {
+                stopRecording();
+            };
+        }
+        
+        // Star rating functionality
+        document.querySelectorAll('.star').forEach(star => {
+            star.addEventListener('click', function() {
+                selectedRating = parseInt(this.dataset.rating);
+                updateStarRating(selectedRating);
+                document.getElementById('submitFeedbackBtn').disabled = false;
+            });
+        
+            star.addEventListener('mouseenter', function() {
+                const rating = parseInt(this.dataset.rating);
+                updateStarRating(rating);
+            });
         });
-
-        async function initializeSession() {
+        
+        document.getElementById('starRating').addEventListener('mouseleave', function() {
+            updateStarRating(selectedRating);
+        });
+        
+        function updateStarRating(rating) {
+            document.querySelectorAll('.star').forEach((star, index) => {
+                if (index < rating) {
+                    star.classList.add('active');
+                } else {
+                    star.classList.remove('active');
+                }
+            });
+        }
+        
+        function showFeedbackModal() {
+            document.getElementById('feedbackModal').classList.add('active');
+            selectedRating = 0;
+            updateStarRating(0);
+            document.getElementById('feedbackComment').value = '';
+            document.getElementById('submitFeedbackBtn').disabled = true;
+        }
+        
+        function closeFeedbackModal() {
+            document.getElementById('feedbackModal').classList.remove('active');
+        }
+        
+        async function submitFeedback() {
+            if (selectedRating === 0) {
+                alert('Please select a rating');
+                return;
+            }
+        
+            const comment = document.getElementById('feedbackComment').value.trim();
+        
             try {
-                const response = await fetch('/init_session', {
+                const response = await fetch('/feedback', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({session_id: sessionId})
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        rating: selectedRating,
+                        comment: comment
+                    })
                 });
-                
+        
                 const data = await response.json();
                 
                 if (data.success) {
-                    if (data.status === 'ready') {
-                        console.log('Session initialized:', data.message);
-                        if (data.files && data.files.length > 0) {
-                            console.log('Loaded files:', data.files);
-                        }
-                    } else {
-                        console.log('Documents loading in background...');
-                    }
-                } else {
-                    console.error('Session initialization failed:', data.error);
+                    closeFeedbackModal();
+                    updateFeedbackStatus();
+                    alert('Thank you for your feedback!');
                 }
             } catch (error) {
-                console.error('Session init error:', error);
+                console.error('Feedback error:', error);
+                alert('Error submitting feedback');
             }
         }
-
-        function setupVoiceRecognition() {
-            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-                recognition = new SpeechRecognition();
-                recognition.continuous = false;
-                recognition.interimResults = false;
-                recognition.lang = 'en-US';
-
-                recognition.onstart = function() {
-                    isListening = true;
-                    const micBtn = document.getElementById('micBtn');
-                    micBtn.style.background = '#e74c3c';
-                    micBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="white"><circle cx="12" cy="12" r="10"/></svg>';
-                };
-
-                recognition.onresult = function(event) {
-                    const transcript = event.results[0][0].transcript;
-                    document.getElementById('messageInput').value = transcript;
-                    sendMessage(true);
-                };
-
-                recognition.onerror = function(event) {
-                    console.error('Speech recognition error:', event.error);
-                    resetMicButton();
-                };
-
-                recognition.onend = function() {
-                    resetMicButton();
-                };
+        
+        async function updateFeedbackStatus() {
+            try {
+                const response = await fetch(`/feedback/stats?session_id=${sessionId}`);
+                const data = await response.json();
+                
+                if (data.count > 0) {
+                    document.getElementById('feedbackStatus').textContent = 
+                        `${data.count} feedback(s) submitted • Avg: ${data.average}/5 ⭐`;
+                }
+            } catch (error) {
+                console.error('Stats error:', error);
+            }
+        }
+        
+        function startStatusPolling() {
+            console.log('🔄 Starting status polling...');
+            
+            if (statusCheckInterval) {
+                clearInterval(statusCheckInterval);
+            }
+            
+            let pollCount = 0;
+            const maxPolls = 60;
+            
+            statusCheckInterval = setInterval(async () => {
+                pollCount++;
+                console.log(`📡 Status check #${pollCount}...`);
+                
+                try {
+                    const response = await fetch(`/check_status?session_id=${sessionId}`);
+                    const data = await response.json();
+                    
+                    console.log('Status:', data);
+                    
+                    if (data.ready) {
+                        console.log('✅ Documents loaded!');
+                        updateStatus(`Ready - ${data.files_count} documents loaded`, 'ready');
+                        if (data.files && data.files.length > 0) {
+                            updateFileList(data.files);
+                        }
+                        clearInterval(statusCheckInterval);
+                        statusCheckInterval = null;
+                    } else if (data.error) {
+                        console.error('❌ Loading error:', data.message);
+                        updateStatus(data.message || 'Error loading documents', 'error');
+                        clearInterval(statusCheckInterval);
+                        statusCheckInterval = null;
+                    } else if (data.loading) {
+                        updateStatus('Loading documents...', 'loading');
+                    }
+                    
+                    if (pollCount >= maxPolls) {
+                        console.warn('⏰ Status polling timeout');
+                        updateStatus('Document loading is taking longer than expected...', 'loading');
+                        clearInterval(statusCheckInterval);
+                        statusCheckInterval = null;
+                    }
+                } catch (error) {
+                    console.error('Status check error:', error);
+                    pollCount = maxPolls;
+                }
+            }, 2000);
+        }
+        
+        function updateStatus(message, status) {
+            const statusElement = document.getElementById('kbStatus');
+            statusElement.textContent = message;
+            
+            if (status === 'ready') {
+                statusElement.style.color = '#2ecc71';
+            } else if (status === 'error') {
+                statusElement.style.color = '#e74c3c';
             } else {
-                console.warn('Speech recognition not supported');
-                const micBtn = document.getElementById('micBtn');
-                if (micBtn) micBtn.style.display = 'none';
+                statusElement.style.color = '#bdc3c7';
             }
         }
-
-        function toggleVoiceInput() {
-            if (!recognition) {
-                alert('Voice input not supported in this browser');
-                return;
-            }
-
-            if (isListening) {
-                recognition.stop();
-            } else {
-                recognition.start();
-            }
-        }
-
-        function resetMicButton() {
-            isListening = false;
-            const micBtn = document.getElementById('micBtn');
-            if (micBtn) {
-                micBtn.style.background = 'rgba(52, 152, 219, 0.8)';
-                micBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>';
-            }
-        }
-
-        function addMessage(content, isUser) {
-            const messagesDiv = document.getElementById('chatMessages');
-            const welcomeMsg = messagesDiv.querySelector('.welcome-message');
-            if (welcomeMsg) welcomeMsg.remove();
-            
-            const messageId = `msg-${Date.now()}`;
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
-            messageDiv.id = messageId;
-            
-            const avatarContent = isUser ? 'U' : 
-                `<img src="static/images/HR-chat-icon.png" alt="HR" onerror="this.onerror=null; this.src='static/images/HR-chat-icon.jpg'">`;
-            
-            let ttsButton = '';
-            if (!isUser) {
-                const btnId = `tts-btn-${Date.now()}`;
-                const textContent = content.replace(/<[^>]*>/g, '').replace(/&[^;]+;/g, ' ');
-                const escapedText = textContent.replace(/`/g, '\\`').replace(/\$/g, '\\$').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                ttsButton = `<button class="speaker-btn" id="${btnId}" onclick="generateAndPlayTTS(\`${escapedText}\`, this)">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                        <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
-                    </svg>
-                </button>`;
-            }
-            
-            messageDiv.innerHTML = `
-                <div class="message-avatar ${isUser ? 'user-avatar' : 'bot-avatar'}">${avatarContent}</div>
-                <div class="message-content">${content}${ttsButton}</div>
-            `;
-            
-            messagesDiv.appendChild(messageDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-            return messageId;
-        }
-
-        async function generateAndPlayTTS(text, buttonElement) {
+        
+        // Toggle audio play/stop
+        function toggleAudio(audioUrl, buttonElement) {
             if (currentAudioButton === buttonElement && currentAudio && !currentAudio.paused) {
                 stopAudio();
                 return;
             }
-            
-            try {
-                buttonElement.disabled = true;
-                buttonElement.innerHTML = '<div class="loading"></div>';
-                
-                const response = await fetch('/text_to_speech', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({text: text, session_id: sessionId})
-                });
-                
-                if (!response.ok) throw new Error('TTS generation failed');
-                
-                const data = await response.json();
-                
-                if (data.success && data.audio_url) {
-                    buttonElement.disabled = false;
-                    buttonElement.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                        <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
-                    </svg>`;
-                    playAudio(data.audio_url, buttonElement);
-                } else {
-                    throw new Error('TTS response invalid');
-                }
-            } catch (error) {
-                console.error('TTS error:', error);
-                buttonElement.disabled = false;
-                buttonElement.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                    <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
-                </svg>`;
-                alert('TTS unavailable. Please try again.');
-            }
-        }
-
-        function removeMessage(messageId) {
-            const messageDiv = document.getElementById(messageId);
-            if (messageDiv) {
-                messageDiv.remove();
-            }
-        }
-
-        function playAudio(audioUrl, buttonElement) {
             stopAudio();
+            playAudio(audioUrl, buttonElement);
+        }
+        
+        // Play audio
+        function playAudio(audioUrl, buttonElement) {
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
+            
+            if (currentAudioButton) {
+                currentAudioButton.classList.remove('playing');
+                currentAudioButton.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+                    </svg>
+                `;
+            }
             
             currentAudio = new Audio(audioUrl);
-            currentAudioButton = buttonElement;
+            currentAudioButton = buttonElement || null;
             
-            buttonElement.style.background = '#e74c3c';
+            if (buttonElement) {
+                buttonElement.classList.add('playing');
+                buttonElement.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M6 6h12v12H6z"/>
+                    </svg>
+                `;
+            }
             
             currentAudio.onended = function() {
-                buttonElement.style.background = '';
+                if (currentAudioButton) {
+                    currentAudioButton.classList.remove('playing');
+                    currentAudioButton.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+                        </svg>
+                    `;
+                }
                 currentAudio = null;
                 currentAudioButton = null;
             };
             
-            currentAudio.play().catch(error => {
-                console.error('Audio playback error:', error);
-                buttonElement.style.background = '';
+            currentAudio.play().catch(err => {
+                console.error('Audio play error:', err);
+                if (currentAudioButton) {
+                    currentAudioButton.classList.remove('playing');
+                }
             });
         }
-
+        
+        // Stop audio
         function stopAudio() {
             if (currentAudio) {
                 currentAudio.pause();
                 currentAudio.currentTime = 0;
-                if (currentAudioButton) {
-                    currentAudioButton.style.background = '';
-                }
                 currentAudio = null;
+            }
+            
+            if (currentAudioButton) {
+                currentAudioButton.classList.remove('playing');
+                currentAudioButton.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+                    </svg>
+                `;
                 currentAudioButton = null;
             }
         }
-
+        
+        // Initialize session
+        async function initSession() {
+            console.log('🚀 Initializing session...');
+            
+            try {
+                const response = await fetch('/init_session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId })
+                });
+                
+                const data = await response.json();
+                console.log('Init response:', data);
+                
+                if (data.success) {
+                    if (data.status === 'ready') {
+                        updateStatus(data.message, 'ready');
+                        if (data.files && data.files.length > 0) {
+                            updateFileList(data.files);
+                        }
+                    } else if (data.status === 'loading') {
+                        updateStatus(data.message, 'loading');
+                        // Start polling for status
+                        startStatusPolling();
+                    } else if (data.status === 'error') {
+                        updateStatus(data.message, 'error');
+                    }
+                }
+            } catch (error) {
+                console.error('Init error:', error);
+                updateStatus('Error initializing. Please refresh.', 'error');
+            }
+        }
+        
+        // Toggle sidebar
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+        }
+        
+        // Toggle voice recording
+        function toggleRecording() {
+            if (!recognition) {
+                alert('Speech recognition is not supported in your browser.');
+                return;
+            }
+        
+            if (isRecording) {
+                recognition.stop();
+            } else {
+                recognition.start();
+                document.getElementById('micBtn').classList.add('recording');
+                isRecording = true;
+            }
+        }
+        
+        function stopRecording() {
+            isRecording = false;
+            document.getElementById('micBtn').classList.remove('recording');
+        }
+        
+        // Handle key press
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+        
+        // Send message - FIXED VERSION
         async function sendMessage(isVoiceInput = false) {
             const input = document.getElementById('messageInput');
             const message = input.value.trim();
             
             if (!message) return;
-            
+        
+            // Disable send button during processing
+            const sendBtn = document.getElementById('sendBtn');
+            const originalBtnText = sendBtn.textContent;
+            sendBtn.disabled = true;
+            sendBtn.textContent = '...';
+        
             addMessage(message, true);
             input.value = '';
-            
-            let loadingId = null;
+        
+            const loadingId = addMessage('<div class="loading"></div>', false);
+        
             try {
-                loadingId = addMessage('<div class="loading"></div>', false);
-                
                 const response = await fetch('/chat', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        session_id: sessionId,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        session_id: sessionId, 
                         message: message,
                         is_voice_input: isVoiceInput
                     })
                 });
-                
-                if (loadingId) removeMessage(loadingId);
-                
+        
+                // Remove loading indicator
+                removeMessage(loadingId);
+        
                 if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Server error: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                
-                if (data.error) {
-                    addMessage(`❌ Error: ${data.error}`, false);
-                } else {
-                    const messageId = addMessage(data.response, false);
+                    const errorData = await response.json().catch(() => ({}));
                     
-                    if (data.audio_url && data.auto_play && isVoiceInput) {
-                        setTimeout(() => {
-                            const btnElement = document.querySelector(`#${messageId} .speaker-btn`);
-                            if (btnElement) playAudio(data.audio_url, btnElement);
-                        }, 100);
+                    if (response.status === 503) {
+                        addMessage('⏳ System is still loading. Please wait a moment and try again.', false);
+                    } else if (response.status === 500) {
+                        addMessage(`❌ Server error: ${errorData.error || 'Please try again'}`, false);
+                    } else {
+                        addMessage(`❌ Error (${response.status}): ${errorData.error || 'Unknown error'}`, false);
                     }
                     
+                    // Re-enable send button
+                    sendBtn.disabled = false;
+                    sendBtn.textContent = originalBtnText;
+                    return;
+                }
+        
+                const data = await response.json();
+        
+                if (data.error) {
+                    addMessage('❌ ' + data.error, false);
+                } else {
+                    let botMessage = data.response;
+                    
+                    // Add speaker button with toggle functionality
+                    if (data.audio_url) {
+                        const btnId = 'audio-btn-' + Date.now();
+                        botMessage += `<button class="speaker-btn" id="${btnId}" onclick="toggleAudio('${data.audio_url}', this)">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+                            </svg>
+                        </button>`;
+                    }
+                    
+                    const messageId = addMessage(botMessage, false);
+                    
+                    // Auto-play only if it was voice input
+                    if (data.audio_url && data.auto_play) {
+                        setTimeout(() => {
+                            const btnElement = document.querySelector(`#${messageId} .speaker-btn`);
+                            if (btnElement) {
+                                playAudio(data.audio_url, btnElement);
+                            }
+                        }, 100);
+                    }
+        
                     if (data.video) {
                         addVideoMessage(data.video, data.video_name);
                     }
-                    
+        
+                    // Show feedback modal if session ended
                     if (data.show_feedback) {
-                        setTimeout(() => showFeedbackModal(), 1000);
+                        setTimeout(() => {
+                            showFeedbackModal();
+                        }, 1000);
                     }
                 }
             } catch (error) {
-                if (loadingId) removeMessage(loadingId);
+                removeMessage(loadingId);
+                addMessage('❌ Network error. Please check your connection and try again.', false);
                 console.error('Send error:', error);
-                addMessage(`❌ Failed to send message: ${error.message}`, false);
+            } finally {
+                // Always re-enable send button
+                sendBtn.disabled = false;
+                sendBtn.textContent = originalBtnText;
             }
         }
-
+        
+        function addMessage(content, isUser) {
+            const messagesDiv = document.getElementById('chatMessages');
+            const welcomeMsg = messagesDiv.querySelector('.welcome-message');
+            if (welcomeMsg) welcomeMsg.remove();
+        
+            const messageId = 'msg_' + Date.now();
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message ' + (isUser ? 'user-message' : 'bot-message');
+            messageDiv.id = messageId;
+            
+            const avatarContent = isUser 
+                ? 'U' 
+                : '<img src="/static/images/HR-chat-icon.png" alt="HR" onerror="this.onerror=null; this.src=\'/static/images/HR-chat-icon.jpg\'">';
+            
+            messageDiv.innerHTML = `
+                <div class="message-avatar ${isUser ? 'user-avatar' : 'bot-avatar'}">
+                    ${avatarContent}
+                </div>
+                <div class="message-content">${content}</div>
+            `;
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            return messageId;
+        }
+        
+        function removeMessage(messageId) {
+            const msg = document.getElementById(messageId);
+            if (msg) msg.remove();
+        }
+        
         function addVideoMessage(videoUrl, videoName) {
             const messagesDiv = document.getElementById('chatMessages');
-            const videoDiv = document.createElement('div');
-            videoDiv.className = 'message bot-message';
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message bot-message';
             
-            videoDiv.innerHTML = `
+            messageDiv.innerHTML = `
                 <div class="message-avatar bot-avatar">
-                    <img src="static/images/HR-chat-icon.png" alt="HR" onerror="this.onerror=null; this.src='static/images/HR-chat-icon.jpg'">
+                    <img src="/static/images/HR-chat-icon.png" alt="HR"
+                         onerror="this.onerror=null; this.src='/static/images/HR-chat-icon.jpg'">
                 </div>
                 <div class="message-content">
+                    <p>Here's a related video: <strong>${videoName}</strong></p>
                     <div class="video-container">
-                        <p><strong>Related Video: ${videoName}</strong></p>
-                        <video controls style="width: 100%; max-width: 500px; border-radius: 8px;">
+                        <video controls>
                             <source src="${videoUrl}" type="video/mp4">
                             Your browser does not support the video tag.
                         </video>
@@ -925,224 +1320,163 @@
                 </div>
             `;
             
-            messagesDiv.appendChild(videoDiv);
+            messagesDiv.appendChild(messageDiv);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
-
-        function handleKeyPress(event) {
-            if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                sendMessage();
-            }
-        }
-
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            sidebar.classList.toggle('active');
-        }
-
-        async function uploadFiles() {
-            const fileInput = document.getElementById('fileInput');
-            const files = fileInput.files;
-            
-            if (files.length === 0) {
-                alert('Please select files to upload');
-                return;
-            }
-            
+        
+        // File upload handler
+        document.getElementById('fileInput').addEventListener('change', async function(e) {
+            const files = e.target.files;
+            if (files.length === 0) return;
+        
             const formData = new FormData();
+            formData.append('session_id', sessionId);
+            
             for (let file of files) {
                 formData.append('files', file);
             }
-            formData.append('session_id', sessionId);
-            
-            const uploadBtn = document.querySelector('button[onclick="uploadFiles()"]');
-            const originalText = uploadBtn.textContent;
-            uploadBtn.textContent = 'Uploading...';
-            uploadBtn.disabled = true;
-            
+        
+            const uploadingMsgId = addMessage('📤 Uploading and processing files...', false);
+        
             try {
                 const response = await fetch('/upload', {
                     method: 'POST',
                     body: formData
                 });
-                
+        
+                removeMessage(uploadingMsgId);
+        
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    addMessage(`❌ Upload failed: ${errorData.error || 'Unknown error'}`, false);
+                    return;
+                }
+        
                 const data = await response.json();
                 
                 if (data.success) {
-                    alert(`Successfully uploaded: ${data.files.join(', ')}`);
-                    fileInput.value = '';
-                    loadFileList();
+                    addMessage(`✅ Successfully uploaded ${data.files.length} file(s): ${data.files.join(', ')}`, false);
+                    updateFileList(data.files, 'uploaded');
+                    
+                    const currentCount = document.querySelectorAll('.file-item').length;
+                    updateStatus(`${currentCount} document(s) loaded and ready`, 'ready');
                 } else {
-                    alert(`Upload failed: ${data.error}`);
+                    addMessage('❌ Error uploading files: ' + data.error, false);
                 }
             } catch (error) {
-                alert(`Upload error: ${error.message}`);
-            } finally {
-                uploadBtn.textContent = originalText;
-                uploadBtn.disabled = false;
+                removeMessage(uploadingMsgId);
+                addMessage('❌ Error uploading files: ' + error.message, false);
+                console.error('Upload error:', error);
             }
-        }
-
-        async function loadFileList() {
-            try {
-                const response = await fetch(`/get_loaded_files?session_id=${sessionId}`);
-                const data = await response.json();
-                
-                const fileListDiv = document.getElementById('fileList');
-                fileListDiv.innerHTML = '';
-                
-                if (data.preloaded && data.preloaded.length > 0) {
-                    const preloadedHeader = document.createElement('div');
-                    preloadedHeader.style.fontWeight = 'bold';
-                    preloadedHeader.style.marginTop = '10px';
-                    preloadedHeader.textContent = 'Preloaded Documents:';
-                    fileListDiv.appendChild(preloadedHeader);
-                    
-                    data.preloaded.forEach(file => {
-                        const fileItem = document.createElement('div');
-                        fileItem.className = 'file-item';
-                        fileItem.textContent = '📄 ' + file;
-                        fileListDiv.appendChild(fileItem);
-                    });
-                }
-                
-                if (data.uploaded && data.uploaded.length > 0) {
-                    const uploadedHeader = document.createElement('div');
-                    uploadedHeader.style.fontWeight = 'bold';
-                    uploadedHeader.style.marginTop = '10px';
-                    uploadedHeader.textContent = 'Uploaded Documents:';
-                    fileListDiv.appendChild(uploadedHeader);
-                    
-                    data.uploaded.forEach(file => {
-                        const fileItem = document.createElement('div');
-                        fileItem.className = 'file-item';
-                        fileItem.textContent = '📎 ' + file;
-                        fileListDiv.appendChild(fileItem);
-                    });
-                }
-                
-                if ((!data.preloaded || data.preloaded.length === 0) && 
-                    (!data.uploaded || data.uploaded.length === 0)) {
-                    fileListDiv.innerHTML = '<div style="color: #7f8c8d;">No documents loaded</div>';
-                }
-            } catch (error) {
-                console.error('Error loading file list:', error);
-            }
-        }
-
-        async function clearChat() {
-            if (!confirm('Are you sure you want to clear the chat history?')) {
-                return;
-            }
+        
+            e.target.value = '';
+        });
+        
+        function updateFileList(files, type) {
+            const fileListDiv = document.getElementById('fileList');
             
-            try {
-                const response = await fetch('/clear', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({session_id: sessionId})
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    const messagesDiv = document.getElementById('chatMessages');
-                    messagesDiv.innerHTML = `
-                        <div class="welcome-message">
-                            <h2>Welcome to HR Assistant! 👋</h2>
-                            <p>I'm here to help you with HR policies and procedures.</p>
-                            <p>You can ask me questions about:</p>
-                            <ul>
-                                <li>Leave policies</li>
-                                <li>Benefits and compensation</li>
-                                <li>Company policies</li>
-                                <li>And more!</li>
-                            </ul>
-                        </div>
-                    `;
-                    alert('Chat cleared successfully');
-                }
-            } catch (error) {
-                alert('Error clearing chat: ' + error.message);
-            }
+            files.forEach(file => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/>
+                    </svg>
+                    <span>${file}</span>
+                `;
+                fileListDiv.appendChild(fileItem);
+            });
         }
-
+        
         async function exportChat() {
             try {
                 const response = await fetch('/export/json', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({session_id: sessionId})
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId })
                 });
-                
+        
+                if (!response.ok) {
+                    throw new Error('Export failed');
+                }
+        
                 const data = await response.json();
-                
-                const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `chat_export_${new Date().toISOString().split('T')[0]}.json`;
+                a.download = `chat_export_${Date.now()}.json`;
                 a.click();
                 URL.revokeObjectURL(url);
             } catch (error) {
-                alert('Export error: ' + error.message);
+                alert('Error exporting chat: ' + error.message);
+                console.error('Export error:', error);
             }
         }
-
-        function showFeedbackModal() {
-            document.getElementById('feedbackModal').style.display = 'flex';
-        }
-
-        function closeFeedbackModal() {
-            document.getElementById('feedbackModal').style.display = 'none';
-        }
-
-        function selectRating(rating) {
-            document.querySelectorAll('.star').forEach((star, index) => {
-                if (index < rating) {
-                    star.classList.add('selected');
-                } else {
-                    star.classList.remove('selected');
-                }
-            });
-            document.getElementById('selectedRating').value = rating;
-        }
-
-        async function submitFeedback() {
-            const rating = document.getElementById('selectedRating').value;
-            const comment = document.getElementById('feedbackComment').value;
-            
-            if (!rating) {
-                alert('Please select a rating');
-                return;
-            }
-            
+        
+        async function clearChat() {
+            if (!confirm('Are you sure you want to clear the chat history?')) return;
+        
             try {
-                const response = await fetch('/feedback', {
+                const response = await fetch('/clear', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        session_id: sessionId,
-                        rating: parseInt(rating),
-                        comment: comment
-                    })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId })
                 });
-                
+        
+                if (!response.ok) {
+                    throw new Error('Clear failed');
+                }
+        
+                document.getElementById('chatMessages').innerHTML = `
+                    <div class="welcome-message">
+                        <div class="welcome-avatar">
+                            <img src="/static/images/HR-chat-icon.png" alt="HR"
+                                 onerror="this.onerror=null; this.src='/static/images/HR-chat-icon.jpg'">
+                        </div>
+                        <h2>Hello! I'm your HR Assistant.</h2>
+                        <p>Chat cleared! I'm ready to help with any HR-related questions.</p>
+                    </div>
+                `;
+            } catch (error) {
+                alert('Error clearing chat: ' + error.message);
+                console.error('Clear error:', error);
+            }
+        }
+        
+        async function exportFeedback() {
+            try {
+                const response = await fetch('/export/feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId })
+                });
+        
+                if (!response.ok) {
+                    throw new Error('Export failed');
+                }
+        
                 const data = await response.json();
                 
                 if (data.success) {
-                    alert('Thank you for your feedback!');
-                    closeFeedbackModal();
-                    document.getElementById('feedbackComment').value = '';
-                    document.getElementById('selectedRating').value = '';
-                    document.querySelectorAll('.star').forEach(star => star.classList.remove('selected'));
+                    const blob = new Blob([data.csv_data], { type: 'text/csv' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = data.filename;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                } else {
+                    alert(data.error || 'No feedback data available');
                 }
             } catch (error) {
-                alert('Error submitting feedback: ' + error.message);
+                alert('Error exporting feedback: ' + error.message);
+                console.error('Feedback export error:', error);
             }
         }
-
-        setTimeout(loadFileList, 1000);
+        
+        // Initialize on page load
+        window.addEventListener('load', initSession);
     </script>
 </body>
 </html>
