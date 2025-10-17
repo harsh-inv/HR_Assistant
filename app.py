@@ -3,7 +3,6 @@ import warnings
 import logging
 import json
 import threading
-import pickle
 import hashlib
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, send_file
@@ -48,10 +47,8 @@ app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 app.config['SESSION_CACHE_FOLDER'] = 'session_cache'
 
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-
 if not OPENAI_API_KEY:
     raise ValueError("OPENAI_API_KEY environment variable is not set")
-
 os.environ['OPENAI_API_KEY'] = OPENAI_API_KEY
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -60,10 +57,11 @@ os.makedirs(app.config['VIDEOS_FOLDER'], exist_ok=True)
 os.makedirs(os.path.join('static', 'audio'), exist_ok=True)
 os.makedirs(app.config['SESSION_CACHE_FOLDER'], exist_ok=True)
 
-VECTORSTORE_CACHE = os.path.join(app.config['DOCUMENTS_FOLDER'], '.vectorstore_cache.pkl')
+# CHANGED: Use FAISS native format instead of pickle
+FAISS_INDEX_PATH = os.path.join(app.config['DOCUMENTS_FOLDER'], '.faiss_index')
 CACHE_HASH_FILE = os.path.join(app.config['DOCUMENTS_FOLDER'], '.cache_hash.txt')
 
-# Global shared state (across all workers via file system)
+# Global shared state
 GLOBAL_STATE_FILE = os.path.join(app.config['SESSION_CACHE_FOLDER'], 'global_state.json')
 global_state_lock = threading.Lock()
 
@@ -71,7 +69,7 @@ global_state_lock = threading.Lock()
 sessions = {}
 
 GREETING_PATTERNS = [
-    'hi', 'hello', 'hey', 'greetings', 'good morning', 'good afternoon', 
+    'hi', 'hello', 'hey', 'greetings', 'good morning', 'good afternoon',
     'good evening', 'howdy', 'hiya', 'whats up', "what's up", 'sup'
 ]
 
@@ -168,7 +166,8 @@ def extract_pdf_text(pdf_file):
         f = StringIO()
         with redirect_stderr(f):
             doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-            for page_num in range(min(doc.page_count, 50)):
+            # CHANGED: Reduce to 30 pages instead of 50
+            for page_num in range(min(doc.page_count, 30)):
                 try:
                     page = doc.load_page(page_num)
                     text += page.get_text() + "\n"
@@ -179,10 +178,12 @@ def extract_pdf_text(pdf_file):
             return text
     except:
         pass
+    
     try:
         pdf_file.seek(0)
         with pdfplumber.open(pdf_file) as pdf:
-            for page in pdf.pages[:50]:
+            # CHANGED: Reduce to 30 pages
+            for page in pdf.pages[:30]:
                 try:
                     page_text = page.extract_text()
                     if page_text:
@@ -191,6 +192,7 @@ def extract_pdf_text(pdf_file):
                     continue
     except:
         pass
+    
     return text if text.strip() else "Could not extract text from PDF"
 
 def extract_docx_text(docx_file):
@@ -212,7 +214,6 @@ def extract_txt_text(txt_file):
 
 def process_file(file_path_or_obj, filename):
     file_ext = filename.lower().split('.')[-1]
-    
     if isinstance(file_path_or_obj, str):
         with open(file_path_or_obj, 'rb') as f:
             if file_ext == 'pdf':
@@ -230,6 +231,7 @@ def process_file(file_path_or_obj, filename):
             return extract_txt_text(file_path_or_obj)
     return ""
 
+# OPTIMIZED: Faster document loading
 def load_documents_from_directory(directory, max_files=10):
     all_text = ""
     processed_files = []
@@ -257,6 +259,7 @@ def load_documents_from_directory(directory, max_files=10):
     
     print(f"Found {len(all_files_with_size)} documents")
     
+    # CHANGED: Sort by size (smallest first for faster processing)
     all_files_with_size.sort(key=lambda x: x[2])
     
     if len(all_files_with_size) > max_files:
@@ -266,7 +269,8 @@ def load_documents_from_directory(directory, max_files=10):
     for idx, (root, filename, size) in enumerate(all_files_with_size, 1):
         file_path = os.path.join(root, filename)
         try:
-            if size > 3 * 1024 * 1024:
+            # CHANGED: Reduced from 3MB to 2MB
+            if size > 2 * 1024 * 1024:
                 print(f"Skipping large file: {filename}")
                 continue
             
@@ -274,34 +278,39 @@ def load_documents_from_directory(directory, max_files=10):
             text = process_file(file_path, filename)
             
             if text and len(text) > 50:
-                if len(text) > 30000:
-                    text = text[:30000] + "...[truncated]"
-                
+                # CHANGED: Reduced truncation from 30000 to 15000
+                if len(text) > 15000:
+                    text = text[:15000] + "...[truncated]"
                 all_text += f"\n\n--- {filename} ---\n{text}"
                 processed_files.append(filename)
                 print(f"Processed: {filename}")
             else:
                 print(f"No text from: {filename}")
-                
         except Exception as e:
             print(f"Error processing {filename}: {e}")
     
     print(f"Successfully processed {len(processed_files)} files")
     return all_text, processed_files
 
+# OPTIMIZED: Use FAISS native save/load instead of pickle
 def load_or_create_vectorstore(docs_folder):
     print("Checking for cached vectorstore...")
     current_hash = get_directory_hash(docs_folder)
     
-    if os.path.exists(VECTORSTORE_CACHE) and os.path.exists(CACHE_HASH_FILE):
+    # CHANGED: Use FAISS native format
+    if os.path.exists(FAISS_INDEX_PATH) and os.path.exists(CACHE_HASH_FILE):
         try:
             with open(CACHE_HASH_FILE, 'r') as f:
                 cached_hash = f.read().strip()
             
             if cached_hash == current_hash:
-                print("Loading from cache...")
-                with open(VECTORSTORE_CACHE, 'rb') as f:
-                    vectorstore = pickle.load(f)
+                print("Loading from FAISS cache...")
+                embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+                vectorstore = FAISS.load_local(
+                    FAISS_INDEX_PATH, 
+                    embeddings,
+                    allow_dangerous_deserialization=True
+                )
                 print("Loaded from cache!")
                 return vectorstore, True
         except Exception as e:
@@ -320,18 +329,19 @@ def load_or_create_vectorstore(docs_folder):
         chunk_overlap=150,
         length_function=len
     )
+    
     texts = text_splitter.split_text(all_text)
     print(f"Created {len(texts)} chunks")
     
     embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
     vectorstore = FAISS.from_texts(texts, embeddings)
     
+    # CHANGED: Use FAISS native save
     try:
-        with open(VECTORSTORE_CACHE, 'wb') as f:
-            pickle.dump(vectorstore, f)
+        vectorstore.save_local(FAISS_INDEX_PATH)
         with open(CACHE_HASH_FILE, 'w') as f:
             f.write(current_hash)
-        print("Cached successfully")
+        print("Cached successfully using FAISS format")
     except Exception as e:
         print(f"Cache save error: {e}")
     
@@ -366,7 +376,6 @@ def load_docs_background(docs_folder):
                 for filename in files:
                     if filename.lower().endswith(('.pdf', '.docx', '.doc', '.txt')):
                         processed_files.append(filename)
-            
             processed_files = processed_files[:10]
             
             with vectorstore_lock:
@@ -392,7 +401,6 @@ def load_docs_background(docs_folder):
                 loading_error="No documents found"
             )
             print("FAILED: No documents found")
-            
     except Exception as e:
         import traceback
         error_msg = str(e)
@@ -409,8 +417,9 @@ def generate_tts(text):
         clean_text = re.sub(r'<[^>]+>', '', text)
         clean_text = re.sub(r'\*\*', '', clean_text)
         
-        if len(clean_text) > 500:
-            clean_text = clean_text[:500] + "..."
+        # CHANGED: Reduced from 500 to 300 for faster generation
+        if len(clean_text) > 300:
+            clean_text = clean_text[:300] + "..."
         
         audio_filename = f"response_{uuid.uuid4().hex}.mp3"
         audio_path = os.path.join('static', 'audio', audio_filename)
@@ -428,7 +437,6 @@ def similarity_score(str1, str2):
 
 def find_related_video(query, threshold=0.5):
     videos_folder = app.config['VIDEOS_FOLDER']
-    
     if not os.path.exists(videos_folder):
         return None
     
@@ -468,10 +476,12 @@ def find_related_video(query, threshold=0.5):
     
     return best_match
 
+# OPTIMIZED: Reduced k and added max_tokens
 def create_chain(vectorstore):
+    # CHANGED: Reduced from k=3 to k=2 for faster retrieval
     retriever = vectorstore.as_retriever(
         search_type="similarity",
-        search_kwargs={"k": 3}
+        search_kwargs={"k": 2}
     )
     
     prompt = ChatPromptTemplate.from_template("""
@@ -484,15 +494,15 @@ IMPORTANT RULES:
 1. Answer ONLY based on the information in the Context above
 2. If the context doesn't contain the answer, say: "I don't have that specific information in the HR policy documents. Please contact HR directly or ask a different question."
 3. Do NOT make assumptions or provide general knowledge
-4. Do NOT add extra information not present in the context
-5. Quote specific policy details when available
-6. Be concise and direct
+4. Be concise and direct
 
 Answer:
 """)
     
-    llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.0)
+    # CHANGED: Added max_tokens=300 for faster responses
+    llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.0, max_tokens=300)
     document_chain = create_stuff_documents_chain(llm, prompt)
+    
     return create_retrieval_chain(retriever, document_chain)
 
 @app.route('/')
@@ -503,7 +513,7 @@ def index():
 def init_session():
     try:
         session_id = request.json.get('session_id', 'default')
-        get_session(session_id)  # Create session
+        get_session(session_id)
         
         docs_folder = app.config['DOCUMENTS_FOLDER']
         state = get_global_state()
@@ -547,7 +557,7 @@ def init_session():
                 except:
                     pass
         
-        # Start loading (only one worker will actually start it)
+        # Start loading
         update_global_state(
             loading_in_progress=True,
             load_started_at=datetime.now().isoformat()
@@ -566,7 +576,6 @@ def init_session():
             'message': 'Loading documents...',
             'status': 'loading'
         })
-        
     except Exception as e:
         import traceback
         print(f"ERROR in init_session: {str(e)}")
@@ -624,7 +633,6 @@ def upload_files():
             return jsonify({'success': False, 'error': 'No files provided'}), 400
         
         files = request.files.getlist('files')
-        
         if not files or len(files) == 0:
             return jsonify({'success': False, 'error': 'No files selected'}), 400
         
@@ -636,6 +644,7 @@ def upload_files():
                 try:
                     filename = secure_filename(file.filename)
                     text = process_file(file, filename)
+                    
                     if text and text.strip():
                         all_text += f"\n\n--- {filename} ---\n{text}"
                         processed_files.append(filename)
@@ -654,8 +663,8 @@ def upload_files():
             chunk_overlap=150,
             length_function=len
         )
-        texts = text_splitter.split_text(all_text)
         
+        texts = text_splitter.split_text(all_text)
         embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
         
         global global_vectorstore, global_chain
@@ -667,6 +676,15 @@ def upload_files():
                 global_vectorstore = FAISS.from_texts(texts, embeddings)
             
             global_chain = create_chain(global_vectorstore)
+            
+            # CHANGED: Save updated index
+            try:
+                global_vectorstore.save_local(FAISS_INDEX_PATH)
+                current_hash = get_directory_hash(app.config['DOCUMENTS_FOLDER'])
+                with open(CACHE_HASH_FILE, 'w') as f:
+                    f.write(current_hash)
+            except Exception as e:
+                print(f"Error saving updated index: {e}")
         
         # Update global state
         state = get_global_state()
@@ -683,7 +701,6 @@ def upload_files():
             'success': True,
             'files': processed_files
         })
-        
     except Exception as e:
         import traceback
         print(traceback.format_exc())
@@ -695,7 +712,6 @@ def chat():
         session_id = request.json.get('session_id', 'default')
         message = request.json.get('message', '')
         is_voice_input = request.json.get('is_voice_input', False)
-        
         session = get_session(session_id)
         
         if not message:
@@ -711,15 +727,12 @@ def chat():
         if is_greeting(message):
             import random
             response = random.choice(GREETING_RESPONSES)
-            
             session['chat_history'].append({
                 'message': response,
                 'is_user': False,
                 'timestamp': datetime.now().isoformat()
             })
-            
             audio_url = generate_tts(response)
-            
             return jsonify({
                 'response': response,
                 'audio_url': audio_url,
@@ -734,9 +747,7 @@ def chat():
                 'is_user': False,
                 'timestamp': datetime.now().isoformat()
             })
-            
             audio_url = generate_tts(response)
-            
             return jsonify({
                 'response': response,
                 'audio_url': audio_url,
@@ -768,7 +779,8 @@ def chat():
         # Process with chain
         with vectorstore_lock:
             result = global_chain.invoke({'input': message})
-            response = result['answer']
+        
+        response = result['answer']
         
         session['chat_history'].append({
             'message': response,
@@ -792,7 +804,6 @@ def chat():
             response_data['video_name'] = os.path.splitext(related_video)[0].replace('_', ' ').title()
         
         return jsonify(response_data)
-        
     except Exception as e:
         import traceback
         print(traceback.format_exc())
@@ -849,7 +860,6 @@ def export_feedback():
     writer = csv.writer(output)
     
     writer.writerow(['Timestamp', 'Rating', 'Comment'])
-    
     for feedback in session['feedback_history']:
         writer.writerow([
             feedback['timestamp'],
@@ -880,24 +890,21 @@ def clear_session():
 def feedback_stats():
     session_id = request.args.get('session_id', 'default')
     session = get_session(session_id)
-    
     feedback_history = session['feedback_history']
+    
     if not feedback_history:
         return jsonify({'count': 0, 'average': 0})
     
     avg_rating = sum(f['rating'] for f in feedback_history) / len(feedback_history)
-    
     return jsonify({
         'count': len(feedback_history),
         'average': round(avg_rating, 1)
     })
 
-# Debug endpoint
 @app.route('/test/docs')
 def test_docs():
     folder = app.config['DOCUMENTS_FOLDER']
     files = []
-    
     if os.path.exists(folder):
         for root, dirs, filenames in os.walk(folder):
             for filename in filenames:
