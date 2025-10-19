@@ -57,7 +57,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 
 # Persistent disk configuration
-PERSISTENT_DISK = os.environ.get('PERSISTENT_DISK_PATH', '/var/data')
+PERSISTENT_DISK = os.environ.get('PERSISTENT_DISK_PATH', '/opt/render/project/src')
 DOCUMENTS_FOLDER = os.path.join(PERSISTENT_DISK, 'documents')  # Preloaded documents
 app.config['UPLOAD_FOLDER'] = os.path.join(PERSISTENT_DISK, 'uploads')
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB
@@ -928,3 +928,4 @@ if __name__ == '__main__':
     print(f"📚 Preloaded documents: {len(preloaded_files)}")
     print("=" * 60 + "\n")
     app.run(debug=True, host='0.0.0.0', port=5000)
+
