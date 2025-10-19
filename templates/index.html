@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HR ASSISTANT</title>
+    <title>HR Assistant</title>
     <style>
         * {
             margin: 0;
@@ -17,7 +17,7 @@
             color: #ffffff;
             height: 100vh;
             overflow: hidden;
-            background-image: url('/static/images/background.png'), url('/static/images/background.jpg');
+            background-image: url('/static/background-image.jpg'), url('static/background-image.jpg');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -215,6 +215,13 @@
             background: #c0392b;
         }
 
+        .btn-danger:disabled {
+            background: rgba(55, 67, 82, 0.5);
+            color: rgba(236, 240, 241, 0.5);
+            cursor: not-allowed;
+            display: none;
+        }
+
         /* Chat Area */
         .chat-area {
             flex: 1;
@@ -253,6 +260,37 @@
             gap: 12px;
             margin-bottom: 20px;
             animation: fadeIn 0.3s ease;
+        }
+
+        .message-content h3 {
+            color: #f39c12;
+            font-size: 16px;
+            margin: 15px 0 10px 0;
+            font-weight: 600;
+        }
+
+        .message-content h4 {
+            color: #f39c12;
+            font-size: 14px;
+            margin: 12px 0 8px 0;
+            font-weight: 600;
+        }
+
+        .message-content p {
+            margin: 10px 0;
+            line-height: 1.7;
+            color: #ecf0f1;
+        }
+
+        .message-content ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+
+        .message-content li {
+            margin: 6px 0;
+            line-height: 1.6;
+            color: #ecf0f1;
         }
 
         @keyframes fadeIn {
@@ -302,13 +340,66 @@
             background: rgba(45, 57, 72, 0.7);
             padding: 15px 18px;
             border-radius: 12px;
-            line-height: 1.6;
+            line-height: 1.8;
             font-size: 14px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            position: relative;
         }
 
-        .user-message .message-content {
-            background: rgba(52, 73, 94, 0.8);
+        .message-content strong {
+            color: #f39c12;
+            font-weight: 600;
+        }
+
+        .speaker-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: rgba(52, 152, 219, 0.2);
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 6px;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        .speaker-btn:hover {
+            background: rgba(52, 152, 219, 0.4);
+            transform: scale(1.1);
+        }
+
+        .speaker-btn svg {
+            width: 18px;
+            height: 18px;
+            fill: #3498db;
+        }
+
+        .speaker-btn.speaking {
+            background: rgba(231, 76, 60, 0.3);
+            animation: pulse 1s infinite;
+        }
+
+        .speaker-btn.speaking svg {
+            fill: #e74c3c;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
         }
 
         .welcome-message {
@@ -349,6 +440,35 @@
             line-height: 1.6;
             max-width: 600px;
             margin: 0 auto;
+        }
+
+        /* Video Card Styles */
+        .video-card {
+            background: rgba(26, 31, 46, 0.6);
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .video-card:hover {
+            background: rgba(26, 31, 46, 0.8);
+            border-color: rgba(52, 152, 219, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .video-card h4 {
+            color: #3498db;
+            font-size: 13px;
+            margin-bottom: 6px;
+        }
+
+        .video-card p {
+            color: #95a5a6;
+            font-size: 12px;
+            line-height: 1.4;
         }
 
         /* Input Area */
@@ -414,15 +534,6 @@
             animation: pulse 1.5s infinite;
         }
 
-        @keyframes pulse {
-            0%, 100% {
-                transform: scale(1);
-            }
-            50% {
-                transform: scale(1.05);
-            }
-        }
-
         .send-btn {
             background: #e74c3c;
             width: 65px;
@@ -450,23 +561,57 @@
         /* File List */
         .file-list {
             margin-top: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .file-list::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .file-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .file-list::-webkit-scrollbar-thumb {
+            background: rgba(74, 95, 127, 0.5);
+            border-radius: 2px;
         }
 
         .file-item {
             display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 12px;
+            flex-direction: column;
+            padding: 10px;
             background: rgba(26, 31, 46, 0.6);
-            border-radius: 6px;
-            margin-bottom: 6px;
-            font-size: 12px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        .file-item svg {
+        .file-item:hover {
+            background: rgba(26, 31, 46, 0.8);
+            border-color: rgba(52, 152, 219, 0.3);
+        }
+
+        .file-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .file-header svg {
             width: 16px;
             height: 16px;
             fill: #3498db;
+            flex-shrink: 0;
+        }
+
+        .file-name {
+            font-size: 12px;
+            color: #bdc3c7;
+            flex: 1;
+            word-break: break-all;
         }
 
         /* Loading Spinner */
@@ -484,209 +629,321 @@
             to { transform: rotate(360deg); }
         }
 
-        /* Video Player */
-        .video-container {
-            margin-top: 15px;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-
-        .video-container video {
-            width: 100%;
-            max-width: 500px;
-            border-radius: 8px;
-        }
-
-        /* Speaker Button */
-        .speaker-btn {
-            width: 30px;
-            height: 30px;
-            border: none;
-            background: transparent;
-            cursor: pointer;
-            padding: 0;
-            margin-left: 10px;
-            opacity: 0.7;
-            transition: all 0.3s;
-        }
-
-        .speaker-btn:hover {
-            opacity: 1;
-            transform: scale(1.1);
-        }
-
-        .speaker-btn svg {
-            width: 20px;
-            height: 20px;
-            fill: #3498db;
-            transition: fill 0.3s;
-        }
-
-        .speaker-btn.playing svg {
-            fill: #e74c3c !important;
-            animation: pulse-audio 1s infinite;
-        }
-
-        @keyframes pulse-audio {
-            0%, 100% {
-                opacity: 1;
-            }
-            50% {
-                opacity: 0.6;
-            }
-        }
-
-        .speaker-btn:hover svg {
-            fill: #2980b9;
-        }
-
-        .speaker-btn.playing:hover svg {
-            fill: #c0392b;
-        }
-
-        /* Feedback Modal */
-        .modal-overlay {
-            display: none;
+        /* Toast Notification System */
+        .toast {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(5px);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal-overlay.active {
-            display: flex;
-        }
-
-        .feedback-modal {
+            top: 100px;
+            right: 30px;
             background: rgba(35, 47, 62, 0.98);
-            border-radius: 16px;
-            padding: 30px;
-            max-width: 450px;
-            width: 90%;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            animation: modalSlideIn 0.3s ease;
+            z-index: 10000;
+            animation: slideInRight 0.4s ease-out;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            max-width: 400px;
         }
 
-        @keyframes modalSlideIn {
+        @keyframes slideInRight {
             from {
                 opacity: 0;
-                transform: translateY(-20px);
+                transform: translateX(100px);
             }
             to {
                 opacity: 1;
-                transform: translateY(0);
+                transform: translateX(0);
             }
         }
 
-        .feedback-modal h2 {
-            color: #ecf0f1;
-            margin-bottom: 10px;
-            font-size: 22px;
-            text-align: center;
+        .toast.success {
+            border-left: 4px solid #10b981;
         }
 
-        .feedback-modal p {
-            color: #95a5a6;
-            margin-bottom: 25px;
-            text-align: center;
+        .toast.error {
+            border-left: 4px solid #ef4444;
+        }
+
+        .toast-icon {
+            width: 24px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
+        .toast-message {
+            flex: 1;
             font-size: 14px;
+            font-weight: 500;
+        }
+
+        /* Feedback Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .modal-content {
+            background: linear-gradient(145deg, rgba(30, 40, 54, 0.98) 0%, rgba(35, 47, 62, 0.98) 50%, rgba(40, 52, 67, 0.98) 100%);
+            padding: 45px 40px;
+            border-radius: 24px;
+            max-width: 500px;
+            width: 92%;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.1) inset;
+            backdrop-filter: blur(20px);
+            border: 1.5px solid rgba(255, 255, 255, 0.08);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .modal-content::before {
+            content: '';
+            position: absolute;
+            top: -50px;
+            right: -50px;
+            width: 150px;
+            height: 150px;
+            background: radial-gradient(circle, rgba(52, 152, 219, 0.15) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .modal-content::after {
+            content: '';
+            position: absolute;
+            bottom: -30px;
+            left: -30px;
+            width: 120px;
+            height: 120px;
+            background: radial-gradient(circle, rgba(231, 76, 60, 0.1) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .modal-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 25px;
+            background: linear-gradient(135deg, rgba(52, 152, 219, 0.2) 0%, rgba(52, 152, 219, 0.05) 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid rgba(52, 152, 219, 0.3);
+            box-shadow: 0 8px 24px rgba(52, 152, 219, 0.2);
+        }
+
+        .modal-icon svg {
+            width: 42px;
+            height: 42px;
+            fill: #3498db;
+        }
+
+        .modal-content h2 {
+            color: #ecf0f1;
+            margin-bottom: 12px;
+            font-size: 26px;
+            text-align: center;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .modal-content > p {
+            color: #95a5a6;
+            margin-bottom: 32px;
+            text-align: center;
+            font-size: 15px;
+            line-height: 1.5;
+            position: relative;
+            z-index: 1;
+        }
+
+        .rating-section {
+            margin-bottom: 30px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .rating-section label {
+            color: #bdc3c7;
+            display: block;
+            margin-bottom: 16px;
+            font-weight: 600;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .star-rating {
             display: flex;
+            gap: 18px;
             justify-content: center;
-            gap: 10px;
-            margin-bottom: 25px;
+            margin-bottom: 8px;
         }
 
         .star {
-            font-size: 40px;
             cursor: pointer;
-            color: #4a5f7f;
-            transition: all 0.2s ease;
-            user-select: none;
+            color: rgba(74, 95, 127, 0.4);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+            position: relative;
+            font-size: 48px;
         }
 
         .star:hover,
         .star.active {
-            color: #f39c12;
-            transform: scale(1.2);
+            color: #fbbf24;
+            transform: scale(1.1);
+            filter: drop-shadow(0 0 8px rgba(243, 156, 18, 0.6));
         }
 
-        .star.active {
-            text-shadow: 0 0 10px rgba(243, 156, 18, 0.5);
+        .rating-label {
+            text-align: center;
+            min-height: 24px;
+            margin-top: 12px;
         }
 
-        .feedback-textarea {
+        .rating-label span {
+            color: #7f8c8d;
+            font-size: 13px;
+            font-weight: 500;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .rating-label span.active {
+            opacity: 1;
+        }
+
+        .comment-section {
+            margin-bottom: 32px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .comment-section label {
+            color: #bdc3c7;
+            display: block;
+            margin-bottom: 12px;
+            font-weight: 600;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .comment-section label span {
+            color: #7f8c8d;
+            font-size: 12px;
+            font-weight: 400;
+            text-transform: none;
+        }
+
+        #feedbackComment {
             width: 100%;
-            min-height: 100px;
-            padding: 12px 15px;
-            border: 1px solid rgba(74, 95, 127, 0.5);
-            border-radius: 8px;
-            background: rgba(30, 40, 54, 0.8);
+            padding: 16px;
+            border: 1.5px solid rgba(74, 95, 127, 0.3);
+            border-radius: 12px;
+            background: rgba(20, 30, 44, 0.5);
             color: #ecf0f1;
             font-size: 14px;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             resize: vertical;
-            margin-bottom: 20px;
+            min-height: 100px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            transition: all 0.3s;
+            line-height: 1.6;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) inset;
+        }
+
+        #feedbackComment:focus {
+            border-color: rgba(52, 152, 219, 0.6);
+            background: rgba(20, 30, 44, 0.8);
             outline: none;
-            transition: all 0.3s ease;
         }
 
-        .feedback-textarea:focus {
-            border-color: #3498db;
-            background: rgba(30, 40, 54, 1);
-        }
-
-        .feedback-textarea::placeholder {
+        #feedbackComment::placeholder {
             color: #7f8c8d;
         }
 
         .modal-buttons {
             display: flex;
-            gap: 10px;
+            gap: 14px;
+            justify-content: center;
+            position: relative;
+            z-index: 1;
         }
 
         .modal-btn {
-            flex: 1;
-            padding: 12px;
+            padding: 14px 36px;
             border: none;
-            border-radius: 8px;
-            font-size: 14px;
+            border-radius: 12px;
+            font-size: 15px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            letter-spacing: 0.3px;
+            position: relative;
+            overflow: hidden;
         }
 
-        .btn-submit {
-            background: #e74c3c;
+        .modal-btn-primary {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
             color: white;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4);
         }
 
-        .btn-submit:hover {
-            background: #c0392b;
+        .modal-btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
         }
 
-        .btn-submit:disabled {
-            background: #4a5f7f;
-            cursor: not-allowed;
-            opacity: 0.5;
+        .modal-btn-primary:hover::before {
+            left: 100%;
         }
 
-        .btn-cancel {
-            background: rgba(55, 67, 82, 0.9);
+        .modal-btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.5);
+        }
+
+        .modal-btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .modal-btn-secondary {
+            background: rgba(55, 67, 82, 0.6);
+            color: #bdc3c7;
+            border: 1.5px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-btn-secondary:hover {
+            background: rgba(65, 77, 92, 0.8);
+            border-color: rgba(255, 255, 255, 0.15);
             color: #ecf0f1;
-        }
-
-        .btn-cancel:hover {
-            background: rgba(65, 77, 92, 1);
         }
 
         /* Responsive */
@@ -707,7 +964,7 @@
             .sidebar.collapsed {
                 margin-left: -340px;
             }
-            
+
             .input-area {
                 padding: 15px;
             }
@@ -716,44 +973,19 @@
                 padding: 15px 20px;
             }
 
-            .feedback-modal {
-                padding: 20px;
+            .toast {
+                right: 15px;
+                max-width: calc(100vw - 30px);
             }
 
-            .star {
-                font-size: 35px;
+            .modal-btn {
+                padding: 10px 20px;
+                font-size: 13px;
             }
         }
     </style>
 </head>
 <body>
-    <!-- Feedback Modal -->
-    <div class="modal-overlay" id="feedbackModal">
-        <div class="feedback-modal">
-            <h2>Rate Your Experience</h2>
-            <p>How would you rate your interaction with the HR Assistant?</p>
-            
-            <div class="star-rating" id="starRating">
-                <span class="star" data-rating="1">â˜…</span>
-                <span class="star" data-rating="2">â˜…</span>
-                <span class="star" data-rating="3">â˜…</span>
-                <span class="star" data-rating="4">â˜…</span>
-                <span class="star" data-rating="5">â˜…</span>
-            </div>
-            
-            <textarea 
-                class="feedback-textarea" 
-                id="feedbackComment" 
-                placeholder="Any additional comments? (optional)"
-            ></textarea>
-            
-            <div class="modal-buttons">
-                <button class="modal-btn btn-cancel" onclick="closeFeedbackModal()">Skip</button>
-                <button class="modal-btn btn-submit" id="submitFeedbackBtn" onclick="submitFeedback()" disabled>Submit</button>
-            </div>
-        </div>
-    </div>
-
     <!-- Header -->
     <div class="header">
         <button class="header-menu-btn" onclick="toggleSidebar()">
@@ -761,23 +993,22 @@
             <span></span>
             <span></span>
         </button>
-        <img src="/static/images/InChat-white.png" alt="InChat Logo" class="header-logo" 
-             onerror="this.onerror=null; this.src='/static/images/InChat-white.jpg'">
+        <img src="/static/InChat-white.png" alt="HR Logo" class="header-logo" onerror="this.style.display='none'">
         <h1>HR ASSISTANT</h1>
     </div>
 
     <div class="container">
         <!-- Sidebar -->
         <div class="sidebar" id="sidebar">
-            <!-- Knowledge Base Section -->
+            <!-- File Collection Section -->
             <div class="sidebar-section">
-                <h3>Knowledge Base</h3>
+                <h3>Document Collection</h3>
                 <div class="info-box">
-                    <p id="kbStatus">Loading knowledge base...</p>
+                    <p id="kbStatus">Loading documents...</p>
                 </div>
             </div>
 
-            <!-- Upload Documents Section -->
+            <!-- Upload Files Section -->
             <div class="sidebar-section">
                 <h3>Upload Documents</h3>
                 <div class="upload-area" onclick="document.getElementById('fileInput').click()">
@@ -785,9 +1016,9 @@
                         <path fill="#7f8c8d" d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
                     </svg>
                     <p>Click to upload documents</p>
-                    <span>PDF, DOCX, TXT</span>
+                    <span>PDF, DOCX, TXT, MP4 (video)</span>
                 </div>
-                <input type="file" id="fileInput" multiple accept=".pdf,.docx,.doc,.txt" style="display: none;">
+                <input type="file" id="fileInput" multiple accept=".pdf,.docx,.doc,.txt,.mp4,.avi,.mov,.mkv,.webm" style="display: none;">
                 <div class="file-list" id="fileList"></div>
             </div>
 
@@ -804,7 +1035,7 @@
                 <h3>Actions</h3>
                 <button class="action-btn btn-primary" onclick="exportChat()">Export Chat</button>
                 <button class="action-btn btn-primary" onclick="clearChat()">Clear Chat</button>
-                <button class="action-btn btn-danger" onclick="exportFeedback()">Export Feedback</button>
+                <button class="action-btn btn-danger" id="exportFeedbackBtn" onclick="exportFeedback()" disabled>Export Feedback</button>
             </div>
         </div>
 
@@ -813,11 +1044,10 @@
             <div class="chat-messages" id="chatMessages">
                 <div class="welcome-message">
                     <div class="welcome-avatar">
-                        <img src="/static/images/HR-chat-icon.png" alt="HR"
-                             onerror="this.onerror=null; this.src='/static/images/HR-chat-icon.jpg'">
+                        <img src="/static/HR-chat-icon.png" alt="Assistant" onerror="this.style.display='none'">
                     </div>
                     <h2>Hello! I'm your HR Assistant.</h2>
-                    <p>I'm loading the knowledge base now. Once ready, I'll be able to help you with HR policies and procedures.</p>
+                    <p>I can answer questions based on HR documents and policies. Upload documents or ask me anything!</p>
                 </div>
             </div>
 
@@ -837,59 +1067,617 @@
         </div>
     </div>
 
-    <script>
-        // Fixed JavaScript for HR Assistant
+    <!-- Feedback Modal -->
+    <div class="modal" id="feedbackModal" onclick="closeFeedbackModalOnOutsideClick(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
+                    <path d="M6 9h12v2H6zm0-3h12v2H6zm0 6h8v2H6z"/>
+                </svg>
+            </div>
+            
+            <h2>We Value Your Feedback</h2>
+            <p>Help us improve your experience with HR Assistant</p>
 
-        let sessionId = 'session_' + Date.now();
+            <div class="rating-section">
+                <label>Rate Your Experience</label>
+                <div class="star-rating" id="starRating">
+                    <span class="star" data-rating="1">★</span>
+                    <span class="star" data-rating="2">★</span>
+                    <span class="star" data-rating="3">★</span>
+                    <span class="star" data-rating="4">★</span>
+                    <span class="star" data-rating="5">★</span>
+                </div>
+                <div class="rating-label">
+                    <span id="ratingLabel"></span>
+                </div>
+            </div>
+
+            <div class="comment-section">
+                <label>Additional Comments <span>(Optional)</span></label>
+                <textarea id="feedbackComment" placeholder="Share your thoughts, suggestions, or any issues you encountered..."></textarea>
+            </div>
+
+            <div class="modal-buttons">
+                <button class="modal-btn modal-btn-primary" onclick="submitFeedback()">
+                    Submit Feedback
+                </button>
+                <button class="modal-btn modal-btn-secondary" onclick="closeFeedbackModal()">
+                    Skip
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let sessionId = `session_${Date.now()}`;
         let isRecording = false;
         let recognition = null;
-        let currentAudio = null;
-        let currentAudioButton = null;
+        let currentUtterance = null;
+        let currentSpeakingButton = null;
+        let isSpeaking = false;
+        let userHasFeedback = false;
         let selectedRating = 0;
-        let statusCheckInterval = null;
-        
+        let inactivityTimer = null;
+        let waitingForMoreQuestionsResponse = false;
+        let sessionEnded = false;
+
         // Initialize speech recognition
         if ('webkitSpeechRecognition' in window) {
             recognition = new webkitSpeechRecognition();
             recognition.continuous = false;
             recognition.interimResults = false;
             recognition.lang = 'en-US';
-        
+
             recognition.onresult = function(event) {
                 const transcript = event.results[0][0].transcript;
                 document.getElementById('messageInput').value = transcript;
                 sendMessage(true);
             };
-        
+
             recognition.onerror = function(event) {
                 console.error('Speech recognition error:', event.error);
                 stopRecording();
             };
-        
+
             recognition.onend = function() {
                 stopRecording();
             };
         }
+
+        // Timer functions
+        function startInactivityTimer() {
+            if (inactivityTimer) {
+                clearTimeout(inactivityTimer);
+                inactivityTimer = null;
+            }
+            
+            if (waitingForMoreQuestionsResponse || sessionEnded) {
+                console.log('Timer blocked - waiting state or session ended');
+                return;
+            }
+            
+            console.log('Starting inactivity timer...');
+            
+            // Check with backend for idle status
+            inactivityTimer = setInterval(async () => {
+                try {
+                    const response = await fetch('/check_idle', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ session_id: sessionId })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.is_idle && !waitingForMoreQuestionsResponse && !sessionEnded) {
+                        console.log('Inactivity detected - showing prompt');
+                        stopInactivityTimer();
+                        handleInactivity();
+                    }
+                } catch (error) {
+                    console.error('Error checking idle status:', error);
+                }
+            }, 2000); // Check every 2 seconds
+        }
         
-        // Star rating functionality
+        function stopInactivityTimer() {
+            if (inactivityTimer) {
+                clearInterval(inactivityTimer);
+                inactivityTimer = null;
+                console.log('Inactivity timer stopped');
+            }
+        }
+        
+        function handleInactivity() {
+            const messagesDiv = document.getElementById('chatMessages');
+            const hasMessages = messagesDiv.querySelectorAll('.message').length > 0;
+            
+            if (hasMessages && !waitingForMoreQuestionsResponse && !sessionEnded) {
+                console.log('Inactivity detected - showing prompt');
+                waitingForMoreQuestionsResponse = true;
+                addMessage('Do you have any more questions?', false, false);
+            }
+        }
+
+        // Initialize TTS
+        function initTTS() {
+            if ('speechSynthesis' in window) {
+                let voices = speechSynthesis.getVoices();
+                if (voices.length === 0) {
+                    speechSynthesis.addEventListener('voiceschanged', () => {
+                        voices = speechSynthesis.getVoices();
+                        console.log(`TTS Ready: ${voices.length} voices available`);
+                    }, { once: true });
+                } else {
+                    console.log(`TTS Ready: ${voices.length} voices available`);
+                }
+            }
+        }
+
+        function getFemaleVoice() {
+            const voices = speechSynthesis.getVoices();
+
+            if (!window.selectedVoice) {
+                const preferredVoices = [
+                    'Microsoft Aria Online (Natural)',
+                    'Google UK English Female',
+                    'Google US English Female',
+                    'Microsoft Zira Desktop',
+                    'Samantha',
+                    'Karen',
+                    'Moira',
+                    'Tessa',
+                    'Victoria',
+                    'Serena'
+                ];
+
+                for (let preferred of preferredVoices) {
+                    const voice = voices.find(v => v.name.includes(preferred));
+                    if (voice) {
+                        window.selectedVoice = voice;
+                        console.log('Voice selected:', voice.name);
+                        break;
+                    }
+                }
+
+                if (!window.selectedVoice) {
+                    const naturalVoice = voices.find(v => 
+                        (v.name.toLowerCase().includes('natural') || 
+                         v.name.toLowerCase().includes('female') ||
+                         v.name.toLowerCase().includes('neural')) &&
+                        v.lang.startsWith('en')
+                    );
+                    window.selectedVoice = naturalVoice || voices.find(v => v.lang.startsWith('en')) || voices[0];
+                    console.log('Voice selected:', window.selectedVoice.name);
+                }
+            }
+
+            return window.selectedVoice;
+        }
+
+        function speakText(text, button) {
+            if (isSpeaking && currentSpeakingButton === button) {
+                stopSpeech();
+                return;
+            }
+
+            stopSpeech();
+            setTimeout(() => startSpeech(text, button), 150);
+        }
+
+        function stopSpeech() {
+            if (speechSynthesis.speaking) {
+                speechSynthesis.cancel();
+            }
+
+            if (currentSpeakingButton) {
+                currentSpeakingButton.classList.remove('speaking');
+                currentSpeakingButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>`;
+                currentSpeakingButton = null;
+            }
+
+            currentUtterance = null;
+            isSpeaking = false;
+        }
+
+        function startSpeech(text, button) {
+            if (isSpeaking) {
+                console.warn('Speech already in progress, skipping');
+                return;
+            }
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            const femaleVoice = getFemaleVoice();
+
+            if (femaleVoice) {
+                utterance.voice = femaleVoice;
+            }
+
+            utterance.rate = 0.92;
+            utterance.pitch = 1.05;
+            utterance.volume = 0.85;
+
+            button.classList.add('speaking');
+            button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>`;
+            currentSpeakingButton = button;
+            currentUtterance = utterance;
+            isSpeaking = true;
+
+            utterance.onstart = () => {
+                console.log('Speech started');
+            };
+
+            utterance.onend = () => {
+                console.log('Speech ended');
+                if (button) {
+                    button.classList.remove('speaking');
+                    button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>`;
+                    currentSpeakingButton = null;
+                }
+                currentUtterance = null;
+                isSpeaking = false;
+            };
+
+            utterance.onerror = (event) => {
+                console.error('Speech error:', event.error);
+                if (button) {
+                    button.classList.remove('speaking');
+                    button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>`;
+                    currentSpeakingButton = null;
+                }
+                currentUtterance = null;
+                isSpeaking = false;
+            };
+
+            speechSynthesis.speak(utterance);
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+        }
+
+        function toggleRecording() {
+            if (!recognition) {
+                showToast('Speech recognition is not supported in your browser.', 'error');
+                return;
+            }
+
+            if (isRecording) {
+                recognition.stop();
+            } else {
+                recognition.start();
+                document.getElementById('micBtn').classList.add('recording');
+                isRecording = true;
+            }
+            
+            stopInactivityTimer();
+        }
+
+        function stopRecording() {
+            isRecording = false;
+            document.getElementById('micBtn').classList.remove('recording');
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage(false);
+            }
+            stopInactivityTimer();
+        }
+
+        async function sendMessage(isVoiceInput = false) {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+
+            if (!message) return;
+
+            stopInactivityTimer();
+
+            addMessage(message, true);
+            input.value = '';
+
+            const loadingId = addLoadingMessage();
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        message: message,
+                        is_voice_input: isVoiceInput
+                    })
+                });
+
+                const data = await response.json();
+                removeMessage(loadingId);
+
+                if (data.error) {
+                    addMessage(`Error: ${data.error}`, false);
+                } else {
+                    addMessage(data.response, false, isVoiceInput);
+                    
+                    // Add video cards if available
+                    if (data.relevant_videos && data.relevant_videos.length > 0) {
+                        addVideoCards(data.relevant_videos);
+                    }
+                    
+                    // Start timer after response
+                    startInactivityTimer();
+                    
+                    // Show feedback modal if session ended
+                    if (data.session_ended || data.trigger_feedback) {
+                        stopInactivityTimer();
+                        sessionEnded = true;
+                        setTimeout(() => {
+                            document.getElementById('feedbackModal').classList.add('active');
+                        }, 1500);
+                    }
+                }
+            } catch (error) {
+                removeMessage(loadingId);
+                addMessage('Error: Failed to send message', false);
+                console.error('Send error:', error);
+            }
+        }
+
+        function addVideoCards(videos) {
+            const messagesDiv = document.getElementById('chatMessages');
+            
+            videos.forEach(video => {
+                const videoCard = document.createElement('div');
+                videoCard.className = 'video-card';
+                videoCard.onclick = () => window.open(video.url, '_blank');
+                
+                videoCard.innerHTML = `
+                    <h4>📹 ${video.filename}</h4>
+                    <p>${video.transcript_excerpt}${video.transcript_excerpt.length >= 200 ? '...' : ''}</p>
+                    ${video.description ? `<p><em>${video.description}</em></p>` : ''}
+                `;
+                
+                messagesDiv.appendChild(videoCard);
+            });
+            
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function addLoadingMessage() {
+            const messagesDiv = document.getElementById('chatMessages');
+            const welcomeMsg = messagesDiv.querySelector('.welcome-message');
+            if (welcomeMsg) welcomeMsg.remove();
+
+            const messageId = `msg_loading_${Date.now()}`;
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message bot-message';
+            messageDiv.id = messageId;
+
+            messageDiv.innerHTML = `
+                <div class="message-avatar bot-avatar">
+                    <img src="static/HR-chat-icon.png" alt="Assistant" onerror="this.textContent='🤖'">
+                </div>
+                <div class="message-content">
+                    <div class="loading"></div>
+                </div>
+            `;
+
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+            return messageId;
+        }
+
+        function addMessage(content, isUser, autoSpeak = false) {
+            const messagesDiv = document.getElementById('chatMessages');
+            const welcomeMsg = messagesDiv.querySelector('.welcome-message');
+            if (welcomeMsg) welcomeMsg.remove();
+
+            const messageId = `msg_${Date.now()}`;
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+            messageDiv.id = messageId;
+
+            const avatarContent = isUser ? 'U' : `<img src="static/HR-chat-icon.png" alt="Assistant" onerror="this.parentElement.textContent='🤖'">`;
+
+            let formattedContent = content;
+            if (!isUser && !content.includes('loading')) {
+                formattedContent = formatBotMessage(content);
+            }
+
+            const cleanTextForTTS = content
+                .replace(/<[^>]*>/g, '')
+                .replace(/&nbsp;/g, ' ')
+                .replace(/&quot;/g, '"')
+                .replace(/&amp;/g, '&')
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/\*\*/g, '')
+                .replace(/\*/g, '')
+                .replace(/#{1,6}\s/g, '')
+                .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
+                .replace(/`{1,3}[^`]*`{1,3}/g, '')
+                .replace(/[-*_]{3,}/g, '')
+                .replace(/^\s*[-*+]\s+/gm, '• ')
+                .replace(/^\s*\d+\.\s+/gm, '')
+                .replace(/\n{3,}/g, '. ')
+                .replace(/\n/g, '. ')
+                .replace(/\.{2,}/g, '.')
+                .replace(/\s{2,}/g, ' ')
+                .trim();
+
+            const hasSpeaker = !isUser && !content.includes('loading') && !content.includes('Error') && cleanTextForTTS.length > 0;
+            const speakerBtn = hasSpeaker ? `<button class="speaker-btn" data-text="${cleanTextForTTS.replace(/"/g, '&quot;')}" onclick="speakText(this.getAttribute('data-text'), this)"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg></button>` : '';
+
+            messageDiv.innerHTML = `
+                <div class="message-avatar ${isUser ? 'user-avatar' : 'bot-avatar'}">
+                    ${avatarContent}
+                </div>
+                <div class="message-content">
+                    ${formattedContent}
+                    ${speakerBtn}
+                </div>
+            `;
+
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+            if (autoSpeak && hasSpeaker && !isSpeaking) {
+                setTimeout(() => {
+                    const btn = messageDiv.querySelector('.speaker-btn');
+                    if (btn && !isSpeaking) {
+                        const textToSpeak = btn.getAttribute('data-text');
+                        startSpeech(textToSpeak, btn);
+                    }
+                }, 400);
+            }
+
+            return messageId;
+        }
+
+        function removeMessage(messageId) {
+            const msg = document.getElementById(messageId);
+            if (msg) msg.remove();
+        }
+
+        function formatBotMessage(text) {
+            text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+            let lines = text.split('\n');
+            let inList = false;
+            let formatted = [];
+
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i].trim();
+
+                if (!line) {
+                    if (inList) {
+                        formatted.push('</ul>');
+                        inList = false;
+                    }
+                    continue;
+                }
+
+                if (line.match(/^\*\s+/) || line.match(/^-\s+/)) {
+                    if (!inList) {
+                        formatted.push('<ul>');
+                        inList = true;
+                    }
+                    formatted.push(`<li>${line.substring(2)}</li>`);
+                }
+                else if (line.match(/^\d+\.\s/)) {
+                    if (inList) {
+                        formatted.push('</ul>');
+                        inList = false;
+                    }
+                    formatted.push(`<p><strong>${line}</strong></p>`);
+                }
+                else if (line.startsWith('###')) {
+                    if (inList) {
+                        formatted.push('</ul>');
+                        inList = false;
+                    }
+                    formatted.push(`<h3>${line.replace(/###/g, '').trim()}</h3>`);
+                }
+                else if (line.startsWith('##')) {
+                    if (inList) {
+                        formatted.push('</ul>');
+                        inList = false;
+                    }
+                    formatted.push(`<h3>${line.replace(/##/g, '').trim()}</h3>`);
+                }
+                else if (line.startsWith('#')) {
+                    if (inList) {
+                        formatted.push('</ul>');
+                        inList = false;
+                    }
+                    formatted.push(`<h4>${line.replace(/#/g, '').trim()}</h4>`);
+                }
+                else {
+                    if (inList) {
+                        formatted.push('</ul>');
+                        inList = false;
+                    }
+                    formatted.push(`<p>${line}</p>`);
+                }
+            }
+
+            if (inList) {
+                formatted.push('</ul>');
+            }
+
+            return formatted.join('');
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+
+            let iconSvg;
+            if (type === 'success') {
+                iconSvg = `<svg class="toast-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#10b981"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`;
+            } else {
+                iconSvg = `<svg class="toast-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#ef4444"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>`;
+            }
+
+            toast.innerHTML = `
+                ${iconSvg}
+                <div class="toast-message">${message}</div>
+            `;
+
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.animation = 'slideInRight 0.4s ease-out reverse';
+                setTimeout(() => toast.remove(), 400);
+            }, 3000);
+        }
+
+        // Star Rating Functions
         document.querySelectorAll('.star').forEach(star => {
-            star.addEventListener('click', function() {
-                selectedRating = parseInt(this.dataset.rating);
-                updateStarRating(selectedRating);
-                document.getElementById('submitFeedbackBtn').disabled = false;
-            });
-        
             star.addEventListener('mouseenter', function() {
-                const rating = parseInt(this.dataset.rating);
-                updateStarRating(rating);
+                const rating = parseInt(this.getAttribute('data-rating'));
+                updateStars(rating);
+                const ratingLabels = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
+                document.getElementById('ratingLabel').textContent = ratingLabels[rating];
+                document.getElementById('ratingLabel').classList.add('active');
+            });
+
+            star.addEventListener('click', function() {
+                selectedRating = parseInt(this.getAttribute('data-rating'));
+                updateStars(selectedRating);
+                const ratingLabels = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
+                document.getElementById('ratingLabel').textContent = ratingLabels[selectedRating];
+                document.getElementById('ratingLabel').classList.add('active');
+                
+                document.querySelectorAll('.star').forEach((s, idx) => {
+                    if (idx < selectedRating) {
+                        s.style.transform = 'scale(1.3)';
+                        setTimeout(() => { s.style.transform = 'scale(1.1)'; }, 200);
+                    }
+                });
             });
         });
-        
-        document.getElementById('starRating').addEventListener('mouseleave', function() {
-            updateStarRating(selectedRating);
+
+        document.querySelector('.star-rating').addEventListener('mouseleave', () => {
+            if (selectedRating > 0) {
+                updateStars(selectedRating);
+                const ratingLabels = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
+                document.getElementById('ratingLabel').textContent = ratingLabels[selectedRating];
+                document.getElementById('ratingLabel').classList.add('active');
+            } else {
+                updateStars(0);
+                document.getElementById('ratingLabel').classList.remove('active');
+            }
         });
-        
-        function updateStarRating(rating) {
+
+        function updateStars(rating) {
             document.querySelectorAll('.star').forEach((star, index) => {
                 if (index < rating) {
                     star.classList.add('active');
@@ -898,585 +1686,308 @@
                 }
             });
         }
-        
-        function showFeedbackModal() {
-            document.getElementById('feedbackModal').classList.add('active');
-            selectedRating = 0;
-            updateStarRating(0);
-            document.getElementById('feedbackComment').value = '';
-            document.getElementById('submitFeedbackBtn').disabled = true;
-        }
-        
-        function closeFeedbackModal() {
-            document.getElementById('feedbackModal').classList.remove('active');
-        }
-        
+
         async function submitFeedback() {
             if (selectedRating === 0) {
-                alert('Please select a rating');
+                const ratingLabel = document.getElementById('ratingLabel');
+                ratingLabel.textContent = 'Please select a rating';
+                ratingLabel.style.color = '#e74c3c';
+                ratingLabel.classList.add('active');
+                ratingLabel.style.fontWeight = '600';
+                
+                const stars = document.querySelectorAll('.star');
+                stars.forEach(star => {
+                    star.style.animation = 'shake 0.5s';
+                    setTimeout(() => { star.style.animation = ''; }, 500);
+                });
+                
                 return;
             }
-        
+
             const comment = document.getElementById('feedbackComment').value.trim();
-        
+
             try {
                 const response = await fetch('/feedback', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({
                         session_id: sessionId,
                         rating: selectedRating,
                         comment: comment
                     })
                 });
-        
+
                 const data = await response.json();
-                
                 if (data.success) {
+                    showToast('Thank you for your feedback!', 'success');
+                    document.getElementById('feedbackStatus').textContent = `Last rating: ${selectedRating}/5`;
+                    userHasFeedback = true;
+                    
+                    const exportBtn = document.getElementById('exportFeedbackBtn');
+                    exportBtn.disabled = false;
+                    exportBtn.style.display = 'block';
+                    
                     closeFeedbackModal();
-                    updateFeedbackStatus();
-                    alert('Thank you for your feedback!');
                 }
             } catch (error) {
                 console.error('Feedback error:', error);
-                alert('Error submitting feedback');
+                showToast('Failed to submit feedback', 'error');
             }
         }
-        
-        async function updateFeedbackStatus() {
-            try {
-                const response = await fetch(`/feedback/stats?session_id=${sessionId}`);
-                const data = await response.json();
-                
-                if (data.count > 0) {
-                    document.getElementById('feedbackStatus').textContent = 
-                        `${data.count} feedback(s) submitted • Avg: ${data.average}/5 ⭐`;
-                }
-            } catch (error) {
-                console.error('Stats error:', error);
+
+        function closeFeedbackModal() {
+            const modal = document.getElementById('feedbackModal');
+            if (modal) {
+                modal.classList.remove('active');
+                selectedRating = 0;
+                document.getElementById('feedbackComment').value = '';
+                updateStars(0);
+                document.getElementById('ratingLabel').classList.remove('active');
+                document.getElementById('ratingLabel').style.color = '#7f8c8d';
             }
         }
-        
-        function startStatusPolling() {
-            console.log('🔄 Starting status polling...');
-            
-            if (statusCheckInterval) {
-                clearInterval(statusCheckInterval);
-            }
-            
-            let pollCount = 0;
-            const maxPolls = 60;
-            
-            statusCheckInterval = setInterval(async () => {
-                pollCount++;
-                console.log(`📡 Status check #${pollCount}...`);
-                
-                try {
-                    const response = await fetch(`/check_status?session_id=${sessionId}`);
-                    const data = await response.json();
-                    
-                    console.log('Status:', data);
-                    
-                    if (data.ready) {
-                        console.log('✅ Documents loaded!');
-                        updateStatus(`Ready - ${data.files_count} documents loaded`, 'ready');
-                        if (data.files && data.files.length > 0) {
-                            updateFileList(data.files);
-                        }
-                        clearInterval(statusCheckInterval);
-                        statusCheckInterval = null;
-                    } else if (data.error) {
-                        console.error('❌ Loading error:', data.message);
-                        updateStatus(data.message || 'Error loading documents', 'error');
-                        clearInterval(statusCheckInterval);
-                        statusCheckInterval = null;
-                    } else if (data.loading) {
-                        updateStatus('Loading documents...', 'loading');
-                    }
-                    
-                    if (pollCount >= maxPolls) {
-                        console.warn('⏰ Status polling timeout');
-                        updateStatus('Document loading is taking longer than expected...', 'loading');
-                        clearInterval(statusCheckInterval);
-                        statusCheckInterval = null;
-                    }
-                } catch (error) {
-                    console.error('Status check error:', error);
-                    pollCount = maxPolls;
-                }
-            }, 2000);
-        }
-        
-        function updateStatus(message, status) {
-            const statusElement = document.getElementById('kbStatus');
-            statusElement.textContent = message;
-            
-            if (status === 'ready') {
-                statusElement.style.color = '#2ecc71';
-            } else if (status === 'error') {
-                statusElement.style.color = '#e74c3c';
-            } else {
-                statusElement.style.color = '#bdc3c7';
+
+        function closeFeedbackModalOnOutsideClick(event) {
+            if (event.target.id === 'feedbackModal') {
+                closeFeedbackModal();
             }
         }
-        
-        // Toggle audio play/stop
-        function toggleAudio(audioUrl, buttonElement) {
-            if (currentAudioButton === buttonElement && currentAudio && !currentAudio.paused) {
-                stopAudio();
-                return;
-            }
-            stopAudio();
-            playAudio(audioUrl, buttonElement);
-        }
-        
-        // Play audio
-        function playAudio(audioUrl, buttonElement) {
-            if (currentAudio) {
-                currentAudio.pause();
-                currentAudio = null;
-            }
-            
-            if (currentAudioButton) {
-                currentAudioButton.classList.remove('playing');
-                currentAudioButton.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                        <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
-                    </svg>
-                `;
-            }
-            
-            currentAudio = new Audio(audioUrl);
-            currentAudioButton = buttonElement || null;
-            
-            if (buttonElement) {
-                buttonElement.classList.add('playing');
-                buttonElement.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                        <path d="M6 6h12v12H6z"/>
-                    </svg>
-                `;
-            }
-            
-            currentAudio.onended = function() {
-                if (currentAudioButton) {
-                    currentAudioButton.classList.remove('playing');
-                    currentAudioButton.innerHTML = `
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
-                        </svg>
-                    `;
-                }
-                currentAudio = null;
-                currentAudioButton = null;
-            };
-            
-            currentAudio.play().catch(err => {
-                console.error('Audio play error:', err);
-                if (currentAudioButton) {
-                    currentAudioButton.classList.remove('playing');
-                }
-            });
-        }
-        
-        // Stop audio
-        function stopAudio() {
-            if (currentAudio) {
-                currentAudio.pause();
-                currentAudio.currentTime = 0;
-                currentAudio = null;
-            }
-            
-            if (currentAudioButton) {
-                currentAudioButton.classList.remove('playing');
-                currentAudioButton.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                        <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
-                    </svg>
-                `;
-                currentAudioButton = null;
-            }
-        }
-        
-        // Initialize session
-        async function initSession() {
-            console.log('🚀 Initializing session...');
-            
-            try {
-                const response = await fetch('/init_session', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ session_id: sessionId })
-                });
-                
-                const data = await response.json();
-                console.log('Init response:', data);
-                
-                if (data.success) {
-                    if (data.status === 'ready') {
-                        updateStatus(data.message, 'ready');
-                        if (data.files && data.files.length > 0) {
-                            updateFileList(data.files);
-                        }
-                    } else if (data.status === 'loading') {
-                        updateStatus(data.message, 'loading');
-                        // Start polling for status
-                        startStatusPolling();
-                    } else if (data.status === 'error') {
-                        updateStatus(data.message, 'error');
-                    }
-                }
-            } catch (error) {
-                console.error('Init error:', error);
-                updateStatus('Error initializing. Please refresh.', 'error');
-            }
-        }
-        
-        // Toggle sidebar
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            sidebar.classList.toggle('collapsed');
-        }
-        
-        // Toggle voice recording
-        function toggleRecording() {
-            if (!recognition) {
-                alert('Speech recognition is not supported in your browser.');
-                return;
-            }
-        
-            if (isRecording) {
-                recognition.stop();
-            } else {
-                recognition.start();
-                document.getElementById('micBtn').classList.add('recording');
-                isRecording = true;
-            }
-        }
-        
-        function stopRecording() {
-            isRecording = false;
-            document.getElementById('micBtn').classList.remove('recording');
-        }
-        
-        // Handle key press
-        function handleKeyPress(event) {
-            if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                sendMessage();
-            }
-        }
-        
-        // Send message - FIXED VERSION
-        async function sendMessage(isVoiceInput = false) {
-            const input = document.getElementById('messageInput');
-            const message = input.value.trim();
-            
-            if (!message) return;
-        
-            // Disable send button during processing
-            const sendBtn = document.getElementById('sendBtn');
-            const originalBtnText = sendBtn.textContent;
-            sendBtn.disabled = true;
-            sendBtn.textContent = '...';
-        
-            addMessage(message, true);
-            input.value = '';
-        
-            const loadingId = addMessage('<div class="loading"></div>', false);
-        
-            try {
-                const response = await fetch('/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        session_id: sessionId, 
-                        message: message,
-                        is_voice_input: isVoiceInput
-                    })
-                });
-        
-                // Remove loading indicator
-                removeMessage(loadingId);
-        
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}));
-                    
-                    if (response.status === 503) {
-                        addMessage('⏳ System is still loading. Please wait a moment and try again.', false);
-                    } else if (response.status === 500) {
-                        addMessage(`❌ Server error: ${errorData.error || 'Please try again'}`, false);
-                    } else {
-                        addMessage(`❌ Error (${response.status}): ${errorData.error || 'Unknown error'}`, false);
-                    }
-                    
-                    // Re-enable send button
-                    sendBtn.disabled = false;
-                    sendBtn.textContent = originalBtnText;
-                    return;
-                }
-        
-                const data = await response.json();
-        
-                if (data.error) {
-                    addMessage('❌ ' + data.error, false);
-                } else {
-                    let botMessage = data.response;
-                    
-                    // Add speaker button with toggle functionality
-                    if (data.audio_url) {
-                        const btnId = 'audio-btn-' + Date.now();
-                        botMessage += `<button class="speaker-btn" id="${btnId}" onclick="toggleAudio('${data.audio_url}', this)">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
-                            </svg>
-                        </button>`;
-                    }
-                    
-                    const messageId = addMessage(botMessage, false);
-                    
-                    // Auto-play only if it was voice input
-                    if (data.audio_url && data.auto_play) {
-                        setTimeout(() => {
-                            const btnElement = document.querySelector(`#${messageId} .speaker-btn`);
-                            if (btnElement) {
-                                playAudio(data.audio_url, btnElement);
-                            }
-                        }, 100);
-                    }
-        
-                    if (data.video) {
-                        addVideoMessage(data.video, data.video_name);
-                    }
-        
-                    // Show feedback modal if session ended
-                    if (data.show_feedback) {
-                        setTimeout(() => {
-                            showFeedbackModal();
-                        }, 1000);
-                    }
-                }
-            } catch (error) {
-                removeMessage(loadingId);
-                addMessage('❌ Network error. Please check your connection and try again.', false);
-                console.error('Send error:', error);
-            } finally {
-                // Always re-enable send button
-                sendBtn.disabled = false;
-                sendBtn.textContent = originalBtnText;
-            }
-        }
-        
-        function addMessage(content, isUser) {
-            const messagesDiv = document.getElementById('chatMessages');
-            const welcomeMsg = messagesDiv.querySelector('.welcome-message');
-            if (welcomeMsg) welcomeMsg.remove();
-        
-            const messageId = 'msg_' + Date.now();
-            const messageDiv = document.createElement('div');
-            messageDiv.className = 'message ' + (isUser ? 'user-message' : 'bot-message');
-            messageDiv.id = messageId;
-            
-            const avatarContent = isUser 
-                ? 'U' 
-                : '<img src="/static/images/HR-chat-icon.png" alt="HR" onerror="this.onerror=null; this.src=\'/static/images/HR-chat-icon.jpg\'">';
-            
-            messageDiv.innerHTML = `
-                <div class="message-avatar ${isUser ? 'user-avatar' : 'bot-avatar'}">
-                    ${avatarContent}
-                </div>
-                <div class="message-content">${content}</div>
-            `;
-            
-            messagesDiv.appendChild(messageDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-            
-            return messageId;
-        }
-        
-        function removeMessage(messageId) {
-            const msg = document.getElementById(messageId);
-            if (msg) msg.remove();
-        }
-        
-        function addVideoMessage(videoUrl, videoName) {
-            const messagesDiv = document.getElementById('chatMessages');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = 'message bot-message';
-            
-            messageDiv.innerHTML = `
-                <div class="message-avatar bot-avatar">
-                    <img src="/static/images/HR-chat-icon.png" alt="HR"
-                         onerror="this.onerror=null; this.src='/static/images/HR-chat-icon.jpg'">
-                </div>
-                <div class="message-content">
-                    <p>Here's a related video: <strong>${videoName}</strong></p>
-                    <div class="video-container">
-                        <video controls>
-                            <source src="${videoUrl}" type="video/mp4">
-                            Your browser does not support the video tag.
-                        </video>
-                    </div>
-                </div>
-            `;
-            
-            messagesDiv.appendChild(messageDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-        
-        // File upload handler
-        document.getElementById('fileInput').addEventListener('change', async function(e) {
+
+        // File Upload
+        document.getElementById('fileInput').addEventListener('change', async (e) => {
             const files = e.target.files;
             if (files.length === 0) return;
-        
+
             const formData = new FormData();
             formData.append('session_id', sessionId);
-            
             for (let file of files) {
                 formData.append('files', file);
             }
-        
-            const uploadingMsgId = addMessage('📤 Uploading and processing files...', false);
-        
+
             try {
+                showToast('Uploading files...', 'success');
+
                 const response = await fetch('/upload', {
                     method: 'POST',
                     body: formData
                 });
-        
-                removeMessage(uploadingMsgId);
-        
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}));
-                    addMessage(`❌ Upload failed: ${errorData.error || 'Unknown error'}`, false);
-                    return;
-                }
-        
+
                 const data = await response.json();
-                
+
                 if (data.success) {
-                    addMessage(`✅ Successfully uploaded ${data.files.length} file(s): ${data.files.join(', ')}`, false);
-                    updateFileList(data.files, 'uploaded');
+                    updateFileList(data.files);
+                    showToast(data.message, 'success');
                     
-                    const currentCount = document.querySelectorAll('.file-item').length;
-                    updateStatus(`${currentCount} document(s) loaded and ready`, 'ready');
+                    // Start timer after upload
+                    startInactivityTimer();
                 } else {
-                    addMessage('❌ Error uploading files: ' + data.error, false);
+                    showToast(`Upload failed: ${data.error}`, 'error');
                 }
             } catch (error) {
-                removeMessage(uploadingMsgId);
-                addMessage('❌ Error uploading files: ' + error.message, false);
                 console.error('Upload error:', error);
+                showToast('Upload error', 'error');
             }
-        
+
             e.target.value = '';
         });
-        
-        function updateFileList(files, type) {
+
+        function updateFileList(files) {
             const fileListDiv = document.getElementById('fileList');
             
-            files.forEach(file => {
+            files.forEach((filename) => {
+                const existingFiles = Array.from(fileListDiv.querySelectorAll('.file-name')).map(el => el.textContent.trim());
+                if (existingFiles.includes(filename)) {
+                    return;
+                }
+
                 const fileItem = document.createElement('div');
                 fileItem.className = 'file-item';
+                fileItem.dataset.filename = filename;
+
+                const iconSvg = getFileIcon(filename);
+
                 fileItem.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                        <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/>
-                    </svg>
-                    <span>${file}</span>
+                    <div class="file-header">
+                        ${iconSvg}
+                        <span class="file-name">${filename}</span>
+                    </div>
                 `;
+
                 fileListDiv.appendChild(fileItem);
             });
         }
-        
-        async function exportChat() {
-            try {
-                const response = await fetch('/export/json', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ session_id: sessionId })
-                });
-        
-                if (!response.ok) {
-                    throw new Error('Export failed');
-                }
-        
-                const data = await response.json();
-                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `chat_export_${Date.now()}.json`;
-                a.click();
-                URL.revokeObjectURL(url);
-            } catch (error) {
-                alert('Error exporting chat: ' + error.message);
-                console.error('Export error:', error);
+
+        function getFileIcon(filename) {
+            const ext = filename.split('.').pop().toLowerCase();
+            if (ext === 'pdf') {
+                return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M15.5,15C15.5,16.38 14.38,17.5 13,17.5H11V19.5H9.5V13.5H13A2,2 0 0,1 15.5,15M13,16A0.5,0.5 0 0,0 13.5,15.5A0.5,0.5 0 0,0 13,15H11V16H13M8,11H10.5A0.5,0.5 0 0,0 11,10.5A0.5,0.5 0 0,0 10.5,10H8V11Z"/></svg>';
+            } else if (ext === 'docx' || ext === 'doc') {
+                return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M15,18H9V16H15V18M15,14H9V12H15V14Z"/></svg>';
+            } else if (ext === 'mp4' || ext === 'avi' || ext === 'mov' || ext === 'mkv' || ext === 'webm') {
+                return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17,10.5V7A1,1 0 0,0 16,6H4A1,1 0 0,0 3,7V17A1,1 0 0,0 4,18H16A1,1 0 0,0 17,17V13.5L21,17.5V6.5L17,10.5Z"/></svg>';
+            } else {
+                return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/></svg>';
             }
         }
-        
+
+        async function exportChat() {
+            try {
+                showToast('Generating PDF...', 'success');
+                
+                const response = await fetch('/export/pdf', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ session_id: sessionId })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    const byteCharacters = atob(data.pdf_data);
+                    const byteNumbers = new Array(byteCharacters.length);
+                    for (let i = 0; i < byteCharacters.length; i++) {
+                        byteNumbers[i] = byteCharacters.charCodeAt(i);
+                    }
+                    const byteArray = new Uint8Array(byteNumbers);
+                    const blob = new Blob([byteArray], { type: 'application/pdf' });
+                    
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = data.filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    showToast('Chat exported as PDF successfully', 'success');
+                } else {
+                    showToast('Export failed: ' + data.error, 'error');
+                }
+            } catch (error) {
+                console.error('Export error:', error);
+                showToast('Export failed', 'error');
+            }
+        }
+
         async function clearChat() {
-            if (!confirm('Are you sure you want to clear the chat history?')) return;
-        
+            if (!confirm('Are you sure you want to clear the chat history? Preloaded documents will remain available.')) return;
+
             try {
                 const response = await fetch('/clear', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({ session_id: sessionId })
                 });
-        
-                if (!response.ok) {
-                    throw new Error('Clear failed');
-                }
-        
-                document.getElementById('chatMessages').innerHTML = `
-                    <div class="welcome-message">
-                        <div class="welcome-avatar">
-                            <img src="/static/images/HR-chat-icon.png" alt="HR"
-                                 onerror="this.onerror=null; this.src='/static/images/HR-chat-icon.jpg'">
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('chatMessages').innerHTML = `
+                        <div class="welcome-message">
+                            <div class="welcome-avatar">
+                                <img src="static/HR-chat-icon.png" alt="Assistant" onerror="this.style.display='none'">
+                            </div>
+                            <h2>Hello! I'm your HR Assistant.</h2>
+                            <p>I can answer questions based on HR documents and policies. Upload documents or ask me anything!</p>
                         </div>
-                        <h2>Hello! I'm your HR Assistant.</h2>
-                        <p>Chat cleared! I'm ready to help with any HR-related questions.</p>
-                    </div>
-                `;
+                    `;
+                    
+                    sessionEnded = false;
+                    waitingForMoreQuestionsResponse = false;
+                    stopInactivityTimer();
+                    
+                    showToast('Chat cleared successfully', 'success');
+                }
             } catch (error) {
-                alert('Error clearing chat: ' + error.message);
                 console.error('Clear error:', error);
+                showToast('Clear failed', 'error');
             }
         }
-        
+
         async function exportFeedback() {
+            if (!userHasFeedback) {
+                showToast('No feedback data available', 'error');
+                return;
+            }
+
             try {
                 const response = await fetch('/export/feedback', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({ session_id: sessionId })
                 });
-        
-                if (!response.ok) {
-                    throw new Error('Export failed');
-                }
-        
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     const blob = new Blob([data.csv_data], { type: 'text/csv' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
                     a.download = data.filename;
+                    document.body.appendChild(a);
                     a.click();
+                    document.body.removeChild(a);
                     URL.revokeObjectURL(url);
+
+                    showToast('Feedback exported', 'success');
                 } else {
-                    alert(data.error || 'No feedback data available');
+                    showToast('No feedback data available', 'error');
                 }
             } catch (error) {
-                alert('Error exporting feedback: ' + error.message);
                 console.error('Feedback export error:', error);
+                showToast('Export failed', 'error');
             }
         }
-        
+
+        async function initSession() {
+            try {
+                const response = await fetch('/init_session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ session_id: sessionId })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    if (data.preloaded_files && data.preloaded_files.length > 0) {
+                        document.getElementById('kbStatus').textContent = `${data.preloaded_files.length} document${data.preloaded_files.length !== 1 ? 's' : ''} loaded. You can upload more documents to expand the collection.`;
+                        updateFileList(data.preloaded_files);
+                    } else {
+                        document.getElementById('kbStatus').textContent = 'No preloaded documents found. You can upload documents to get started.';
+                    }
+                    
+                    // Check if feedback was already submitted
+                    if (data.feedback_submitted) {
+                        userHasFeedback = true;
+                        const exportBtn = document.getElementById('exportFeedbackBtn');
+                        exportBtn.disabled = false;
+                        exportBtn.style.display = 'block';
+                    }
+                }
+            } catch (error) {
+                console.error('Init error:', error);
+                document.getElementById('kbStatus').textContent = 'Failed to load documents. Please refresh the page.';
+            }
+        }
+
         // Initialize on page load
-        window.addEventListener('load', initSession);
+        window.addEventListener('load', () => {
+            initTTS();
+            initSession();
+        });
     </script>
 </body>
 </html>
