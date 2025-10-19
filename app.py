@@ -541,6 +541,13 @@ def chat():
     if not message:
         return jsonify({'error': 'No message provided'}), 400
     
+    # Auto-initialize session with preloaded documents if not already done
+    if preloaded_vectorstore and not session['vectorstore']:
+        session['vectorstore'] = preloaded_vectorstore
+        session['conversation_chain'] = create_chain(preloaded_vectorstore)
+        session['uploaded_files'] = preloaded_files.copy()
+        print(f"✓ Auto-initialized session {session_id} with {len(preloaded_files)} preloaded documents")
+    
     # Update last interaction time
     session['last_interaction'] = time.time()
     
@@ -555,10 +562,9 @@ def chat():
     normalized_message = message.lower().strip().replace("'", "").replace(",", "").replace(".", "")
     
     # Check for negative/dismissive responses
-    negative_responses = ['no', 'nope', 'nah', 'not needed', 'no need', 'no thanks', 
-                         'not really', 'im good', "i'm good", 'all good', 'thats all', 
+    negative_responses = ['no', 'nope', 'nah', 'not needed', 'no need', 'no thanks',
+                         'not really', 'im good', "i'm good", 'all good', 'thats all',
                          "that's all", 'nothing else', 'nothing more']
-    
     is_negative = any(neg in normalized_message for neg in negative_responses)
     
     # Track consecutive "no" responses
@@ -570,15 +576,12 @@ def chat():
     # If user has said "no" 2 or more times consecutively, end the session
     if session['consecutive_no_count'] >= 2:
         bot_response = "Thank you for using HR Assistant! Have a great day!"
-        
         session['chat_history'].append({
             'message': bot_response,
             'is_user': False,
             'timestamp': datetime.now().isoformat()
         })
-        
         session['consecutive_no_count'] = 0
-        
         return jsonify({
             'response': bot_response,
             'is_voice_input': is_voice_input,
@@ -617,7 +620,7 @@ def chat():
         normalized_message in acknowledgments or
         (len(normalized_message.split()) <= 3 and any(ack in normalized_message for ack in acknowledgments))
     ) and not any(question_word in normalized_message for question_word in [
-        'what', 'why', 'how', 'when', 'where', 'who', 'which', 'can', 'could', 
+        'what', 'why', 'how', 'when', 'where', 'who', 'which', 'can', 'could',
         'would', 'should', 'is', 'are', 'does', 'do', 'tell', 'show', 'explain', 'describe'
     ])
     
@@ -635,7 +638,6 @@ def chat():
             'is_user': False,
             'timestamp': datetime.now().isoformat()
         })
-        
         return jsonify({
             'response': brief_response,
             'is_voice_input': is_voice_input,
@@ -653,7 +655,6 @@ def chat():
             
             # Store as last analysis
             session['last_analysis'] = response
-            
             session['chat_history'].append({
                 'message': response,
                 'is_user': False,
@@ -664,16 +665,13 @@ def chat():
             return jsonify({
                 'response': response,
                 'is_voice_input': is_voice_input,
-                'relevant_videos': [
-                    {
-                        'filename': v['metadata']['path'].split('/')[-1],
-                        'url': f"/video/{v['metadata']['path'].split('/')[-1]}",
-                        'transcript_excerpt': v['metadata']['transcript'][:200],
-                        'relevance': float(v['relevance_score']) if isinstance(v['relevance_score'], (int, float)) else 0.0,
-                        'description': v['metadata']['description']
-                    }
-                    for v in relevant_videos
-                ]
+                'relevant_videos': [{
+                    'filename': v['metadata']['path'].split('/')[-1],
+                    'url': f"/video/{v['metadata']['path'].split('/')[-1]}",
+                    'transcript_excerpt': v['metadata']['transcript'][:200],
+                    'relevance': float(v['relevance_score']) if isinstance(v['relevance_score'], (int, float)) else 0.0,
+                    'description': v['metadata']['description']
+                } for v in relevant_videos]
             })
         except Exception as e:
             print(f"Chat error: {e}")
@@ -684,16 +682,13 @@ def chat():
             return jsonify({
                 'response': "I found some relevant videos for your query:",
                 'is_voice_input': is_voice_input,
-                'relevant_videos': [
-                    {
-                        'filename': v['metadata']['path'].split('/')[-1],
-                        'url': f"/video/{v['metadata']['path'].split('/')[-1]}",
-                        'transcript_excerpt': v['metadata']['transcript'][:200],
-                        'relevance': float(v['relevance_score']) if isinstance(v['relevance_score'], (int, float)) else 0.0,
-                        'description': v['metadata']['description']
-                    }
-                    for v in relevant_videos
-                ]
+                'relevant_videos': [{
+                    'filename': v['metadata']['path'].split('/')[-1],
+                    'url': f"/video/{v['metadata']['path'].split('/')[-1]}",
+                    'transcript_excerpt': v['metadata']['transcript'][:200],
+                    'relevance': float(v['relevance_score']) if isinstance(v['relevance_score'], (int, float)) else 0.0,
+                    'description': v['metadata']['description']
+                } for v in relevant_videos]
             })
         else:
             return jsonify({'error': 'Please upload documents or videos first'}), 400
@@ -928,4 +923,5 @@ if __name__ == '__main__':
     print(f"📚 Preloaded documents: {len(preloaded_files)}")
     print("=" * 60 + "\n")
     app.run(debug=True, host='0.0.0.0', port=5000)
+
 
