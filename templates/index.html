@@ -1314,8 +1314,8 @@ function isGreeting(message) {
         'good morning', 'good afternoon', 'good evening', 
         'greetings', 'hai', 'hey there', 'hiya'
     ];
-    // Remove punctuation for comparison
-    const lower = message.lower().trim().replace(/[.,!?;:]+$/g, '');
+    // Remove punctuation for comparison - CORRECT JavaScript syntax
+    const lower = message.toLowerCase().trim().replace(/[.,!?;:]+$/g, '');
     return greetings.some(greeting => lower === greeting || lower.startsWith(greeting + ' '));
 }
 
@@ -1324,7 +1324,7 @@ function isGoodbye(message) {
     const lower = message.toLowerCase().trim();
     return goodbyes.some(goodbye => lower.includes(goodbye));
 }
-
+    
 function isAcknowledgment(message) {
     const acknowledgments = [
         'ok', 'okay', 'okey', 'oke', 'k',
@@ -1342,8 +1342,8 @@ function isAcknowledgment(message) {
     
     const allAcks = [...acknowledgments, ...negative_responses];
     
-    // Remove all punctuation for comparison
-    const normalized = message.toLowerCase().trim().replace(/[.,!?;:']+/g, '');
+    // Remove ALL punctuation for comparison
+    const normalized = message.toLowerCase().trim().replace(/[.,!?;:'"]+/g, '');
     
     // Check if it's an acknowledgment AND not a question
     const questionWords = [
