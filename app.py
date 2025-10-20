@@ -880,6 +880,104 @@ def chat():
                 'error': 'Please upload documents or videos first',
                 'response': 'I don\'t have any documents or videos to reference. Please upload some documents or ask me to help you get started.'
             }), 400
+
+@app.route('/check_idle', methods=['POST'])
+def check_idle():
+    data = request.json
+    session_id = data.get('session_id')
+    
+    if session_id in sessions:
+        current_time = time.time()
+        last_interaction = sessions[session_id]['last_interaction']
+        upload_completed_time = sessions[session_id].get('upload_completed_time')
+        
+        # Calculate idle time
+        idle_time = current_time - last_interaction
+        
+        # If file was recently uploaded, use 10 second threshold
+        # Otherwise use 7 second threshold
+        if upload_completed_time and (current_time - upload_completed_time) < 15:
+            # Within 15 seconds of upload, use 10 second threshold
+            idle_threshold = 10
+        else:
+            # Normal idle threshold
+            idle_threshold = 7
+            # Clear the upload_completed_time after threshold period
+            if upload_completed_time:
+                sessions[session_id]['upload_completed_time'] = None
+        
+        if idle_time >= idle_threshold:
+            return jsonify({
+                'is_idle': True,
+                'idle_time': idle_time
+            })
+        else:
+            return jsonify({
+                'is_idle': False,
+                'idle_time': idle_time
+            })
+    else:
+        return jsonify({
+            'is_idle': False,
+            'idle_time': 0
+        })
+
+@app.route('/feedback', methods=['POST'])
+def submit_feedback():
+    data = request.json
+    session_id = data.get('session_id')
+    rating = data.get('rating')
+    comment = data.get('comment', '')
+    
+    if session_id not in sessions:
+        sessions[session_id] = {
+            'messages': [],
+            'files': [],
+            'ticket_counter': 0,
+            'feedback': [],
+            'ticket_created': False,
+            'last_interaction': time.time(),
+            'feedback_submitted': False,
+            'ticket_button_clicked': False,
+            'last_analysis': None,
+            'awaiting_followup': False
+        }
+    
+    feedback_entry = {
+        'rating': rating,
+        'comment': comment,
+        'timestamp': datetime.now().isoformat()
+    }
+    
+    sessions[session_id]['feedback'].append(feedback_entry)
+    sessions[session_id]['feedback_submitted'] = True
+    sessions[session_id]['last_interaction'] = time.time()
+    
+    return jsonify({
+        'success': True,
+        'feedback_submitted': True
+    })
+
+@app.route('/export/feedback', methods=['POST'])
+def export_feedback():
+    data = request.json
+    session_id = data.get('session_id')
+    
+    if session_id in sessions and sessions[session_id]['feedback']:
+        csv_data = "Timestamp,Rating,Comment\n"
+        for fb in sessions[session_id]['feedback']:
+            csv_data += f"{fb['timestamp']},{fb['rating']},\"{fb['comment']}\"\n"
+        
+        return jsonify({
+            'success': True,
+            'csv_data': csv_data,
+            'filename': f'feedback_{session_id}.csv'
+        })
+    else:
+        return jsonify({
+            'success': False,
+            'error': 'No feedback data available'
+        })
             
 @app.route('/export/pdf', methods=['POST'])
 def export_pdf():
@@ -990,103 +1088,6 @@ def clear_chat():
         
         return jsonify({'success': True})
 
-@app.route('/feedback', methods=['POST'])
-def submit_feedback():
-    data = request.json
-    session_id = data.get('session_id')
-    rating = data.get('rating')
-    comment = data.get('comment', '')
-    
-    if session_id not in sessions:
-        sessions[session_id] = {
-            'messages': [],
-            'files': [],
-            'ticket_counter': 0,
-            'feedback': [],
-            'ticket_created': False,
-            'last_interaction': time.time(),
-            'feedback_submitted': False,
-            'ticket_button_clicked': False,
-            'last_analysis': None,
-            'awaiting_followup': False
-        }
-    
-    feedback_entry = {
-        'rating': rating,
-        'comment': comment,
-        'timestamp': datetime.now().isoformat()
-    }
-    
-    sessions[session_id]['feedback'].append(feedback_entry)
-    sessions[session_id]['feedback_submitted'] = True
-    sessions[session_id]['last_interaction'] = time.time()
-    
-    return jsonify({
-        'success': True,
-        'feedback_submitted': True
-    })
-
-@app.route('/check_idle', methods=['POST'])
-def check_idle():
-    data = request.json
-    session_id = data.get('session_id')
-    
-    if session_id in sessions:
-        current_time = time.time()
-        last_interaction = sessions[session_id]['last_interaction']
-        upload_completed_time = sessions[session_id].get('upload_completed_time')
-        
-        # Calculate idle time
-        idle_time = current_time - last_interaction
-        
-        # If file was recently uploaded, use 10 second threshold
-        # Otherwise use 7 second threshold
-        if upload_completed_time and (current_time - upload_completed_time) < 15:
-            # Within 15 seconds of upload, use 10 second threshold
-            idle_threshold = 10
-        else:
-            # Normal idle threshold
-            idle_threshold = 7
-            # Clear the upload_completed_time after threshold period
-            if upload_completed_time:
-                sessions[session_id]['upload_completed_time'] = None
-        
-        if idle_time >= idle_threshold:
-            return jsonify({
-                'is_idle': True,
-                'idle_time': idle_time
-            })
-        else:
-            return jsonify({
-                'is_idle': False,
-                'idle_time': idle_time
-            })
-    else:
-        return jsonify({
-            'is_idle': False,
-            'idle_time': 0
-        })
-
-@app.route('/export/feedback', methods=['POST'])
-def export_feedback():
-    data = request.json
-    session_id = data.get('session_id')
-    
-    if session_id in sessions and sessions[session_id]['feedback']:
-        csv_data = "Timestamp,Rating,Comment\n"
-        for fb in sessions[session_id]['feedback']:
-            csv_data += f"{fb['timestamp']},{fb['rating']},\"{fb['comment']}\"\n"
-        
-        return jsonify({
-            'success': True,
-            'csv_data': csv_data,
-            'filename': f'feedback_{session_id}.csv'
-        })
-    else:
-        return jsonify({
-            'success': False,
-            'error': 'No feedback data available'
-        })
-
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+
