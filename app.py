@@ -78,6 +78,25 @@ ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'doc'}
 ALLOWED_VIDEO_EXTENSIONS = {'mp4', 'avi', 'mov', 'mkv', 'webm'}
 ALLOWED_IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'}
 
+def ensure_session(session_id):
+    """Ensure session exists, create if it doesn't"""
+    if session_id not in sessions:
+        print(f"⚠️ Session {session_id} not found, creating new session...")
+        sessions[session_id] = {
+            'vectorstore': preloaded_vectorstore,
+            'conversation_chain': create_chain(preloaded_vectorstore) if preloaded_vectorstore else None,
+            'chat_history': [],
+            'uploaded_files': preloaded_files.copy() if preloaded_files else [],
+            'uploaded_images': [],
+            'feedback_history': [],
+            'consecutive_no_count': 0,
+            'last_analysis': None,
+            'awaiting_followup': False,
+            'last_interaction': time.time(),
+            'upload_completed_time': None,
+            'feedback_submitted': False
+        }
+    return sessions[session_id]
 # Session storage
 sessions = {}
 
@@ -936,15 +955,11 @@ def export_pdf():
     data = request.json
     session_id = data.get('session_id', 'default')
     
-    # ⭐ Ensure session exists
-    if session_id not in sessions:
-        return jsonify({
-            'success': False,
-            'error': 'Session not found. Please start a conversation first.'
-        }), 404
+    # ⭐ FIXED: Ensure session exists (don't fail immediately)
+    session = ensure_session(session_id)
     
-    # ⭐ Get chat_history (not messages!)
-    chat_history = sessions[session_id].get('chat_history', [])
+    # ⭐ Get chat_history
+    chat_history = session.get('chat_history', [])
     
     if not chat_history or len(chat_history) == 0:
         return jsonify({
@@ -1005,7 +1020,6 @@ def export_pdf():
         # Add messages
         for idx, msg in enumerate(chat_history):
             try:
-                # ⭐ FIXED: Use correct field names
                 is_user = msg.get('is_user', False)
                 content = msg.get('message', '')
                 
@@ -1057,15 +1071,11 @@ def export_feedback():
     data = request.json
     session_id = data.get('session_id', 'default')
     
-    # ⭐ Ensure session exists
-    if session_id not in sessions:
-        return jsonify({
-            'success': False,
-            'error': 'Session not found.'
-        }), 404
+    # ⭐ FIXED: Ensure session exists (don't fail immediately)
+    session = ensure_session(session_id)
     
-    # ⭐ Get feedback_history (correct field name!)
-    feedback = sessions[session_id].get('feedback_history', [])
+    # ⭐ Get feedback_history
+    feedback = session.get('feedback_history', [])
     
     if not feedback or len(feedback) == 0:
         return jsonify({
@@ -1230,4 +1240,5 @@ if __name__ == '__main__':
     print("=" * 60 + "\n")
     
     app.run(debug=True, host='0.0.0.0', port=5000)
+
 
