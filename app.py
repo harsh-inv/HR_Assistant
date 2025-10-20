@@ -14,6 +14,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.units import inch
+import re
 
 # Video processing imports
 try:
@@ -238,16 +239,19 @@ def get_session(session_id):
     return sessions[session_id]
 
 def is_greeting(message):
-    """Detect if message is a greeting - handles punctuation"""
+    """Detect if message is a greeting - handles punctuation like 'Hello.'"""
     greetings = [
         'hello', 'hi', 'hii', 'hey', 'howdy',
         'good morning', 'good afternoon', 'good evening', 
         'greetings', 'hai', 'hey there', 'hiya'
     ]
-    # Remove punctuation for comparison
-    lower_message = message.lower().strip().rstrip('.,!?;:')
+    # Remove ALL trailing punctuation for comparison
+    import re
+    lower_message = message.lower().strip()
+    # Remove trailing punctuation: . , ! ? ; :
+    lower_message = re.sub(r'[.,!?;:]+$', '', lower_message)
     
-    # Check for exact match or starts with greeting
+    # Check for exact match or starts with greeting + space
     return any(
         greeting == lower_message or 
         lower_message.startswith(greeting + ' ')
@@ -261,7 +265,7 @@ def is_goodbye(message):
     return any(goodbye in lower_message for goodbye in goodbyes)
 
 def is_acknowledgment(message):
-    """Detect if message is just an acknowledgment - handles punctuation"""
+    """Detect if message is just an acknowledgment - handles punctuation like 'okay.' 'nice.'"""
     acknowledgments = [
         'ok', 'okay', 'okey', 'oke', 'k',
         'nice', 'good', 'great', 'excellent', 'awesome', 'perfect', 'cool', 'fine',
@@ -278,8 +282,11 @@ def is_acknowledgment(message):
     ]
     acknowledgments.extend(negative_responses)
     
-    # Remove all punctuation for comparison
-    normalized = message.lower().strip().replace("'", "").replace(",", "").replace(".", "").replace("!", "").replace("?", "")
+    # Remove ALL punctuation for comparison
+    import re
+    normalized = message.lower().strip()
+    # Remove all punctuation
+    normalized = re.sub(r'[.,!?;:\'"]+', '', normalized)
     
     # Check if it's an acknowledgment AND not a question
     question_words = [
@@ -293,7 +300,6 @@ def is_acknowledgment(message):
     ) and not any(qw in normalized for qw in question_words)
     
     return is_ack
-
 
 def detect_query_type(message):
     """Categorize query to provide contextual help"""
@@ -723,10 +729,12 @@ def chat():
     })
     
     # Normalize message (remove punctuation for comparison)
-    normalized_message = message.lower().strip().replace("'", "").replace(",", "").replace(".", "").replace("!", "").replace("?", "")
+    import re
+    normalized_message = message.lower().strip()
+    normalized_message = re.sub(r'[.,!?;:\'"]+', '', normalized_message)
     
     # ========================================================================
-    # GREETING DETECTION (Priority 1) - Now handles "Hello." with punctuation
+    # PRIORITY 1: GREETING DETECTION (Must be FIRST!)
     # ========================================================================
     if is_greeting(message):
         greeting_response = "Hello! I'm your HR Assistant. How can I help you today? You can ask about policies, benefits, leave procedures, or any HR-related questions."
@@ -743,7 +751,48 @@ def chat():
         })
     
     # ========================================================================
-    # NEGATIVE RESPONSE TRACKING (Priority 2)
+    # PRIORITY 2: GOODBYE DETECTION
+    # ========================================================================
+    if is_goodbye(message):
+        response = "Thank you for using HR Assistant! Have a great day! 👋"
+        session['chat_history'].append({
+            'message': response,
+            'is_user': False,
+            'timestamp': datetime.now().isoformat()
+        })
+        return jsonify({
+            'response': response,
+            'is_voice_input': is_voice_input,
+            'session_ended': True,
+            'trigger_feedback': True,
+            'relevant_videos': []
+        })
+    
+    # ========================================================================
+    # PRIORITY 3: ACKNOWLEDGMENT DETECTION (Saves API costs!)
+    # ========================================================================
+    if is_acknowledgment(message) and session.get('last_analysis'):
+        if 'no' in normalized_message or 'not' in normalized_message:
+            brief_response = "Understood. Let me know if you need anything else."
+        elif 'yes' in normalized_message:
+            brief_response = "What specific aspect would you like me to elaborate on?"
+        else:
+            brief_response = "You're welcome! Feel free to ask if you need anything else."
+        
+        session['chat_history'].append({
+            'message': brief_response,
+            'is_user': False,
+            'timestamp': datetime.now().isoformat()
+        })
+        return jsonify({
+            'response': brief_response,
+            'is_voice_input': is_voice_input,
+            'relevant_videos': [],
+            'is_acknowledgment': True
+        })
+    
+    # ========================================================================
+    # PRIORITY 4: NEGATIVE RESPONSE TRACKING
     # ========================================================================
     negative_responses = [
         'no', 'nope', 'nah', 'not needed', 'no need', 'no thanks',
@@ -776,58 +825,17 @@ def chat():
         })
     
     # ========================================================================
-    # GOODBYE DETECTION (Priority 3)
-    # ========================================================================
-    if is_goodbye(message):
-        response = "Thank you for using HR Assistant! Have a great day! 👋"
-        session['chat_history'].append({
-            'message': response,
-            'is_user': False,
-            'timestamp': datetime.now().isoformat()
-        })
-        return jsonify({'response': response,
-            'is_voice_input': is_voice_input,
-            'session_ended': True,
-            'trigger_feedback': True,
-            'relevant_videos': []
-        })
-    
-    # ========================================================================
-    # ACKNOWLEDGMENT DETECTION (Priority 4 - Saves API costs!)
-    # Now handles "okay." and "nice." with punctuation
-    # ========================================================================
-    if is_acknowledgment(message) and session.get('last_analysis'):
-        if 'no' in normalized_message or 'not' in normalized_message:
-            brief_response = "Understood. Let me know if you need anything else."
-        elif 'yes' in normalized_message:
-            brief_response = "What specific aspect would you like me to elaborate on?"
-        else:
-            brief_response = "You're welcome! Feel free to ask if you need anything else."
-        
-        session['chat_history'].append({
-            'message': brief_response,
-            'is_user': False,
-            'timestamp': datetime.now().isoformat()
-        })
-        return jsonify({
-            'response': brief_response,
-            'is_voice_input': is_voice_input,
-            'relevant_videos': [],
-            'is_acknowledgment': True
-        })
-    
-    # ========================================================================
-    # QUERY TYPE DETECTION
+    # PRIORITY 5: QUERY TYPE DETECTION
     # ========================================================================
     query_type = detect_query_type(message)
     
     # ========================================================================
-    # VIDEO SEARCH
+    # PRIORITY 6: VIDEO SEARCH
     # ========================================================================
     relevant_videos = video_index.search_relevant_videos(message, k=2)
     
     # ========================================================================
-    # RAG RESPONSE GENERATION
+    # PRIORITY 7: RAG RESPONSE GENERATION (LAST!)
     # ========================================================================
     if session['conversation_chain']:
         try:
@@ -924,7 +932,8 @@ def check_idle():
             'idle_time': 0,
             'threshold_used': 7
         })
-
+        
+@app.route('/feedback', methods=['POST'])
 @app.route('/feedback', methods=['POST'])
 def submit_feedback():
     """Submit user feedback"""
@@ -947,7 +956,7 @@ def submit_feedback():
         'success': True,
         'feedback_submitted': True
     })
-
+    
 @app.route('/export/feedback', methods=['POST'])
 def export_feedback():
     """Export feedback as CSV"""
@@ -962,7 +971,9 @@ def export_feedback():
     
     csv_data = "Timestamp,Rating,Comment\n"
     for fb in session['feedback_history']:
-        csv_data += f"{fb['timestamp']},{fb['rating']},\"{fb['comment']}\"\n"
+        # Escape quotes in comments
+        comment_escaped = fb['comment'].replace('"', '""')
+        csv_data += f"{fb['timestamp']},{fb['rating']},\"{comment_escaped}\"\n"
     
     return jsonify({
         'success': True,
@@ -1026,6 +1037,7 @@ def export_pdf():
             if msg['is_user']:
                 story.append(Paragraph(f"<b>You:</b> {html_module.escape(msg['message'])}", user_style))
             else:
+                # Clean bot response for PDF (remove markdown)
                 content = msg['message'].replace('**', '')
                 story.append(Paragraph(f"<b>Assistant:</b> {html_module.escape(content)}", bot_style))
         
@@ -1071,7 +1083,7 @@ def clear_session():
         }
     
     # Return updated counts
-    total_documents = len(preloaded_files)
+    total_documents = len(preloaded_files) if preloaded_files else 0
     
     return jsonify({
         'success': True,
@@ -1184,3 +1196,4 @@ if __name__ == '__main__':
     print("=" * 60 + "\n")
     
     app.run(debug=True, host='0.0.0.0', port=5000)
+
