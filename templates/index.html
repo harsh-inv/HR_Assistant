@@ -1023,7 +1023,7 @@
                 padding: 0 10px 10px 10px;
             }
 
-            .sidebar {.sidebar {
+            .sidebar {
                 position: absolute;
                 left: 10px;
                 top: 89px;
@@ -1199,147 +1199,12 @@
         let userHasFeedback = false;
         let selectedRating = 0;
         
-        // ⭐ NEW: Inactivity and conversation flow variables
+        // ⭐ Inactivity and conversation flow variables
         let inactivityTimer = null;
         let waitingForMoreQuestionsResponse = false;
-        let waitingForUploadResponse = false;
         let sessionEnded = false;
         let awaitingFileUpload = false;
-        let consecutiveNoCount = 0;
         let lastAnalysis = null;
-
-        // ============================================
-        // GREETING & GOODBYE DETECTION
-        // ============================================
-        
-        // ⭐ NEW: Greeting detection function
-        function isGreeting(message) {
-            const greetings = ['hello', 'hi', 'hii', 'hey', 'good morning', 'good afternoon', 'good evening', 'greetings', 'hai'];
-            const lowerMessage = message.toLowerCase().trim();
-            return greetings.some(greeting => lowerMessage === greeting || lowerMessage.startsWith(greeting));
-        }
-
-        // ⭐ NEW: Goodbye detection function
-        function isGoodbye(message) {
-            const goodbyes = ['bye', 'goodbye', 'see you', 'farewell', 'take care', 'exit', 'quit'];
-            const lowerMessage = message.toLowerCase().trim();
-            return goodbyes.some(goodbye => lowerMessage.includes(goodbye));
-        }
-
-        // ⭐ NEW: Acknowledgment detection function
-        function isAcknowledgment(message) {
-            const acknowledgments = [
-                'ok', 'okay', 'okey', 'oke', 'k',
-                'nice', 'good', 'great', 'excellent', 'awesome', 'perfect', 'cool', 'fine',
-                'thanks', 'thank you', 'thankyou', 'thx', 'ty',
-                'alright', 'got it', 'understood', 'i see', 'i understand',
-                'yes', 'yeah', 'yep', 'yup', 'sure', 'of course',
-                'no', 'nope', 'nah', 'not needed', 'no need', 'no thanks'
-            ];
-            
-            const questionWords = [
-                'what', 'why', 'how', 'when', 'where', 'who', 'which', 'can', 'could', 
-                'would', 'should', 'is', 'are', 'does', 'do', 'analyze', 'explain', 
-                'tell', 'show', 'describe'
-            ];
-            
-            const normalized = message.toLowerCase().trim().replace(/[',\.]/g, '');
-            const words = normalized.split(/\s+/);
-            
-            // Check if it's an acknowledgment
-            const isAck = (
-                acknowledgments.includes(normalized) ||
-                (words.length <= 3 && acknowledgments.some(ack => normalized.includes(ack)))
-            );
-            
-            // Check if it contains question words
-            const hasQuestionWord = questionWords.some(qw => normalized.includes(qw));
-            
-            return isAck && !hasQuestionWord;
-        }
-
-        // ============================================
-        // INACTIVITY TIMER FUNCTIONS
-        // ============================================
-        
-        // ⭐ NEW: Start inactivity timer
-        function startInactivityTimer() {
-            if (inactivityTimer) {
-                clearInterval(inactivityTimer);
-                inactivityTimer = null;
-            }
-            
-            // Don't start if awaiting file upload or in waiting state
-            if (waitingForMoreQuestionsResponse || 
-                waitingForUploadResponse || 
-                sessionEnded || 
-                awaitingFileUpload) {
-                console.log('Timer blocked - awaiting file upload or in waiting state');
-                return;
-            }
-            
-            console.log('Starting 7-second inactivity timer...');
-            
-            // Check with backend for idle status every 2 seconds
-            inactivityTimer = setInterval(async () => {
-                try {
-                    const response = await fetch('/check_idle', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ session_id: sessionId })
-                    });
-                    
-                    const data = await response.json();
-                    
-                    if (data.is_idle && 
-                        !waitingForMoreQuestionsResponse && 
-                        !waitingForUploadResponse &&
-                        !sessionEnded && 
-                        !awaitingFileUpload) {
-                        console.log('Inactivity detected - showing prompt');
-                        stopInactivityTimer();
-                        handleInactivity();
-                    }
-                } catch (error) {
-                    console.error('Error checking idle status:', error);
-                }
-            }, 2000); // Check every 2 seconds
-        }
-        
-        // ⭐ NEW: Stop inactivity timer
-        function stopInactivityTimer() {
-            if (inactivityTimer) {
-                clearInterval(inactivityTimer);
-                inactivityTimer = null;
-                console.log('Inactivity timer stopped');
-            }
-        }
-        
-        // ⭐ NEW: Handle inactivity
-        function handleInactivity() {
-            const messagesDiv = document.getElementById('chatMessages');
-            const hasMessages = messagesDiv.querySelectorAll('.message').length > 0;
-            
-            if (hasMessages && 
-                !waitingForMoreQuestionsResponse && 
-                !waitingForUploadResponse &&
-                !sessionEnded && 
-                !awaitingFileUpload) {
-                console.log('Inactivity detected - showing prompt');
-                waitingForMoreQuestionsResponse = true;
-                addMessage('Do you have any more questions?', false, false);
-            }
-        }
-
-        // ⭐ NEW: Open file upload and block timer
-        function openFileUpload() {
-            console.log('Opening file upload dialog');
-            stopInactivityTimer();
-            awaitingFileUpload = true; // Block timer until file is uploaded
-            document.getElementById('fileInput').click();
-        }
 
         // ============================================
         // SPEECH RECOGNITION & TTS
@@ -1502,6 +1367,84 @@
         }
 
         // ============================================
+        // INACTIVITY TIMER FUNCTIONS
+        // ============================================
+        
+        // ⭐ Start inactivity timer (checks backend every 2 seconds)
+        function startInactivityTimer() {
+            if (inactivityTimer) {
+                clearInterval(inactivityTimer);
+                inactivityTimer = null;
+            }
+            
+            // Don't start if awaiting file upload or in waiting state
+            if (waitingForMoreQuestionsResponse || sessionEnded || awaitingFileUpload) {
+                console.log('⏸️ Timer blocked - awaiting file upload or in waiting state');
+                return;
+            }
+            
+            console.log('⏱️ Starting inactivity timer (checks every 2s)...');
+            
+            // Check with backend for idle status every 2 seconds
+            inactivityTimer = setInterval(async () => {
+                try {
+                    const response = await fetch('/check_idle', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ session_id: sessionId })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.is_idle && 
+                        !waitingForMoreQuestionsResponse && 
+                        !sessionEnded && 
+                        !awaitingFileUpload) {
+                        console.log(`⏰ Inactivity detected (${data.idle_time.toFixed(1)}s > ${data.threshold_used}s threshold)`);
+                        stopInactivityTimer();
+                        handleInactivity();
+                    }
+                } catch (error) {
+                    console.error('Error checking idle status:', error);
+                }
+            }, 2000); // Check every 2 seconds
+        }
+        
+        // ⭐ Stop inactivity timer
+        function stopInactivityTimer() {
+            if (inactivityTimer) {
+                clearInterval(inactivityTimer);
+                inactivityTimer = null;
+                console.log('⏹️ Inactivity timer stopped');
+            }
+        }
+        
+        // ⭐ Handle inactivity prompt
+        function handleInactivity() {
+            const messagesDiv = document.getElementById('chatMessages');
+            const hasMessages = messagesDiv.querySelectorAll('.message').length > 0;
+            
+            if (hasMessages && 
+                !waitingForMoreQuestionsResponse && 
+                !sessionEnded && 
+                !awaitingFileUpload) {
+                console.log('💬 Showing "Do you have any more questions?" prompt');
+                waitingForMoreQuestionsResponse = true;
+                addMessage('Do you have any more questions?', false, false);
+            }
+        }
+
+        // ⭐ Open file upload and block timer
+        function openFileUpload() {
+            console.log('📁 Opening file upload dialog');
+            stopInactivityTimer();
+            awaitingFileUpload = true; // Block timer until file is uploaded
+            document.getElementById('fileInput').click();
+        }
+
+        // ============================================
         // UI FUNCTIONS
         // ============================================
         
@@ -1541,7 +1484,7 @@
         }
 
         // ============================================
-        // MESSAGE SENDING WITH INTEGRATED LOGIC
+        // MESSAGE SENDING (Backend handles all logic)
         // ============================================
         
         async function sendMessage(isVoiceInput = false) {
@@ -1552,116 +1495,18 @@
 
             stopInactivityTimer(); // Stop timer when sending message
 
-            const lowerMessage = message.toLowerCase();
-
-            // ⭐ NEW: Handle "Do you have any more questions?" response
+            // ⭐ Handle "Do you have any more questions?" response
             if (waitingForMoreQuestionsResponse) {
-                addMessage(message, true);
-                input.value = '';
+                const lowerMessage = message.toLowerCase();
                 
-                // Check for negative responses
-                const negativeResponses = ['no', 'nope', 'nah', 'not really', 'no thanks', 'not needed'];
-                const isNegative = negativeResponses.some(neg => lowerMessage.includes(neg));
+                // Reset state
+                waitingForMoreQuestionsResponse = false;
                 
-                if (isNegative) {
-                    consecutiveNoCount++;
-                    
-                    if (consecutiveNoCount >= 2) {
-                        // End session after 2 consecutive "no"s
-                        waitingForMoreQuestionsResponse = false;
-                        sessionEnded = true;
-                        const finalMessage = 'Thank you for using HR Assistant! Have a great day!';
-                        addMessage(finalMessage, false, false);
-                        setTimeout(() => {
-                            document.getElementById('feedbackModal').classList.add('active');
-                        }, 1500);
-                        return;
-                    } else {
-                        // Ask if they want to upload a different file
-                        waitingForMoreQuestionsResponse = false;
-                        waitingForUploadResponse = true;
-                        addMessage('Would you like to upload different documents? (yes/no)', false, false);
-                        return;
-                    }
-                } else if (lowerMessage.includes('yes')) {
-                    waitingForMoreQuestionsResponse = false;
-                    consecutiveNoCount = 0;
-                    addMessage('Please go ahead with your question.', false, false);
-                    startInactivityTimer();
-                    return;
-                } else {
-                    // Continue with the question
-                    waitingForMoreQuestionsResponse = false;
-                    consecutiveNoCount = 0;
-                    // Fall through to normal processing
-                }
-            }
-            // ⭐ NEW: Handle "Would you like to upload different documents?" response
-            else if (waitingForUploadResponse) {
-                addMessage(message, true);
-                input.value = '';
-                
-                if (lowerMessage.includes('yes')) {
-                    waitingForUploadResponse = false;
-                    consecutiveNoCount = 0;
-                    openFileUpload();
-                    addMessage('Please upload your documents using the upload area in the sidebar.', false, false);
-                    return;
-                } else {
-                    // End session
-                    waitingForUploadResponse = false;
-                    sessionEnded = true;
-                    const finalMessage = 'Thank you for using HR Assistant! Have a great day!';
-                    addMessage(finalMessage, false, false);
-                    setTimeout(() => {
-                        document.getElementById('feedbackModal').classList.add('active');
-                    }, 1500);
-                    return;
-                }
-            }
-            // ⭐ NEW: Handle greetings
-            else if (isGreeting(message)) {
-                addMessage(message, true);
-                input.value = '';
-                const greetingResponse = 'Hello! How can I assist you with HR documents and policies today?';
-                addMessage(greetingResponse, false, isVoiceInput);
-                startInactivityTimer();
-                return;
-            }
-            // ⭐ NEW: Handle goodbyes
-            else if (isGoodbye(message)) {
-                addMessage(message, true);
-                input.value = '';
-                stopInactivityTimer();
-                sessionEnded = true;
-                const goodbyeResponse = 'Thank you for using HR Assistant! We hope to see you again soon.';
-                addMessage(goodbyeResponse, false, false);
-                setTimeout(() => {
-                    document.getElementById('feedbackModal').classList.add('active');
-                }, 1500);
-                return;
-            }
-            // ⭐ NEW: Handle acknowledgments
-            else if (isAcknowledgment(message) && lastAnalysis) {
-                addMessage(message, true);
-                input.value = '';
-                
-                // Simple acknowledgment response
-                let ackResponse;
-                if (lowerMessage.includes('no')) {
-                    ackResponse = "Understood. Let me know if you need anything else.";
-                } else if (lowerMessage.includes('yes')) {
-                    ackResponse = "What specific aspect would you like me to elaborate on?";
-                } else {
-                    ackResponse = "You're welcome! Feel free to ask if you need anything else.";
-                }
-                
-                addMessage(ackResponse, false, false);
-                startInactivityTimer();
-                return;
+                // If user says no, backend will handle ending session
+                // Just send the message normally
             }
 
-            // Normal message processing
+            // Add user message immediately
             addMessage(message, true);
             input.value = '';
 
@@ -1689,18 +1534,21 @@
                     addMessage(data.response, false, isVoiceInput);
                     
                     // Store last analysis
-                    lastAnalysis = data.response;
-                    consecutiveNoCount = 0;
+                    if (!data.is_acknowledgment) {
+                        lastAnalysis = data.response;
+                    }
                     
                     // Add video cards if available
                     if (data.relevant_videos && data.relevant_videos.length > 0) {
                         addVideoCards(data.relevant_videos);
                     }
                     
-                    // ⭐ NEW: Start timer after response
-                    startInactivityTimer();
+                    // ⭐ Start timer after response (unless session ended)
+                    if (!data.session_ended) {
+                        startInactivityTimer();
+                    }
                     
-                    // ⭐ NEW: Show feedback modal if session ended
+                    // ⭐ Show feedback modal if session ended
                     if (data.session_ended || data.trigger_feedback) {
                         stopInactivityTimer();
                         sessionEnded = true;
@@ -2071,10 +1919,10 @@
         document.getElementById('fileInput').addEventListener('change', async (e) => {
             const files = e.target.files;
             
-            console.log('File input changed, files selected:', files.length);
+            console.log('📁 File input changed, files selected:', files.length);
             
             if (files.length === 0) {
-                console.log('No files selected - user cancelled');
+                console.log('❌ No files selected - user cancelled');
                 awaitingFileUpload = false; // ⭐ Reset flag
                 return;
             }
@@ -2112,7 +1960,7 @@
                     
                     // ⭐ CRITICAL: Unblock timer after successful upload
                     awaitingFileUpload = false;
-                    console.log('File uploaded - starting timer');
+                    console.log('✅ File uploaded - starting inactivity timer');
                     startInactivityTimer();
                 } else {
                     showToast(`Upload failed: ${data.error}`, 'error');
@@ -2199,7 +2047,7 @@
         // EXPORT FUNCTIONS
         // ============================================
         
-        // ⭐ UPDATED: Export Chat with error handling
+        // ⭐ Export Chat with error handling
         async function exportChat() {
             try {
                 showToast('Generating PDF...', 'success');
@@ -2249,7 +2097,7 @@
             }
         }
 
-        // ⭐ UPDATED: Clear Chat
+        // ⭐ Clear Chat
         async function clearChat() {
             if (!confirm('Are you sure you want to clear the chat history? Preloaded documents will remain available.')) return;
 
@@ -2283,8 +2131,6 @@
                     // ⭐ Reset conversation state
                     sessionEnded = false;
                     waitingForMoreQuestionsResponse = false;
-                    waitingForUploadResponse = false;
-                    consecutiveNoCount = 0;
                     lastAnalysis = null;
                     stopInactivityTimer();
                     
@@ -2296,7 +2142,7 @@
             }
         }
         
-        // ⭐ UPDATED: Export Feedback
+        // ⭐ Export Feedback
         async function exportFeedback() {
             if (!userHasFeedback) {
                 showToast('Please submit feedback before exporting', 'warning');
@@ -2389,12 +2235,13 @@
         // ⭐ Initialize on page load
         window.addEventListener('load', () => {
             console.log('🚀 HR Assistant with integrated features initialized');
-            console.log('✅ Greetings handling: ENABLED');
-            console.log('✅ Goodbyes handling: ENABLED');
-            console.log('✅ Acknowledgments handling: ENABLED');
-            console.log('✅ Inactivity timer (7s): ENABLED');
-            console.log('✅ Export feedback: ENABLED');
-            console.log('✅ Export chat: ENABLED');
+            console.log('✅ Greetings handling: Backend');
+            console.log('✅ Goodbyes handling: Backend');
+            console.log('✅ Acknowledgments handling: Backend');
+            console.log('✅ Consecutive "no" tracking: Backend');
+            console.log('✅ Inactivity timer (7s/10s dual threshold): Frontend + Backend');
+            console.log('✅ Export feedback: Frontend + Backend');
+            console.log('✅ Export chat: Frontend + Backend');
             
             initTTS();
             initSession();
