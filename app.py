@@ -58,10 +58,6 @@ except ImportError:
     print("ReportLab not available for PDF export")
     PDF_EXPORT_AVAILABLE = False
 
-# ============================================================================
-# FLASK APP CONFIGURATION
-# ============================================================================
-
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 
@@ -943,31 +939,28 @@ def submit_feedback():
         'feedback_submitted': True
     })
 
-# ============================================================================
-# FIXED FEEDBACK EXPORT ROUTE
-# ============================================================================
-
+@app.route('/export/feedback', methods=['POST'])
 def export_feedback():
     """Export feedback as CSV"""
     session_id = request.json.get('session_id', 'default')
     session = get_session(session_id)
     
-    if session['feedback_history']:
-        csv_data = "Timestamp,Rating,Comment\n"
-        for fb in session['feedback_history']:
-            csv_data += f"{fb['timestamp']},{fb['rating']},\"{fb['comment']}\"\n"
-        
-        return jsonify({
-            'success': True,
-            'csv_data': csv_data,
-            'filename': f'feedback_{session_id}.csv'
-        })
-    else:
+    if not session['feedback_history']:
         return jsonify({
             'success': False,
             'error': 'No feedback data available'
         })
-        
+    
+    csv_data = "Timestamp,Rating,Comment\n"
+    for fb in session['feedback_history']:
+        csv_data += f"{fb['timestamp']},{fb['rating']},\"{fb['comment']}\"\n"
+    
+    return jsonify({
+        'success': True,
+        'csv_data': csv_data,
+        'filename': f'hr_feedback_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+    })
+    
 @app.route('/export/pdf', methods=['POST'])
 def export_pdf():
     """Export chat as PDF"""
@@ -1047,28 +1040,6 @@ def export_pdf():
         print(f"PDF export error: {e}")
         return jsonify({'error': str(e)}), 500
         
-@app.route('/export/feedback', methods=['POST'])
-def export_feedback():
-    """Export feedback as CSV"""
-    session_id = request.json.get('session_id', 'default')
-    session = get_session(session_id)
-    
-    if not session['feedback_history']:
-        return jsonify({
-            'success': False,
-            'error': 'No feedback data available'
-        })
-    
-    csv_data = "Timestamp,Rating,Comment\n"
-    for fb in session['feedback_history']:
-        csv_data += f"{fb['timestamp']},{fb['rating']},\"{fb['comment']}\"\n"
-    
-    return jsonify({
-        'success': True,
-        'csv_data': csv_data,
-        'filename': f'hr_feedback_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
-    })
-
 @app.route('/clear', methods=['POST'])
 def clear_session():
     """Clear chat history but keep preloaded documents"""
@@ -1201,6 +1172,7 @@ if __name__ == '__main__':
     
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+
 
 
 
