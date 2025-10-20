@@ -663,7 +663,9 @@ def chat():
     session_id = request.json.get('session_id', 'default')
     message = request.json.get('message', '')
     is_voice_input = request.json.get('is_voice_input', False)
-    session = get_session(session_id)
+    
+    # ⭐ CRITICAL: Use ensure_session instead of get_session
+    session = ensure_session(session_id)
     
     if not message:
         return jsonify({'error': 'No message provided'}), 400
@@ -678,12 +680,14 @@ def chat():
     # Update last interaction time
     session['last_interaction'] = time.time()
     
-    # Add user message to history
-    session['chat_history'].append({
+    # ⭐ CRITICAL: Add user message to history IMMEDIATELY
+    user_message = {
         'message': message,
         'is_user': True,
         'timestamp': datetime.now().isoformat()
-    })
+    }
+    session['chat_history'].append(user_message)
+    print(f"💬 Added user message. Total messages: {len(session['chat_history'])}")
     
     # Normalize message
     normalized_message = message.lower().strip().replace("'", "").replace(",", "").replace(".", "")
@@ -693,11 +697,16 @@ def chat():
     # ========================================================================
     if is_greeting(message):
         greeting_response = "Hello! I'm your HR Assistant. How can I help you today? You can ask about policies, benefits, leave procedures, or any HR-related questions."
-        session['chat_history'].append({
+        
+        # ⭐ Add bot message to history
+        bot_message = {
             'message': greeting_response,
             'is_user': False,
             'timestamp': datetime.now().isoformat()
-        })
+        }
+        session['chat_history'].append(bot_message)
+        print(f"💬 Added bot message. Total messages: {len(session['chat_history'])}")
+        
         return jsonify({
             'response': greeting_response,
             'is_voice_input': is_voice_input,
@@ -724,11 +733,15 @@ def chat():
     # If user has said "no" 2 or more times consecutively, end the session
     if session['consecutive_no_count'] >= 2:
         bot_response = "Thank you for using HR Assistant! Have a great day!"
-        session['chat_history'].append({
+        
+        # ⭐ Add bot message to history
+        bot_message = {
             'message': bot_response,
             'is_user': False,
             'timestamp': datetime.now().isoformat()
-        })
+        }
+        session['chat_history'].append(bot_message)
+        
         session['consecutive_no_count'] = 0
         return jsonify({
             'response': bot_response,
@@ -744,11 +757,15 @@ def chat():
     goodbye_phrases = ['bye', 'goodbye', 'exit', 'quit', 'end', 'see you', 'farewell', 'take care']
     if any(phrase in normalized_message for phrase in goodbye_phrases):
         response = "Thank you for using HR Assistant! Have a great day! 👋"
-        session['chat_history'].append({
+        
+        # ⭐ Add bot message to history
+        bot_message = {
             'message': response,
             'is_user': False,
             'timestamp': datetime.now().isoformat()
-        })
+        }
+        session['chat_history'].append(bot_message)
+        
         return jsonify({
             'response': response,
             'is_voice_input': is_voice_input,
@@ -758,7 +775,7 @@ def chat():
         })
     
     # ========================================================================
-    # ACKNOWLEDGMENT DETECTION (saves API costs!)
+    # ACKNOWLEDGMENT DETECTION
     # ========================================================================
     acknowledgments = [
         'ok', 'okay', 'okey', 'oke', 'k',
@@ -777,7 +794,7 @@ def chat():
         'would', 'should', 'is', 'are', 'does', 'do', 'tell', 'show', 'explain', 'describe'
     ])
     
-    # If it's just an acknowledgment, give a brief response (saves API call!)
+    # If it's just an acknowledgment, give a brief response
     if is_acknowledgment and session['last_analysis']:
         if 'no' in normalized_message or 'not' in normalized_message:
             brief_response = "Understood. Let me know if you need anything else."
@@ -786,11 +803,14 @@ def chat():
         else:
             brief_response = "You're welcome! Feel free to ask if you need anything else."
         
-        session['chat_history'].append({
+        # ⭐ Add bot message to history
+        bot_message = {
             'message': brief_response,
             'is_user': False,
             'timestamp': datetime.now().isoformat()
-        })
+        }
+        session['chat_history'].append(bot_message)
+        
         return jsonify({
             'response': brief_response,
             'is_voice_input': is_voice_input,
@@ -820,11 +840,14 @@ def chat():
             session['last_analysis'] = response
             session['awaiting_followup'] = True
             
-            session['chat_history'].append({
+            # ⭐ CRITICAL: Add bot message to history
+            bot_message = {
                 'message': response,
                 'is_user': False,
                 'timestamp': datetime.now().isoformat()
-            })
+            }
+            session['chat_history'].append(bot_message)
+            print(f"💬 Added bot response. Total messages: {len(session['chat_history'])}")
             
             # Return text answer and relevant videos
             return jsonify({
@@ -841,12 +864,32 @@ def chat():
             })
         except Exception as e:
             print(f"Chat error: {e}")
-            return jsonify({'error': f'Error processing request: {str(e)}'}), 500
+            error_message = f'Error processing request: {str(e)}'
+            
+            # ⭐ Add error message to history
+            bot_message = {
+                'message': error_message,
+                'is_user': False,
+                'timestamp': datetime.now().isoformat()
+            }
+            session['chat_history'].append(bot_message)
+            
+            return jsonify({'error': error_message}), 500
     else:
         # If no documents, still search for videos
         if relevant_videos:
+            response_text = "I found some relevant videos for your query:"
+            
+            # ⭐ Add bot message to history
+            bot_message = {
+                'message': response_text,
+                'is_user': False,
+                'timestamp': datetime.now().isoformat()
+            }
+            session['chat_history'].append(bot_message)
+            
             return jsonify({
-                'response': "I found some relevant videos for your query:",
+                'response': response_text,
                 'is_voice_input': is_voice_input,
                 'relevant_videos': [{
                     'filename': v['metadata']['path'].split('/')[-1],
@@ -857,11 +900,21 @@ def chat():
                 } for v in relevant_videos]
             })
         else:
+            error_message = 'I don\'t have any documents or videos to reference. Please upload some documents or ask me to help you get started.'
+            
+            # ⭐ Add error message to history
+            bot_message = {
+                'message': error_message,
+                'is_user': False,
+                'timestamp': datetime.now().isoformat()
+            }
+            session['chat_history'].append(bot_message)
+            
             return jsonify({
                 'error': 'Please upload documents or videos first',
-                'response': 'I don\'t have any documents or videos to reference. Please upload some documents or ask me to help you get started.'
+                'response': error_message
             }), 400
-
+            
 @app.route('/check_idle', methods=['POST'])
 def check_idle():
     """Check if user has been inactive (dual-threshold timer)"""
@@ -913,7 +966,9 @@ def submit_feedback():
     session_id = request.json.get('session_id', 'default')
     rating = request.json.get('rating')
     comment = request.json.get('comment', '')
-    session = get_session(session_id)
+    
+    # ⭐ CRITICAL: Use ensure_session
+    session = ensure_session(session_id)
     
     feedback_data = {
         'rating': rating,
@@ -921,9 +976,12 @@ def submit_feedback():
         'timestamp': datetime.now().isoformat()
     }
     
+    # ⭐ CRITICAL: Append to feedback_history
     session['feedback_history'].append(feedback_data)
     session['feedback_submitted'] = True
     session['last_interaction'] = time.time()
+    
+    print(f"⭐ Feedback submitted. Total feedback: {len(session['feedback_history'])}")
     
     return jsonify({
         'success': True,
@@ -1240,5 +1298,6 @@ if __name__ == '__main__':
     print("=" * 60 + "\n")
     
     app.run(debug=True, host='0.0.0.0', port=5000)
+
 
 
