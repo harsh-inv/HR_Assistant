@@ -9,6 +9,11 @@ from werkzeug.utils import secure_filename
 import base64
 from io import BytesIO
 import pickle
+import html as html_module
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.units import inch
 
 # Video processing imports
 try:
@@ -1041,7 +1046,7 @@ def export_pdf():
     except Exception as e:
         print(f"PDF export error: {e}")
         return jsonify({'error': str(e)}), 500
-
+        
 @app.route('/export/feedback', methods=['POST'])
 def export_feedback():
     """Export feedback as CSV"""
@@ -1054,26 +1059,13 @@ def export_feedback():
             'error': 'No feedback data available'
         })
     
-    import csv
-    from io import StringIO
-    output = StringIO()
-    writer = csv.writer(output)
+    csv_data = "Timestamp,Rating,Comment\n"
+    for fb in session['feedback_history']:
+        csv_data += f"{fb['timestamp']},{fb['rating']},\"{fb['comment']}\"\n"
     
-    # Write header
-    writer.writerow(['Timestamp', 'Rating', 'Comment'])
-    
-    # Write data
-    for feedback in session['feedback_history']:
-        writer.writerow([
-            feedback['timestamp'],
-            feedback['rating'],
-            feedback.get('comment', '')
-        ])
-    
-    csv_content = output.getvalue()
     return jsonify({
         'success': True,
-        'csv_data': csv_content,
+        'csv_data': csv_data,
         'filename': f'hr_feedback_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
     })
 
@@ -1209,6 +1201,7 @@ if __name__ == '__main__':
     
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+
 
 
 
