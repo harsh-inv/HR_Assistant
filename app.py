@@ -936,14 +936,14 @@ def export_pdf():
     data = request.json
     session_id = data.get('session_id', 'default')
     
-    # Ensure session exists
+    # ⭐ Ensure session exists
     if session_id not in sessions:
         return jsonify({
             'success': False,
             'error': 'Session not found. Please start a conversation first.'
         }), 404
     
-    # Get messages safely
+    # ⭐ Get chat_history (not messages!)
     chat_history = sessions[session_id].get('chat_history', [])
     
     if not chat_history or len(chat_history) == 0:
@@ -1005,6 +1005,7 @@ def export_pdf():
         # Add messages
         for idx, msg in enumerate(chat_history):
             try:
+                # ⭐ FIXED: Use correct field names
                 is_user = msg.get('is_user', False)
                 content = msg.get('message', '')
                 
@@ -1056,14 +1057,14 @@ def export_feedback():
     data = request.json
     session_id = data.get('session_id', 'default')
     
-    # Ensure session exists
+    # ⭐ Ensure session exists
     if session_id not in sessions:
         return jsonify({
             'success': False,
             'error': 'Session not found.'
         }), 404
     
-    # Get feedback safely
+    # ⭐ Get feedback_history (correct field name!)
     feedback = sessions[session_id].get('feedback_history', [])
     
     if not feedback or len(feedback) == 0:
@@ -1093,7 +1094,7 @@ def export_feedback():
             'success': False,
             'error': f'Failed to export feedback: {str(e)}'
         }), 500
-
+        
 @app.route('/clear', methods=['POST'])
 def clear_session():
     """Clear chat history but keep preloaded documents"""
@@ -1229,3 +1230,4 @@ if __name__ == '__main__':
     print("=" * 60 + "\n")
     
     app.run(debug=True, host='0.0.0.0', port=5000)
+
