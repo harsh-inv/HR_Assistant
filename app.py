@@ -724,7 +724,7 @@ def chat():
     # Normalize message (remove punctuation for comparison)
     import re
     normalized_message = message.lower().strip()
-    normalized_message = re.sub(r'[.,!?;:\'"]+', '', message.lower().strip()))
+    normalized_message = re.sub(r'[.,!?;:\'"]+', '', message.lower().strip())
     
     # ========================================================================
     # PRIORITY 1: GREETING DETECTION (Must be FIRST!)
@@ -1189,5 +1189,6 @@ if __name__ == '__main__':
     print("=" * 60 + "\n")
     
     app.run(debug=True, host='0.0.0.0', port=5000)
+
 
 
