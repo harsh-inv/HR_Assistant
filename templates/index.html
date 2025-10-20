@@ -1217,7 +1217,7 @@ let waitingForMoreQuestionsResponse = false;
 let waitingForUploadResponse = false;
 let sessionEnded = false;
 let awaitingFileUpload = false;
-
+    
 if ('webkitSpeechRecognition' in window) {
     recognition = new webkitSpeechRecognition();
     recognition.continuous = false;
@@ -1314,7 +1314,8 @@ function isGreeting(message) {
         'good morning', 'good afternoon', 'good evening', 
         'greetings', 'hai', 'hey there', 'hiya'
     ];
-    const lower = message.toLowerCase().trim();
+    // Remove punctuation for comparison
+    const lower = message.lower().trim().replace(/[.,!?;:]+$/g, '');
     return greetings.some(greeting => lower === greeting || lower.startsWith(greeting + ' '));
 }
 
@@ -1322,6 +1323,40 @@ function isGoodbye(message) {
     const goodbyes = ['bye', 'goodbye', 'see you', 'farewell', 'take care', 'exit', 'quit'];
     const lower = message.toLowerCase().trim();
     return goodbyes.some(goodbye => lower.includes(goodbye));
+}
+
+function isAcknowledgment(message) {
+    const acknowledgments = [
+        'ok', 'okay', 'okey', 'oke', 'k',
+        'nice', 'good', 'great', 'excellent', 'awesome', 'perfect', 'cool', 'fine',
+        'thanks', 'thank you', 'thankyou', 'thx', 'ty',
+        'alright', 'got it', 'understood', 'i see', 'i understand',
+        'yes', 'yeah', 'yep', 'yup', 'sure', 'of course'
+    ];
+    
+    const negative_responses = [
+        'no', 'nope', 'nah', 'not needed', 'no need', 'no thanks',
+        'not really', 'im good', "i'm good", 'all good', 'thats all',
+        "that's all", 'nothing else', 'nothing more'
+    ];
+    
+    const allAcks = [...acknowledgments, ...negative_responses];
+    
+    // Remove all punctuation for comparison
+    const normalized = message.toLowerCase().trim().replace(/[.,!?;:']+/g, '');
+    
+    // Check if it's an acknowledgment AND not a question
+    const questionWords = [
+        'what', 'why', 'how', 'when', 'where', 'who', 'which', 'can', 'could',
+        'would', 'should', 'is', 'are', 'does', 'do', 'tell', 'show', 'explain', 'describe'
+    ];
+    
+    const isAck = (
+        allAcks.includes(normalized) ||
+        (normalized.split(' ').length <= 3 && allAcks.some(ack => normalized.includes(ack)))
+    ) && !questionWords.some(qw => normalized.includes(qw));
+    
+    return isAck;
 }
 
 function openFileUpload() {
