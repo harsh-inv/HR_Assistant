@@ -1200,15 +1200,10 @@
                 </button>
             </div>
         </div>
-    </div>
- 
-    
-<script>   
+    </div> 
 
 <script>   
-// ============================================================================
-// SESSION VARIABLES
-// ============================================================================
+
 let sessionId = `session_${Date.now()}`;
 let isRecording = false;
 let recognition = null;
@@ -1223,9 +1218,6 @@ let waitingForUploadResponse = false;
 let sessionEnded = false;
 let awaitingFileUpload = false;
 
-// ============================================================================
-// SPEECH RECOGNITION INITIALIZATION
-// ============================================================================
 if ('webkitSpeechRecognition' in window) {
     recognition = new webkitSpeechRecognition();
     recognition.continuous = false;
@@ -1248,9 +1240,6 @@ if ('webkitSpeechRecognition' in window) {
     };
 }
 
-// ============================================================================
-// TIMER FUNCTIONS (Dual-Threshold System)
-// ============================================================================
 function startInactivityTimer() {
     if (inactivityTimer) {
         clearInterval(inactivityTimer);
@@ -1319,9 +1308,6 @@ function handleInactivity() {
     }
 }
 
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
 function isGreeting(message) {
     const greetings = [
         'hello', 'hi', 'hii', 'hey', 'howdy',
@@ -1345,9 +1331,6 @@ function openFileUpload() {
     document.getElementById('fileInput').click();
 }
 
-// ============================================================================
-// TEXT-TO-SPEECH FUNCTIONS
-// ============================================================================
 function initTTS() {
     if ('speechSynthesis' in window) {
         let voices = speechSynthesis.getVoices();
@@ -1480,9 +1463,6 @@ function startSpeech(text, button) {
     speechSynthesis.speak(utterance);
 }
 
-// ============================================================================
-// UI INTERACTION FUNCTIONS
-// ============================================================================
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     sidebar.classList.toggle('collapsed');
@@ -1518,9 +1498,6 @@ function handleKeyPress(event) {
     stopInactivityTimer();
 }
 
-// ============================================================================
-// SEND MESSAGE FUNCTION (ENHANCED)
-// ============================================================================
 async function sendMessage(isVoiceInput = false) {
     const input = document.getElementById('messageInput');
     const message = input.value.trim();
@@ -1531,9 +1508,6 @@ async function sendMessage(isVoiceInput = false) {
 
     const lowerMessage = message.toLowerCase();
 
-    // ========================================================================
-    // Handle "Do you have more questions?" response
-    // ========================================================================
     if (waitingForMoreQuestionsResponse) {
         addMessage(message, true);
         input.value = '';
@@ -1555,9 +1529,7 @@ async function sendMessage(isVoiceInput = false) {
             waitingForMoreQuestionsResponse = false;
         }
     }
-    // ========================================================================
-    // Handle "Upload different file?" response
-    // ========================================================================
+
     else if (waitingForUploadResponse) {
         addMessage(message, true);
         input.value = '';
@@ -1578,9 +1550,7 @@ async function sendMessage(isVoiceInput = false) {
             return;
         }
     }
-    // ========================================================================
-    // Handle greetings locally (no API call needed)
-    // ========================================================================
+
     else if (isGreeting(message)) {
         addMessage(message, true);
         input.value = '';
@@ -1589,9 +1559,7 @@ async function sendMessage(isVoiceInput = false) {
         startInactivityTimer();
         return;
     }
-    // ========================================================================
-    // Handle goodbyes locally (no API call needed)
-    // ========================================================================
+
     else if (isGoodbye(message)) {
         addMessage(message, true);
         input.value = '';
@@ -1607,9 +1575,6 @@ async function sendMessage(isVoiceInput = false) {
         input.value = '';
     }
 
-    // ========================================================================
-    // Send to backend for processing
-    // ========================================================================
     const loadingId = addLoadingMessage();
 
     try {
@@ -1657,9 +1622,6 @@ async function sendMessage(isVoiceInput = false) {
     }
 }
 
-// ============================================================================
-// MESSAGE DISPLAY FUNCTIONS
-// ============================================================================
 function addVideoCards(videos) {
     const messagesDiv = document.getElementById('chatMessages');
     
@@ -1846,9 +1808,6 @@ function formatBotMessage(text) {
     return formatted.join('');
 }
 
-// ============================================================================
-// TOAST NOTIFICATIONS
-// ============================================================================
 function showToast(message, type = 'success') {
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
@@ -1875,9 +1834,6 @@ function showToast(message, type = 'success') {
     }, 3000);
 }
 
-// ============================================================================
-// IMAGE MODAL FUNCTIONS
-// ============================================================================
 function openImageModal(imageSrc) {
     const modal = document.getElementById('imageModal');
     const modalImg = document.getElementById('modalImage');
@@ -1890,9 +1846,6 @@ function closeImageModal() {
     modal.classList.remove('active');
 }
 
-// ============================================================================
-// FEEDBACK MODAL FUNCTIONS
-// ============================================================================
 function showFeedbackModal() {
     const modal = document.getElementById('feedbackModal');
     if (modal) {
@@ -2181,9 +2134,6 @@ function getFileIcon(filename) {
     }
 }
 
-// ============================================================================
-// EXPORT FUNCTIONS
-// ============================================================================
 async function exportChat() {
     try {
         showToast('Generating PDF...', 'success');
@@ -2264,9 +2214,6 @@ async function exportFeedback() {
     }
 }
 
-// ============================================================================
-// CLEAR CHAT FUNCTIONS
-// ============================================================================
 async function clearChat() {
     if (!confirm('Are you sure you want to clear the chat history? Preloaded documents will remain available.')) return;
 
@@ -2342,9 +2289,6 @@ async function clearChatAndPromptUpload() {
     }
 }
 
-// ============================================================================
-// SESSION INITIALIZATION
-// ============================================================================
 async function initSession() {
     try {
         const response = await fetch('/init_session', {
@@ -2385,9 +2329,6 @@ async function initSession() {
     }
 }
 
-// ============================================================================
-// WINDOW LOAD EVENT
-// ============================================================================
 window.addEventListener('load', () => {
     initTTS();
     initSession();
