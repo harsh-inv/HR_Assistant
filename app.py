@@ -881,115 +881,20 @@ def chat():
                 'response': 'I don\'t have any documents or videos to reference. Please upload some documents or ask me to help you get started.'
             }), 400
             
-@app.route('/check_idle', methods=['POST'])
-def check_idle():
-    """Check if user has been inactive (dual-threshold timer)"""
+@app.route('/export/pdf', methods=['POST'])
+def export_pdf():
     data = request.json
     session_id = data.get('session_id')
     
-    if session_id in sessions:
-        current_time = time.time()
-        session = sessions[session_id]
-        last_interaction = session['last_interaction']
-        upload_completed_time = session.get('upload_completed_time')
-        
-        # Calculate idle time
-        idle_time = current_time - last_interaction
-        
-        # Dual-threshold system:
-        # - If file was recently uploaded: use 10 second threshold
-        # - Otherwise: use 7 second threshold
-        if upload_completed_time and (current_time - upload_completed_time) < 15:
-            idle_threshold = 10
-        else:
-            idle_threshold = 7
-            # Clear the upload_completed_time after threshold period
-            if upload_completed_time:
-                session['upload_completed_time'] = None
-        
-        if idle_time >= idle_threshold:
-            return jsonify({
-                'is_idle': True,
-                'idle_time': idle_time,
-                'threshold_used': idle_threshold
-            })
-        else:
-            return jsonify({
-                'is_idle': False,
-                'idle_time': idle_time,
-                'threshold_used': idle_threshold
-            })
-    else:
-        return jsonify({
-            'is_idle': False,
-            'idle_time': 0,
-            'threshold_used': 7
-        })
-        
-@app.route('/feedback', methods=['POST'])
-@app.route('/feedback', methods=['POST'])
-def submit_feedback():
-    """Submit user feedback"""
-    session_id = request.json.get('session_id', 'default')
-    rating = request.json.get('rating')
-    comment = request.json.get('comment', '')
-    session = get_session(session_id)
-    
-    feedback_entry = {
-        'rating': rating,
-        'comment': comment,
-        'timestamp': datetime.now().isoformat()
-    }
-    
-    session['feedback_history'].append(feedback_entry)
-    session['feedback_submitted'] = True
-    session['last_interaction'] = time.time()
-    
-    return jsonify({
-        'success': True,
-        'feedback_submitted': True
-    })
-    
-@app.route('/export/feedback', methods=['POST'])
-def export_feedback():
-    """Export feedback as CSV"""
-    session_id = request.json.get('session_id', 'default')
-    session = get_session(session_id)
-    
-    if not session['feedback_history']:
-        return jsonify({
-            'success': False,
-            'error': 'No feedback data available'
-        })
-    
-    csv_data = "Timestamp,Rating,Comment\n"
-    for fb in session['feedback_history']:
-        # Escape quotes in comments
-        comment_escaped = fb['comment'].replace('"', '""')
-        csv_data += f"{fb['timestamp']},{fb['rating']},\"{comment_escaped}\"\n"
-    
-    return jsonify({
-        'success': True,
-        'csv_data': csv_data,
-        'filename': f'hr_feedback_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
-    })
-    
-@app.route('/export/pdf', methods=['POST'])
-def export_pdf():
-    """Export chat as PDF"""
-    if not PDF_EXPORT_AVAILABLE:
-        return jsonify({'error': 'PDF export not available'}), 500
-    
-    session_id = request.json.get('session_id', 'default')
-    session = get_session(session_id)
-    
-    if not session['chat_history']:
+    if session_id not in sessions or not sessions[session_id]['messages']:
         return jsonify({'error': 'No chat history found'}), 404
     
     try:
-        pdf_filename = f'hr_chat_export_{session_id}_{int(time.time())}.pdf'
-        pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], pdf_filename)
+        # Create PDF filename
+        pdf_filename = f'chat_export_{session_id}_{int(time.time())}.pdf'
+        pdf_path = os.path.join(STATIC_FOLDER, pdf_filename)
         
+        # Create PDF document
         doc = SimpleDocTemplate(pdf_path, pagesize=letter)
         styles = getSampleStyleSheet()
         
@@ -1023,16 +928,19 @@ def export_pdf():
         
         # Build PDF content
         story = []
-        story.append(Paragraph("HR Assistant - Chat Export", title_style))
+        
+        # Title
+        story.append(Paragraph("Image/Audio Assistant - Chat Export", title_style))
         story.append(Spacer(1, 0.2 * inch))
         
-        for msg in session['chat_history']:
-            if msg['is_user']:
-                story.append(Paragraph(f"<b>You:</b> {html_module.escape(msg['message'])}", user_style))
+        # Add messages
+        for msg in sessions[session_id]['messages']:
+            if msg['role'] == 'user':
+                story.append(Paragraph(f"<b>You:</b> {html.escape(msg['content'])}", user_style))
             else:
-                # Clean bot response for PDF (remove markdown)
-                content = msg['message'].replace('**', '')
-                story.append(Paragraph(f"<b>Assistant:</b> {html_module.escape(content)}", bot_style))
+                # Clean bot response for PDF
+                content = msg['content'].replace('**', '')
+                story.append(Paragraph(f"<b>Assistant:</b> {html.escape(content)}", bot_style))
         
         # Build PDF
         doc.build(story)
@@ -1053,142 +961,132 @@ def export_pdf():
     except Exception as e:
         print(f"PDF export error: {e}")
         return jsonify({'error': str(e)}), 500
-        
+
 @app.route('/clear', methods=['POST'])
-def clear_session():
-    """Clear chat history but keep preloaded documents"""
-    session_id = request.json.get('session_id', 'default')
+def clear_chat():
+    data = request.json
+    session_id = data.get('session_id')
+    
     if session_id in sessions:
-        # Reset but keep preloaded documents
+        # Delete uploaded files
+        for file_info in sessions[session_id]['files']:
+            filename = file_info['filename'] if isinstance(file_info, dict) else file_info
+            filepath = os.path.join(UPLOAD_FOLDER, filename)
+            try:
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+            except Exception as e:
+                print(f"Error deleting file {filename}: {e}")
+        
+        # Clear session data but keep ticket counter
+        sessions[session_id]['messages'] = []
+        sessions[session_id]['files'] = []
+        sessions[session_id]['ticket_created'] = False
+        sessions[session_id]['ticket_button_clicked'] = False
+        sessions[session_id]['last_interaction'] = time.time()
+        sessions[session_id]['last_analysis'] = None
+        sessions[session_id]['awaiting_followup'] = False
+        sessions[session_id]['consecutive_no_count'] = 0
+        
+        return jsonify({'success': True})
+
+@app.route('/feedback', methods=['POST'])
+def submit_feedback():
+    data = request.json
+    session_id = data.get('session_id')
+    rating = data.get('rating')
+    comment = data.get('comment', '')
+    
+    if session_id not in sessions:
         sessions[session_id] = {
-            'vectorstore': preloaded_vectorstore,
-            'conversation_chain': create_chain(preloaded_vectorstore) if preloaded_vectorstore else None,
-            'chat_history': [],
-            'uploaded_files': preloaded_files.copy() if preloaded_files else [],
-            'uploaded_images': [],
-            'feedback_history': [],
-            'consecutive_no_count': 0,
-            'last_analysis': None,
-            'awaiting_followup': False,
+            'messages': [],
+            'files': [],
+            'ticket_counter': 0,
+            'feedback': [],
+            'ticket_created': False,
             'last_interaction': time.time(),
-            'upload_completed_time': None,
-            'feedback_submitted': False
+            'feedback_submitted': False,
+            'ticket_button_clicked': False,
+            'last_analysis': None,
+            'awaiting_followup': False
         }
     
-    # Return updated counts
-    total_documents = len(preloaded_files) if preloaded_files else 0
+    feedback_entry = {
+        'rating': rating,
+        'comment': comment,
+        'timestamp': datetime.now().isoformat()
+    }
+    
+    sessions[session_id]['feedback'].append(feedback_entry)
+    sessions[session_id]['feedback_submitted'] = True
+    sessions[session_id]['last_interaction'] = time.time()
     
     return jsonify({
         'success': True,
-        'total_documents': total_documents,
-        'document_count_message': f'{total_documents} document{"s" if total_documents != 1 else ""} loaded. You can upload more documents to expand the collection.'
+        'feedback_submitted': True
     })
 
-@app.route('/feedback/stats', methods=['GET'])
-def feedback_stats():
-    """Get feedback statistics"""
-    session_id = request.args.get('session_id', 'default')
-    session = get_session(session_id)
-    feedback_history = session['feedback_history']
+@app.route('/check_idle', methods=['POST'])
+def check_idle():
+    data = request.json
+    session_id = data.get('session_id')
     
-    if not feedback_history:
-        return jsonify({'count': 0, 'average': 0})
+    if session_id in sessions:
+        current_time = time.time()
+        last_interaction = sessions[session_id]['last_interaction']
+        upload_completed_time = sessions[session_id].get('upload_completed_time')
+        
+        # Calculate idle time
+        idle_time = current_time - last_interaction
+        
+        # If file was recently uploaded, use 10 second threshold
+        # Otherwise use 7 second threshold
+        if upload_completed_time and (current_time - upload_completed_time) < 15:
+            # Within 15 seconds of upload, use 10 second threshold
+            idle_threshold = 10
+        else:
+            # Normal idle threshold
+            idle_threshold = 7
+            # Clear the upload_completed_time after threshold period
+            if upload_completed_time:
+                sessions[session_id]['upload_completed_time'] = None
+        
+        if idle_time >= idle_threshold:
+            return jsonify({
+                'is_idle': True,
+                'idle_time': idle_time
+            })
+        else:
+            return jsonify({
+                'is_idle': False,
+                'idle_time': idle_time
+            })
+    else:
+        return jsonify({
+            'is_idle': False,
+            'idle_time': 0
+        })
+
+@app.route('/export/feedback', methods=['POST'])
+def export_feedback():
+    data = request.json
+    session_id = data.get('session_id')
     
-    avg_rating = sum(f['rating'] for f in feedback_history) / len(feedback_history)
-    return jsonify({
-        'count': len(feedback_history),
-        'average': round(avg_rating, 1),
-        'ratings_breakdown': {
-            '5_star': len([f for f in feedback_history if f['rating'] == 5]),
-            '4_star': len([f for f in feedback_history if f['rating'] == 4]),
-            '3_star': len([f for f in feedback_history if f['rating'] == 3]),
-            '2_star': len([f for f in feedback_history if f['rating'] == 2]),
-            '1_star': len([f for f in feedback_history if f['rating'] == 1])
-        }
-    })
-
-# ============================================================================
-# HEALTH CHECK & STATUS ROUTES
-# ============================================================================
-
-@app.route('/health', methods=['GET'])
-def health_check():
-    """Health check endpoint for monitoring"""
-    return jsonify({
-        'status': 'healthy',
-        'timestamp': datetime.now().isoformat(),
-        'preloaded_documents': len(preloaded_files),
-        'active_sessions': len(sessions),
-        'video_index_loaded': video_index.vector_store is not None
-    })
-
-@app.route('/status', methods=['GET'])
-def status():
-    """Get system status"""
-    return jsonify({
-        'app_name': 'HR Assistant',
-        'version': '2.0.0',
-        'preloaded_documents': len(preloaded_files),
-        'document_names': preloaded_files,
-        'active_sessions': len(sessions),
-        'video_processing_available': VIDEO_PROCESSING_AVAILABLE,
-        'pdf_export_available': PDF_EXPORT_AVAILABLE,
-        'features': [
-            'Document RAG',
-            'Video Transcription & Search',
-            'Image Upload & Preview',
-            'Voice Input/Output',
-            'Inactivity Detection',
-            'Feedback Collection',
-            'PDF/CSV Export',
-            'Greeting Detection (with punctuation)',
-            'Acknowledgment Handling (with punctuation)',
-            'Query Type Detection',
-            'Consecutive No Detection'
-        ]
-    })
-
-# ============================================================================
-# ERROR HANDLERS
-# ============================================================================
-
-@app.errorhandler(404)
-def not_found(error):
-    return jsonify({'error': 'Not found'}), 404
-
-@app.errorhandler(500)
-def internal_error(error):
-    return jsonify({'error': 'Internal server error'}), 500
-
-@app.errorhandler(413)
-def request_entity_too_large(error):
-    return jsonify({'error': 'File too large. Maximum size is 100MB'}), 413
+    if session_id in sessions and sessions[session_id]['feedback']:
+        csv_data = "Timestamp,Rating,Comment\n"
+        for fb in sessions[session_id]['feedback']:
+            csv_data += f"{fb['timestamp']},{fb['rating']},\"{fb['comment']}\"\n"
+        
+        return jsonify({
+            'success': True,
+            'csv_data': csv_data,
+            'filename': f'feedback_{session_id}.csv'
+        })
+    else:
+        return jsonify({
+            'success': False,
+            'error': 'No feedback data available'
+        })
 
 if __name__ == '__main__':
-    print("\n" + "=" * 60)
-    print("🚀 HR ASSISTANT STARTING")
-    print("=" * 60)
-    print(f"📂 Documents folder: {DOCUMENTS_FOLDER}")
-    print(f"📚 Preloaded documents: {len(preloaded_files)}")
-    print(f"🎥 Video processing: {'✓ Available' if VIDEO_PROCESSING_AVAILABLE else '✗ Not available'}")
-    print(f"📄 PDF export: {'✓ Available' if PDF_EXPORT_AVAILABLE else '✗ Not available'}")
-    print(f"💾 Upload folder: {app.config['UPLOAD_FOLDER']}")
-    print(f"🔑 OpenAI API: {'✓ Configured' if OPENAI_API_KEY else '✗ Not configured'}")
-    print("=" * 60)
-    print("\n✨ Enhanced Features:")
-    print("   • Smart greeting detection (handles 'Hello.' with punctuation)")
-    print("   • Acknowledgment handling (handles 'okay.' 'nice.' with punctuation)")
-    print("   • Consecutive 'no' detection")
-    print("   • Dual-threshold inactivity timer")
-    print("   • Query type detection")
-    print("   • Image preview support")
-    print("   • Video transcription & search")
-    print("   • Enhanced feedback system")
-    print("   • PDF export with chat history")
-    print("   • CSV feedback export")
-    print("=" * 60 + "\n")
-    
     app.run(debug=True, host='0.0.0.0', port=5000)
-
-
-
