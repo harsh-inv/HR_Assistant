@@ -516,6 +516,7 @@ def init_session():
         'total_documents': total_documents,  # ⭐ NEW
         'total_images': total_images,        # ⭐ NEW
     })
+    
 @app.route('/upload', methods=['POST'])
 def upload_files():
     """Handle file uploads (documents, videos, images)"""
@@ -609,6 +610,7 @@ def upload_files():
         'total_images': total_images,        # ⭐ NEW
         'document_count_message': f'{total_documents} document{"s" if total_documents != 1 else ""} loaded. You can upload more documents to expand the collection.'  # ⭐ NEW
     })
+    
 @app.route('/upload_video', methods=['POST'])
 def upload_video():
     """Handle video uploads with optional descriptions"""
@@ -939,9 +941,9 @@ def export_json():
 
 @app.route('/export/pdf', methods=['POST'])
 def export_pdf():
-    """Export chat as PDF"""
+    """Export chat as PDF with improved error handling for Render deployment"""
     if not PDF_EXPORT_AVAILABLE:
-        return jsonify({'error': 'PDF export not available'}), 500
+        return jsonify({'error': 'PDF export not available - ReportLab not installed'}), 500
     
     session_id = request.json.get('session_id', 'default')
     session = get_session(session_id)
@@ -950,10 +952,14 @@ def export_pdf():
         return jsonify({'error': 'No chat history found'}), 404
     
     try:
-        pdf_filename = f'hr_chat_export_{session_id}_{int(time.time())}.pdf'
-        pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], pdf_filename)
+        # Use BytesIO instead of file system to avoid permission issues
+        from io import BytesIO
         
-        doc = SimpleDocTemplate(pdf_path, pagesize=letter)
+        pdf_buffer = BytesIO()
+        pdf_filename = f'hr_chat_export_{session_id}_{int(time.time())}.pdf'
+        
+        # Create PDF document in memory
+        doc = SimpleDocTemplate(pdf_buffer, pagesize=letter)
         styles = getSampleStyleSheet()
         
         # Custom styles
@@ -989,22 +995,32 @@ def export_pdf():
         story.append(Paragraph("HR Assistant - Chat Export", title_style))
         story.append(Spacer(1, 0.2 * inch))
         
+        # Add timestamp
+        timestamp_text = f"Exported on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        story.append(Paragraph(timestamp_text, bot_style))
+        story.append(Spacer(1, 0.2 * inch))
+        
+        # Add messages
         for msg in session['chat_history']:
             if msg['is_user']:
-                story.append(Paragraph(f"<b>You:</b> {html_module.escape(msg['message'])}", user_style))
+                # Escape HTML and truncate very long messages
+                content = html_module.escape(msg['message'][:1000])
+                story.append(Paragraph(f"<b>You:</b> {content}", user_style))
             else:
-                content = msg['message'].replace('**', '')
-                story.append(Paragraph(f"<b>Assistant:</b> {html_module.escape(content)}", bot_style))
+                # Clean and escape bot response
+                content = msg['message'].replace('**', '').replace('*', '')
+                content = html_module.escape(content[:1000])
+                story.append(Paragraph(f"<b>Assistant:</b> {content}", bot_style))
         
         # Build PDF
         doc.build(story)
         
-        # Read PDF file
-        with open(pdf_path, 'rb') as f:
-            pdf_data = base64.b64encode(f.read()).decode('utf-8')
+        # Get PDF data from buffer
+        pdf_buffer.seek(0)
+        pdf_data = base64.b64encode(pdf_buffer.read()).decode('utf-8')
         
-        # Clean up
-        os.remove(pdf_path)
+        # Close buffer
+        pdf_buffer.close()
         
         return jsonify({
             'success': True,
@@ -1013,12 +1029,17 @@ def export_pdf():
         })
     
     except Exception as e:
-        print(f"PDF export error: {e}")
-        return jsonify({'error': str(e)}), 500
+        print(f"PDF export error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'error': f'Failed to generate PDF: {str(e)}',
+            'details': 'Please check server logs for more information'
+        }), 500
 
 @app.route('/export/feedback', methods=['POST'])
 def export_feedback():
-    """Export feedback as CSV"""
+    """Export feedback as CSV with improved error handling"""
     session_id = request.json.get('session_id', 'default')
     session = get_session(session_id)
     
@@ -1026,30 +1047,40 @@ def export_feedback():
         return jsonify({
             'success': False,
             'error': 'No feedback data available'
+        }), 404
+    
+    try:
+        import csv
+        from io import StringIO
+        
+        output = StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow(['Timestamp', 'Rating', 'Comment'])
+        
+        # Write data
+        for feedback in session['feedback_history']:
+            writer.writerow([
+                feedback.get('timestamp', 'N/A'),
+                feedback.get('rating', 0),
+                feedback.get('comment', '')
+            ])
+        
+        csv_content = output.getvalue()
+        output.close()
+        
+        return jsonify({
+            'success': True,
+            'csv_data': csv_content,
+            'filename': f'hr_feedback_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
         })
     
-    import csv
-    from io import StringIO
-    output = StringIO()
-    writer = csv.writer(output)
-    
-    # Write header
-    writer.writerow(['Timestamp', 'Rating', 'Comment'])
-    
-    # Write data
-    for feedback in session['feedback_history']:
-        writer.writerow([
-            feedback['timestamp'],
-            feedback['rating'],
-            feedback.get('comment', '')
-        ])
-    
-    csv_content = output.getvalue()
-    return jsonify({
-        'success': True,
-        'csv_data': csv_content,
-        'filename': f'hr_feedback_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
-    })
+    except Exception as e:
+        print(f"Feedback export error: {str(e)}")
+        return jsonify({
+            'error': f'Failed to export feedback: {str(e)}'
+        }), 500
 
 @app.route('/clear', methods=['POST'])
 def clear_session():
@@ -1183,3 +1214,4 @@ if __name__ == '__main__':
     
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+
