@@ -12,766 +12,766 @@
         }
 
         body {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        background: #0d1117;
-        color: #ffffff;
-        height: 100vh;
-        overflow: hidden;
-        background-image: url('/static/background-image.jpg'), url('static/background-image.jpg');
-        background-size: cover;
-        background-position: center;
-        background-repeat: no-repeat;
-        background-attachment: fixed;
-    }
-
-    /* Header */
-    .header {
-        background: transparent;
-        padding: 20px 30px;
-        display: flex;
-        align-items: center;
-        gap: 15px;
-    }
-
-    .header-menu-btn {
-        width: 40px;
-        height: 40px;
-        background: rgba(35, 47, 62, 0.8);
-        border: none;
-        cursor: pointer;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 5px;
-        padding: 8px;
-        border-radius: 8px;
-        transition: all 0.3s;
-        backdrop-filter: blur(10px);
-    }
-
-    .header-menu-btn:hover {
-        background: rgba(45, 57, 72, 0.9);
-    }
-
-    .header-menu-btn span {
-        width: 24px;
-        height: 2px;
-        background: #ecf0f1;
-        border-radius: 2px;
-    }
-
-    .header-logo {
-        height: 45px;
-        width: auto;
-    }
-
-    .header h1 {
-        font-size: 24px;
-        font-weight: 400;
-        letter-spacing: 3px;
-        color: #ffffff;
-    }
-
-    /* Main Container */
-    .container {
-        display: flex;
-        gap: 20px;
-        padding: 0 20px 20px 20px;
-        height: calc(100vh - 89px);
-        overflow: hidden;
-    }
-
-    /* Sidebar */
-    .sidebar {
-        width: 300px;
-        background: rgba(35, 47, 62, 0.98);
-        padding: 20px;
-        overflow-y: auto;
-        border-radius: 16px;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        transition: all 0.3s ease;
-        flex-shrink: 0;
-    }
-
-    .sidebar.collapsed {
-        margin-left: -340px;
-    }
-
-    .sidebar::-webkit-scrollbar {
-        width: 6px;
-    }
-
-    .sidebar::-webkit-scrollbar-track {
-        background: transparent;
-    }
-
-    .sidebar::-webkit-scrollbar-thumb {
-        background: rgba(74, 95, 127, 0.5);
-        border-radius: 3px;
-    }
-
-    .sidebar-section {
-        margin-bottom: 25px;
-    }
-
-    .sidebar-section h3 {
-        font-size: 13px;
-        font-weight: 700;
-        margin-bottom: 12px;
-        color: #ecf0f1;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-
-    .info-box {
-        background: rgba(45, 57, 72, 0.7);
-        padding: 12px 15px;
-        border-radius: 8px;
-        border-left: 4px solid #3498db;
-        margin-bottom: 15px;
-    }
-
-    .info-box p {
-        font-size: 13px;
-        line-height: 1.6;
-        color: #bdc3c7;
-    }
-
-    .upload-area {
-        border: 2px dashed rgba(90, 112, 133, 0.5);
-        border-radius: 8px;
-        padding: 30px 20px;
-        text-align: center;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        background: transparent;
-    }
-
-    .upload-area:hover {
-        border-color: #3498db;
-        background: rgba(52, 152, 219, 0.05);
-    }
-
-    .upload-icon {
-        width: 40px;
-        height: 40px;
-        margin: 0 auto 10px;
-    }
-
-    .upload-area p {
-        font-size: 13px;
-        color: #95a5a6;
-        margin-bottom: 5px;
-        font-weight: 500;
-    }
-
-    .upload-area span {
-        font-size: 11px;
-        color: #7f8c8d;
-    }
-
-    .feedback-section {
-        background: rgba(45, 57, 72, 0.7);
-        padding: 15px;
-        border-radius: 8px;
-    }
-
-    .feedback-section p {
-        font-size: 13px;
-        color: #bdc3c7;
-    }
-
-    .action-btn {
-        width: 100%;
-        padding: 12px;
-        margin-bottom: 10px;
-        border: none;
-        border-radius: 8px;
-        font-size: 14px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.3s ease;
-    }
-
-    .btn-primary {
-        background: rgba(55, 67, 82, 0.9);
-        color: #ecf0f1;
-    }
-
-    .btn-primary:hover {
-        background: rgba(65, 77, 92, 1);
-    }
-
-    .btn-danger {
-        background: #e74c3c;
-        color: white;
-        font-weight: 600;
-    }
-
-    .btn-danger:hover {
-        background: #c0392b;
-    }
-
-    .btn-danger:disabled {
-        background: rgba(55, 67, 82, 0.5);
-        color: rgba(236, 240, 241, 0.5);
-        cursor: not-allowed;
-        display: none;
-    }
-
-    /* Chat Area */
-    .chat-area {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        background: rgba(35, 47, 62, 0.98);
-        border-radius: 16px;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        overflow: hidden;
-    }
-
-    .chat-messages {
-        flex: 1;
-        overflow-y: auto;
-        padding: 30px;
-    }
-
-    .chat-messages::-webkit-scrollbar {
-        width: 6px;
-    }
-
-    .chat-messages::-webkit-scrollbar-track {
-        background: transparent;
-    }
-
-    .chat-messages::-webkit-scrollbar-thumb {
-        background: rgba(74, 95, 127, 0.5);
-        border-radius: 3px;
-    }
-
-    .message {
-        display: flex;
-        align-items: start;
-        gap: 12px;
-        margin-bottom: 20px;
-        animation: fadeIn 0.3s ease;
-    }
-
-    .message-content h3 {
-        color: #f39c12;
-        font-size: 16px;
-        margin: 15px 0 10px 0;
-        font-weight: 600;
-    }
-
-    .message-content h4 {
-        color: #f39c12;
-        font-size: 14px;
-        margin: 12px 0 8px 0;
-        font-weight: 600;
-    }
-
-    .message-content p {
-        margin: 10px 0;
-        line-height: 1.7;
-        color: #ecf0f1;
-    }
-
-    .message-content ul {
-        margin: 10px 0;
-        padding-left: 20px;
-    }
-
-    .message-content li {
-        margin: 6px 0;
-        line-height: 1.6;
-        color: #ecf0f1;
-    }
-
-    @keyframes fadeIn {
-        from {
-            opacity: 0;
-            transform: translateY(10px);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0d1117;
+            color: #ffffff;
+            height: 100vh;
+            overflow: hidden;
+            background-image: url('/static/background-image.jpg'), url('static/background-image.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
         }
-        to {
-            opacity: 1;
-            transform: translateY(0);
+
+        /* Header */
+        .header {
+            background: transparent;
+            padding: 20px 30px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
         }
-    }
 
-    .message-avatar {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        font-weight: 600;
-        font-size: 16px;
-        overflow: hidden;
-    }
-
-    .bot-avatar {
-        background: #e74c3c;
-        color: white;
-        padding: 0;
-    }
-
-    .bot-avatar img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-        background: transparent;
-    }
-
-    .user-avatar {
-        background: #3498db;
-        color: white;
-    }
-
-    .message-content {
-        flex: 1;
-        background: rgba(45, 57, 72, 0.7);
-        padding: 15px 18px;
-        border-radius: 12px;
-        line-height: 1.8;
-        font-size: 14px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-        position: relative;
-    }
-
-    .message-content strong {
-        color: #f39c12;
-        font-weight: 600;
-    }
-
-    .speaker-btn {
-        width: 32px;
-        height: 32px;
-        border: none;
-        background: rgba(52, 152, 219, 0.2);
-        cursor: pointer;
-        padding: 6px;
-        border-radius: 6px;
-        transition: all 0.3s;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        margin-left: 10px;
-        vertical-align: middle;
-    }
-
-    .speaker-btn:hover {
-        background: rgba(52, 152, 219, 0.4);
-        transform: scale(1.1);
-    }
-
-    .speaker-btn svg {
-        width: 18px;
-        height: 18px;
-        fill: #3498db;
-    }
-
-    .speaker-btn.speaking {
-        background: rgba(231, 76, 60, 0.3);
-        animation: pulse 1s infinite;
-    }
-
-    .speaker-btn.speaking svg {
-        fill: #e74c3c;
-    }
-
-    @keyframes pulse {
-        0%, 100% {
-            transform: scale(1);
+        .header-menu-btn {
+            width: 40px;
+            height: 40px;
+            background: rgba(35, 47, 62, 0.8);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            padding: 8px;
+            border-radius: 8px;
+            transition: all 0.3s;
+            backdrop-filter: blur(10px);
         }
-        50% {
+
+        .header-menu-btn:hover {
+            background: rgba(45, 57, 72, 0.9);
+        }
+
+        .header-menu-btn span {
+            width: 24px;
+            height: 2px;
+            background: #ecf0f1;
+            border-radius: 2px;
+        }
+
+        .header-logo {
+            height: 45px;
+            width: auto;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 400;
+            letter-spacing: 3px;
+            color: #ffffff;
+        }
+
+        /* Main Container */
+        .container {
+            display: flex;
+            gap: 20px;
+            padding: 0 20px 20px 20px;
+            height: calc(100vh - 89px);
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 300px;
+            background: rgba(35, 47, 62, 0.98);
+            padding: 20px;
+            overflow-y: auto;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .sidebar.collapsed {
+            margin-left: -340px;
+        }
+
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background: rgba(74, 95, 127, 0.5);
+            border-radius: 3px;
+        }
+
+        .sidebar-section {
+            margin-bottom: 25px;
+        }
+
+        .sidebar-section h3 {
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: #ecf0f1;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .info-box {
+            background: rgba(45, 57, 72, 0.7);
+            padding: 12px 15px;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+            margin-bottom: 15px;
+        }
+
+        .info-box p {
+            font-size: 13px;
+            line-height: 1.6;
+            color: #bdc3c7;
+        }
+
+        .upload-area {
+            border: 2px dashed rgba(90, 112, 133, 0.5);
+            border-radius: 8px;
+            padding: 30px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: transparent;
+        }
+
+        .upload-area:hover {
+            border-color: #3498db;
+            background: rgba(52, 152, 219, 0.05);
+        }
+
+        .upload-icon {
+            width: 40px;
+            height: 40px;
+            margin: 0 auto 10px;
+        }
+
+        .upload-area p {
+            font-size: 13px;
+            color: #95a5a6;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .upload-area span {
+            font-size: 11px;
+            color: #7f8c8d;
+        }
+
+        .feedback-section {
+            background: rgba(45, 57, 72, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .feedback-section p {
+            font-size: 13px;
+            color: #bdc3c7;
+        }
+
+        .action-btn {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: rgba(55, 67, 82, 0.9);
+            color: #ecf0f1;
+        }
+
+        .btn-primary:hover {
+            background: rgba(65, 77, 92, 1);
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+            font-weight: 600;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        .btn-danger:disabled {
+            background: rgba(55, 67, 82, 0.5);
+            color: rgba(236, 240, 241, 0.5);
+            cursor: not-allowed;
+            display: none;
+        }
+
+        /* Chat Area */
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: rgba(35, 47, 62, 0.98);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            overflow: hidden;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+        }
+
+        .chat-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-messages::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: rgba(74, 95, 127, 0.5);
+            border-radius: 3px;
+        }
+
+        .message {
+            display: flex;
+            align-items: start;
+            gap: 12px;
+            margin-bottom: 20px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .message-content h3 {
+            color: #f39c12;
+            font-size: 16px;
+            margin: 15px 0 10px 0;
+            font-weight: 600;
+        }
+
+        .message-content h4 {
+            color: #f39c12;
+            font-size: 14px;
+            margin: 12px 0 8px 0;
+            font-weight: 600;
+        }
+
+        .message-content p {
+            margin: 10px 0;
+            line-height: 1.7;
+            color: #ecf0f1;
+        }
+
+        .message-content ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+
+        .message-content li {
+            margin: 6px 0;
+            line-height: 1.6;
+            color: #ecf0f1;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-weight: 600;
+            font-size: 16px;
+            overflow: hidden;
+        }
+
+        .bot-avatar {
+            background: #e74c3c;
+            color: white;
+            padding: 0;
+        }
+
+        .bot-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: transparent;
+        }
+
+        .user-avatar {
+            background: #3498db;
+            color: white;
+        }
+
+        .message-content {
+            flex: 1;
+            background: rgba(45, 57, 72, 0.7);
+            padding: 15px 18px;
+            border-radius: 12px;
+            line-height: 1.8;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            position: relative;
+        }
+
+        .message-content strong {
+            color: #f39c12;
+            font-weight: 600;
+        }
+
+        .speaker-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: rgba(52, 152, 219, 0.2);
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 6px;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        .speaker-btn:hover {
+            background: rgba(52, 152, 219, 0.4);
             transform: scale(1.1);
         }
-    }
 
-    @keyframes shake {
-        0%, 100% { transform: translateX(0); }
-        10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-        20%, 40%, 60%, 80% { transform: translateX(5px); }
-    }
-
-    .welcome-message {
-        text-align: center;
-        padding: 60px 20px;
-        color: #ecf0f1;
-    }
-
-    .welcome-avatar {
-        width: 70px;
-        height: 70px;
-        border-radius: 50%;
-        margin: 0 auto 20px;
-        background: #e74c3c;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-        box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4);
-    }
-
-    .welcome-avatar img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-    }
-
-    .welcome-message h2 {
-        font-size: 24px;
-        margin-bottom: 12px;
-        color: #ecf0f1;
-        font-weight: 500;
-    }
-
-    .welcome-message p {
-        color: #95a5a6;
-        font-size: 14px;
-        line-height: 1.6;
-        max-width: 600px;
-        margin: 0 auto;
-    }
-
-    /* Video Card Styles */
-    .video-card {
-        background: rgba(26, 31, 46, 0.6);
-        border-radius: 8px;
-        padding: 12px;
-        margin-top: 10px;
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        cursor: pointer;
-        transition: all 0.3s;
-    }
-
-    .video-card:hover {
-        background: rgba(26, 31, 46, 0.8);
-        border-color: rgba(52, 152, 219, 0.3);
-        transform: translateY(-2px);
-    }
-
-    .video-card h4 {
-        color: #3498db;
-        font-size: 13px;
-        margin-bottom: 6px;
-    }
-
-    .video-card p {
-        color: #95a5a6;
-        font-size: 12px;
-        line-height: 1.4;
-    }
-
-    /* Image Preview Modal */
-    .image-modal {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.9);
-        display: none;
-        align-items: center;
-        justify-content: center;
-        z-index: 10001;
-        animation: fadeIn 0.3s ease;
-    }
-
-    .image-modal.active {
-        display: flex;
-    }
-
-    .image-modal-content {
-        max-width: 90%;
-        max-height: 90%;
-        object-fit: contain;
-        border-radius: 8px;
-        box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
-    }
-
-    .image-modal-close {
-        position: absolute;
-        top: 20px;
-        right: 30px;
-        font-size: 40px;
-        color: white;
-        cursor: pointer;
-        background: rgba(0, 0, 0, 0.5);
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.3s;
-    }
-
-    .image-modal-close:hover {
-        background: rgba(231, 76, 60, 0.8);
-        transform: rotate(90deg);
-    }
-
-    /* Input Area */
-    .input-area {
-        padding: 20px 30px;
-        background: rgba(26, 31, 46, 0.6);
-        backdrop-filter: blur(10px);
-        display: flex;
-        gap: 12px;
-        align-items: center;
-        border-top: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    .input-container {
-        flex: 1;
-        position: relative;
-    }
-
-    #messageInput {
-        width: 100%;
-        padding: 14px 20px;
-        border: 1px solid rgba(74, 95, 127, 0.5);
-        border-radius: 25px;
-        background: rgba(30, 40, 54, 0.8);
-        color: #ecf0f1;
-        font-size: 14px;
-        outline: none;
-        transition: all 0.3s ease;
-    }
-
-    #messageInput:focus {
-        border-color: #3498db;
-        background: rgba(30, 40, 54, 1);
-    }
-
-    #messageInput::placeholder {
-        color: #7f8c8d;
-    }
-
-    .icon-btn {
-        width: 45px;
-        height: 45px;
-        border: none;
-        border-radius: 50%;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.3s ease;
-        flex-shrink: 0;
-    }
-
-    .mic-btn {
-        background: rgba(61, 82, 102, 0.8);
-    }
-
-    .mic-btn:hover {
-        background: rgba(74, 95, 127, 0.9);
-    }
-
-    .mic-btn.recording {
-        background: #e74c3c;
-        animation: pulse 1.5s infinite;
-    }
-
-    .send-btn {
-        background: #e74c3c;
-        width: 65px;
-        border-radius: 8px;
-        font-size: 14px;
-        font-weight: 600;
-        color: white;
-    }
-
-    .send-btn:hover {
-        background: #c0392b;
-    }
-
-    .send-btn:disabled {
-        background: #4a5f7f;
-        cursor: not-allowed;
-    }
-
-    .icon-btn svg {
-        width: 20px;
-        height: 20px;
-        fill: white;
-    }
-
-    /* File List */
-    .file-list {
-        margin-top: 10px;
-        max-height: 400px;
-        overflow-y: auto;
-    }
-
-    .file-list::-webkit-scrollbar {
-        width: 4px;
-    }
-
-    .file-list::-webkit-scrollbar-track {
-        background: transparent;
-    }
-
-    .file-list::-webkit-scrollbar-thumb {
-        background: rgba(74, 95, 127, 0.5);
-        border-radius: 2px;
-    }
-
-    .file-item {
-        display: flex;
-        flex-direction: column;
-        padding: 10px;
-        background: rgba(26, 31, 46, 0.6);
-        border-radius: 8px;
-        margin-bottom: 10px;
-        transition: all 0.3s ease;
-        border: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    .file-item:hover {
-        background: rgba(26, 31, 46, 0.8);
-        border-color: rgba(52, 152, 219, 0.3);
-    }
-
-    .file-header {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .file-header svg {
-        width: 16px;
-        height: 16px;
-        fill: #3498db;
-        flex-shrink: 0;
-    }
-
-    .file-name {
-        font-size: 12px;
-        color: #bdc3c7;
-        flex: 1;
-        word-break: break-all;
-    }
-
-    /* Image preview in file list */
-    .file-preview {
-        width: 100%;
-        max-height: 150px;
-        object-fit: contain;
-        border-radius: 6px;
-        background: rgba(0, 0, 0, 0.3);
-        cursor: pointer;
-        transition: all 0.3s;
-        margin-top: 8px;
-    }
-
-    .file-preview:hover {
-        transform: scale(1.02);
-        box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
-    }
-
-    /* Loading Spinner */
-    .loading {
-        display: inline-block;
-        width: 20px;
-        height: 20px;
-        border: 3px solid rgba(255,255,255,.3);
-        border-radius: 50%;
-        border-top-color: #fff;
-        animation: spin 1s ease-in-out infinite;
-    }
-
-    @keyframes spin {
-        to { transform: rotate(360deg); }
-    }
-
-    /* Toast Notification System */
-    .toast {
-        position: fixed;
-        top: 100px;
-        right: 30px;
-        background: rgba(35, 47, 62, 0.98);
-        color: white;
-        padding: 16px 24px;
-        border-radius: 12px;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-        backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        z-index: 10000;
-        animation: slideInRight 0.4s ease-out;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        max-width: 400px;
-    }
-
-    @keyframes slideInRight {
-        from {
-            opacity: 0;
-            transform: translateX(100px);
+        .speaker-btn svg {
+            width: 18px;
+            height: 18px;
+            fill: #3498db;
         }
-        to {
-            opacity: 1;
-            transform: translateX(0);
+
+        .speaker-btn.speaking {
+            background: rgba(231, 76, 60, 0.3);
+            animation: pulse 1s infinite;
         }
-    }
 
-    .toast.success {
-        border-left: 4px solid #10b981;
-    }
+        .speaker-btn.speaking svg {
+            fill: #e74c3c;
+        }
 
-    .toast.error {
-        border-left: 4px solid #ef4444;
-    }
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+        }
 
-    .toast.warning {
-        border-left: 4px solid #f39c12;
-    }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
 
-    .toast-icon {
-        width: 24px;
-        height: 24px;
-        flex-shrink: 0;
-    }
+        .welcome-message {
+            text-align: center;
+            padding: 60px 20px;
+            color: #ecf0f1;
+        }
 
-    .toast-message {
-        flex: 1;
-        font-size: 14px;
-        font-weight: 500;
-    }
+        .welcome-avatar {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            background: #e74c3c;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4);
+        }
 
-    /* Feedback Modal */
-    .modal {
-        display: none;
-        position: fixed;
-        z-index: 1000;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.85);
-        backdrop-filter: blur(8px);
-    }
+        .welcome-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
 
-    .modal.active {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        animation: fadeIn 0.4s ease;
-    }
+        .welcome-message h2 {
+            font-size: 24px;
+            margin-bottom: 12px;
+            color: #ecf0f1;
+            font-weight: 500;
+        }
 
-    .modal-content {
-        background: linear-gradient(145deg, rgba(30, 40, 54,0.98) 0%, rgba(35, 47, 62, 0.98) 50%, rgba(40, 52, 67, 0.98) 100%);
+        .welcome-message p {
+            color: #95a5a6;
+            font-size: 14px;
+            line-height: 1.6;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Video Card Styles */
+        .video-card {
+            background: rgba(26, 31, 46, 0.6);
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .video-card:hover {
+            background: rgba(26, 31, 46, 0.8);
+            border-color: rgba(52, 152, 219, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .video-card h4 {
+            color: #3498db;
+            font-size: 13px;
+            margin-bottom: 6px;
+        }
+
+        .video-card p {
+            color: #95a5a6;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        /* Image Preview Modal */
+        .image-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10001;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .image-modal.active {
+            display: flex;
+        }
+
+        .image-modal-content {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+            border-radius: 8px;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .image-modal-close {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            font-size: 40px;
+            color: white;
+            cursor: pointer;
+            background: rgba(0, 0, 0, 0.5);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .image-modal-close:hover {
+            background: rgba(231, 76, 60, 0.8);
+            transform: rotate(90deg);
+        }
+
+        /* Input Area */
+        .input-area {
+            padding: 20px 30px;
+            background: rgba(26, 31, 46, 0.6);
+            backdrop-filter: blur(10px);
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .input-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #messageInput {
+            width: 100%;
+            padding: 14px 20px;
+            border: 1px solid rgba(74, 95, 127, 0.5);
+            border-radius: 25px;
+            background: rgba(30, 40, 54, 0.8);
+            color: #ecf0f1;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        #messageInput:focus {
+            border-color: #3498db;
+            background: rgba(30, 40, 54, 1);
+        }
+
+        #messageInput::placeholder {
+            color: #7f8c8d;
+        }
+
+        .icon-btn {
+            width: 45px;
+            height: 45px;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .mic-btn {
+            background: rgba(61, 82, 102, 0.8);
+        }
+
+        .mic-btn:hover {
+            background: rgba(74, 95, 127, 0.9);
+        }
+
+        .mic-btn.recording {
+            background: #e74c3c;
+            animation: pulse 1.5s infinite;
+        }
+
+        .send-btn {
+            background: #e74c3c;
+            width: 65px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .send-btn:hover {
+            background: #c0392b;
+        }
+
+        .send-btn:disabled {
+            background: #4a5f7f;
+            cursor: not-allowed;
+        }
+
+        .icon-btn svg {
+            width: 20px;
+            height: 20px;
+            fill: white;
+        }
+
+        /* File List */
+        .file-list {
+            margin-top: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .file-list::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .file-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .file-list::-webkit-scrollbar-thumb {
+            background: rgba(74, 95, 127, 0.5);
+            border-radius: 2px;
+        }
+
+        .file-item {
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            background: rgba(26, 31, 46, 0.6);
+            border-radius: 8px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .file-item:hover {
+            background: rgba(26, 31, 46, 0.8);
+            border-color: rgba(52, 152, 219, 0.3);
+        }
+
+        .file-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .file-header svg {
+            width: 16px;
+            height: 16px;
+            fill: #3498db;
+            flex-shrink: 0;
+        }
+
+        .file-name {
+            font-size: 12px;
+            color: #bdc3c7;
+            flex: 1;
+            word-break: break-all;
+        }
+
+        /* Image preview in file list */
+        .file-preview {
+            width: 100%;
+            max-height: 150px;
+            object-fit: contain;
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 8px;
+        }
+
+        .file-preview:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+        }
+
+        /* Loading Spinner */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Toast Notification System */
+        .toast {
+            position: fixed;
+            top: 100px;
+            right: 30px;
+            background: rgba(35, 47, 62, 0.98);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 10000;
+            animation: slideInRight 0.4s ease-out;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            max-width: 400px;
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(100px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .toast.success {
+            border-left: 4px solid #10b981;
+        }
+
+        .toast.error {
+            border-left: 4px solid #ef4444;
+        }
+
+        .toast.warning {
+            border-left: 4px solid #f39c12;
+        }
+
+        .toast-icon {
+            width: 24px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
+        .toast-message {
+            flex: 1;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        /* Feedback Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .modal-content {
+            background: linear-gradient(145deg, rgba(30, 40, 54,0.98) 0%, rgba(35, 47, 62, 0.98) 50%, rgba(40, 52, 67, 0.98) 100%);
             padding: 45px 40px;
             border-radius: 24px;
             max-width: 500px;
@@ -1023,7 +1023,7 @@
                 padding: 0 10px 10px 10px;
             }
 
-            .sidebar {
+            .sidebar {.sidebar {
                 position: absolute;
                 left: 10px;
                 top: 89px;
@@ -1187,6 +1187,9 @@
     </div>
 
     <script>
+        // ============================================
+        // GLOBAL VARIABLES
+        // ============================================
         let sessionId = `session_${Date.now()}`;
         let isRecording = false;
         let recognition = null;
@@ -1195,11 +1198,153 @@
         let isSpeaking = false;
         let userHasFeedback = false;
         let selectedRating = 0;
+        
+        // ⭐ NEW: Inactivity and conversation flow variables
         let inactivityTimer = null;
         let waitingForMoreQuestionsResponse = false;
+        let waitingForUploadResponse = false;
         let sessionEnded = false;
-        let awaitingFileUpload = false; // NEW: Block timer until file is uploaded
+        let awaitingFileUpload = false;
+        let consecutiveNoCount = 0;
+        let lastAnalysis = null;
 
+        // ============================================
+        // GREETING & GOODBYE DETECTION
+        // ============================================
+        
+        // ⭐ NEW: Greeting detection function
+        function isGreeting(message) {
+            const greetings = ['hello', 'hi', 'hii', 'hey', 'good morning', 'good afternoon', 'good evening', 'greetings', 'hai'];
+            const lowerMessage = message.toLowerCase().trim();
+            return greetings.some(greeting => lowerMessage === greeting || lowerMessage.startsWith(greeting));
+        }
+
+        // ⭐ NEW: Goodbye detection function
+        function isGoodbye(message) {
+            const goodbyes = ['bye', 'goodbye', 'see you', 'farewell', 'take care', 'exit', 'quit'];
+            const lowerMessage = message.toLowerCase().trim();
+            return goodbyes.some(goodbye => lowerMessage.includes(goodbye));
+        }
+
+        // ⭐ NEW: Acknowledgment detection function
+        function isAcknowledgment(message) {
+            const acknowledgments = [
+                'ok', 'okay', 'okey', 'oke', 'k',
+                'nice', 'good', 'great', 'excellent', 'awesome', 'perfect', 'cool', 'fine',
+                'thanks', 'thank you', 'thankyou', 'thx', 'ty',
+                'alright', 'got it', 'understood', 'i see', 'i understand',
+                'yes', 'yeah', 'yep', 'yup', 'sure', 'of course',
+                'no', 'nope', 'nah', 'not needed', 'no need', 'no thanks'
+            ];
+            
+            const questionWords = [
+                'what', 'why', 'how', 'when', 'where', 'who', 'which', 'can', 'could', 
+                'would', 'should', 'is', 'are', 'does', 'do', 'analyze', 'explain', 
+                'tell', 'show', 'describe'
+            ];
+            
+            const normalized = message.toLowerCase().trim().replace(/[',\.]/g, '');
+            const words = normalized.split(/\s+/);
+            
+            // Check if it's an acknowledgment
+            const isAck = (
+                acknowledgments.includes(normalized) ||
+                (words.length <= 3 && acknowledgments.some(ack => normalized.includes(ack)))
+            );
+            
+            // Check if it contains question words
+            const hasQuestionWord = questionWords.some(qw => normalized.includes(qw));
+            
+            return isAck && !hasQuestionWord;
+        }
+
+        // ============================================
+        // INACTIVITY TIMER FUNCTIONS
+        // ============================================
+        
+        // ⭐ NEW: Start inactivity timer
+        function startInactivityTimer() {
+            if (inactivityTimer) {
+                clearInterval(inactivityTimer);
+                inactivityTimer = null;
+            }
+            
+            // Don't start if awaiting file upload or in waiting state
+            if (waitingForMoreQuestionsResponse || 
+                waitingForUploadResponse || 
+                sessionEnded || 
+                awaitingFileUpload) {
+                console.log('Timer blocked - awaiting file upload or in waiting state');
+                return;
+            }
+            
+            console.log('Starting 7-second inactivity timer...');
+            
+            // Check with backend for idle status every 2 seconds
+            inactivityTimer = setInterval(async () => {
+                try {
+                    const response = await fetch('/check_idle', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ session_id: sessionId })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.is_idle && 
+                        !waitingForMoreQuestionsResponse && 
+                        !waitingForUploadResponse &&
+                        !sessionEnded && 
+                        !awaitingFileUpload) {
+                        console.log('Inactivity detected - showing prompt');
+                        stopInactivityTimer();
+                        handleInactivity();
+                    }
+                } catch (error) {
+                    console.error('Error checking idle status:', error);
+                }
+            }, 2000); // Check every 2 seconds
+        }
+        
+        // ⭐ NEW: Stop inactivity timer
+        function stopInactivityTimer() {
+            if (inactivityTimer) {
+                clearInterval(inactivityTimer);
+                inactivityTimer = null;
+                console.log('Inactivity timer stopped');
+            }
+        }
+        
+        // ⭐ NEW: Handle inactivity
+        function handleInactivity() {
+            const messagesDiv = document.getElementById('chatMessages');
+            const hasMessages = messagesDiv.querySelectorAll('.message').length > 0;
+            
+            if (hasMessages && 
+                !waitingForMoreQuestionsResponse && 
+                !waitingForUploadResponse &&
+                !sessionEnded && 
+                !awaitingFileUpload) {
+                console.log('Inactivity detected - showing prompt');
+                waitingForMoreQuestionsResponse = true;
+                addMessage('Do you have any more questions?', false, false);
+            }
+        }
+
+        // ⭐ NEW: Open file upload and block timer
+        function openFileUpload() {
+            console.log('Opening file upload dialog');
+            stopInactivityTimer();
+            awaitingFileUpload = true; // Block timer until file is uploaded
+            document.getElementById('fileInput').click();
+        }
+
+        // ============================================
+        // SPEECH RECOGNITION & TTS
+        // ============================================
+        
         // Initialize speech recognition
         if ('webkitSpeechRecognition' in window) {
             recognition = new webkitSpeechRecognition();
@@ -1221,71 +1366,6 @@
             recognition.onend = function() {
                 stopRecording();
             };
-        }
-
-        // Timer functions
-        function startInactivityTimer() {
-            if (inactivityTimer) {
-                clearInterval(inactivityTimer);
-                inactivityTimer = null;
-            }
-            
-            // CRITICAL: Don't start if awaiting file upload
-            if (waitingForMoreQuestionsResponse || sessionEnded || awaitingFileUpload) {
-                console.log('Timer blocked - awaiting file upload or in waiting state');
-                return;
-            }
-            
-            console.log('Starting inactivity timer...');
-            
-            // Check with backend for idle status
-            inactivityTimer = setInterval(async () => {
-                try {
-                    const response = await fetch('/check_idle', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ session_id: sessionId })
-                    });
-                    
-                    const data = await response.json();
-                    
-                    if (data.is_idle && !waitingForMoreQuestionsResponse && !sessionEnded && !awaitingFileUpload) {
-                        console.log('Inactivity detected - showing prompt');
-                        stopInactivityTimer();
-                        handleInactivity();
-                    }
-                } catch (error) {
-                    console.error('Error checking idle status:', error);
-                }
-            }, 2000); // Check every 2 seconds
-        }
-        
-        function stopInactivityTimer() {
-            if (inactivityTimer) {
-                clearInterval(inactivityTimer);
-                inactivityTimer = null;
-                console.log('Inactivity timer stopped');
-            }
-        }
-        
-        function handleInactivity() {
-            const messagesDiv = document.getElementById('chatMessages');
-            const hasMessages = messagesDiv.querySelectorAll('.message').length > 0;
-            
-            if (hasMessages && !waitingForMoreQuestionsResponse && !sessionEnded && !awaitingFileUpload) {
-                console.log('Inactivity detected - showing prompt');
-                waitingForMoreQuestionsResponse = true;
-                addMessage('Do you have any more questions?', false, false);
-            }
-        }
-
-        function openFileUpload() {
-            console.log('Opening file upload dialog');
-            stopInactivityTimer();
-            awaitingFileUpload = true; // NEW: Block timer
-            document.getElementById('fileInput').click();
         }
 
         // Initialize TTS
@@ -1421,6 +1501,10 @@
             speechSynthesis.speak(utterance);
         }
 
+        // ============================================
+        // UI FUNCTIONS
+        // ============================================
+        
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             sidebar.classList.toggle('collapsed');
@@ -1440,7 +1524,7 @@
                 isRecording = true;
             }
             
-            stopInactivityTimer();
+            stopInactivityTimer(); // Stop timer when user interacts
         }
 
         function stopRecording() {
@@ -1453,17 +1537,131 @@
                 event.preventDefault();
                 sendMessage(false);
             }
-            stopInactivityTimer();
+            stopInactivityTimer(); // Stop timer when user types
         }
 
+        // ============================================
+        // MESSAGE SENDING WITH INTEGRATED LOGIC
+        // ============================================
+        
         async function sendMessage(isVoiceInput = false) {
             const input = document.getElementById('messageInput');
             const message = input.value.trim();
 
             if (!message) return;
 
-            stopInactivityTimer();
+            stopInactivityTimer(); // Stop timer when sending message
 
+            const lowerMessage = message.toLowerCase();
+
+            // ⭐ NEW: Handle "Do you have any more questions?" response
+            if (waitingForMoreQuestionsResponse) {
+                addMessage(message, true);
+                input.value = '';
+                
+                // Check for negative responses
+                const negativeResponses = ['no', 'nope', 'nah', 'not really', 'no thanks', 'not needed'];
+                const isNegative = negativeResponses.some(neg => lowerMessage.includes(neg));
+                
+                if (isNegative) {
+                    consecutiveNoCount++;
+                    
+                    if (consecutiveNoCount >= 2) {
+                        // End session after 2 consecutive "no"s
+                        waitingForMoreQuestionsResponse = false;
+                        sessionEnded = true;
+                        const finalMessage = 'Thank you for using HR Assistant! Have a great day!';
+                        addMessage(finalMessage, false, false);
+                        setTimeout(() => {
+                            document.getElementById('feedbackModal').classList.add('active');
+                        }, 1500);
+                        return;
+                    } else {
+                        // Ask if they want to upload a different file
+                        waitingForMoreQuestionsResponse = false;
+                        waitingForUploadResponse = true;
+                        addMessage('Would you like to upload different documents? (yes/no)', false, false);
+                        return;
+                    }
+                } else if (lowerMessage.includes('yes')) {
+                    waitingForMoreQuestionsResponse = false;
+                    consecutiveNoCount = 0;
+                    addMessage('Please go ahead with your question.', false, false);
+                    startInactivityTimer();
+                    return;
+                } else {
+                    // Continue with the question
+                    waitingForMoreQuestionsResponse = false;
+                    consecutiveNoCount = 0;
+                    // Fall through to normal processing
+                }
+            }
+            // ⭐ NEW: Handle "Would you like to upload different documents?" response
+            else if (waitingForUploadResponse) {
+                addMessage(message, true);
+                input.value = '';
+                
+                if (lowerMessage.includes('yes')) {
+                    waitingForUploadResponse = false;
+                    consecutiveNoCount = 0;
+                    openFileUpload();
+                    addMessage('Please upload your documents using the upload area in the sidebar.', false, false);
+                    return;
+                } else {
+                    // End session
+                    waitingForUploadResponse = false;
+                    sessionEnded = true;
+                    const finalMessage = 'Thank you for using HR Assistant! Have a great day!';
+                    addMessage(finalMessage, false, false);
+                    setTimeout(() => {
+                        document.getElementById('feedbackModal').classList.add('active');
+                    }, 1500);
+                    return;
+                }
+            }
+            // ⭐ NEW: Handle greetings
+            else if (isGreeting(message)) {
+                addMessage(message, true);
+                input.value = '';
+                const greetingResponse = 'Hello! How can I assist you with HR documents and policies today?';
+                addMessage(greetingResponse, false, isVoiceInput);
+                startInactivityTimer();
+                return;
+            }
+            // ⭐ NEW: Handle goodbyes
+            else if (isGoodbye(message)) {
+                addMessage(message, true);
+                input.value = '';
+                stopInactivityTimer();
+                sessionEnded = true;
+                const goodbyeResponse = 'Thank you for using HR Assistant! We hope to see you again soon.';
+                addMessage(goodbyeResponse, false, false);
+                setTimeout(() => {
+                    document.getElementById('feedbackModal').classList.add('active');
+                }, 1500);
+                return;
+            }
+            // ⭐ NEW: Handle acknowledgments
+            else if (isAcknowledgment(message) && lastAnalysis) {
+                addMessage(message, true);
+                input.value = '';
+                
+                // Simple acknowledgment response
+                let ackResponse;
+                if (lowerMessage.includes('no')) {
+                    ackResponse = "Understood. Let me know if you need anything else.";
+                } else if (lowerMessage.includes('yes')) {
+                    ackResponse = "What specific aspect would you like me to elaborate on?";
+                } else {
+                    ackResponse = "You're welcome! Feel free to ask if you need anything else.";
+                }
+                
+                addMessage(ackResponse, false, false);
+                startInactivityTimer();
+                return;
+            }
+
+            // Normal message processing
             addMessage(message, true);
             input.value = '';
 
@@ -1490,15 +1688,19 @@
                 } else {
                     addMessage(data.response, false, isVoiceInput);
                     
+                    // Store last analysis
+                    lastAnalysis = data.response;
+                    consecutiveNoCount = 0;
+                    
                     // Add video cards if available
                     if (data.relevant_videos && data.relevant_videos.length > 0) {
                         addVideoCards(data.relevant_videos);
                     }
                     
-                    // Start timer after response
+                    // ⭐ NEW: Start timer after response
                     startInactivityTimer();
                     
-                    // Show feedback modal if session ended
+                    // ⭐ NEW: Show feedback modal if session ended
                     if (data.session_ended || data.trigger_feedback) {
                         stopInactivityTimer();
                         sessionEnded = true;
@@ -1523,7 +1725,7 @@
                 videoCard.onclick = () => window.open(video.url, '_blank');
                 
                 videoCard.innerHTML = `
-                    <h4>🎹 ${video.filename}</h4>
+                    <h4>🎥 ${video.filename}</h4>
                     <p>${video.transcript_excerpt}${video.transcript_excerpt.length >= 200 ? '...' : ''}</p>
                     ${video.description ? `<p><em>${video.description}</em></p>` : ''}
                 `;
@@ -1726,7 +1928,10 @@
             }, 3000);
         }
 
-        // Image Modal Functions
+        // ============================================
+        // IMAGE MODAL FUNCTIONS
+        // ============================================
+        
         function openImageModal(imageSrc) {
             const modal = document.getElementById('imageModal');
             const modalImg = document.getElementById('modalImage');
@@ -1739,7 +1944,11 @@
             modal.classList.remove('active');
         }
 
-        // Star Rating Functions
+        // ============================================
+        // FEEDBACK MODAL FUNCTIONS
+        // ============================================
+        
+        // Star Rating Event Listeners
         document.querySelectorAll('.star').forEach(star => {
             star.addEventListener('mouseenter', function() {
                 const rating = parseInt(this.getAttribute('data-rating'));
@@ -1855,8 +2064,10 @@
             }
         }
 
-        // File Upload
-        // File Upload
+        // ============================================
+        // FILE UPLOAD FUNCTIONS
+        // ============================================
+        
         document.getElementById('fileInput').addEventListener('change', async (e) => {
             const files = e.target.files;
             
@@ -1864,7 +2075,7 @@
             
             if (files.length === 0) {
                 console.log('No files selected - user cancelled');
-                awaitingFileUpload = false; // Reset flag
+                awaitingFileUpload = false; // ⭐ Reset flag
                 return;
             }
 
@@ -1887,7 +2098,7 @@
                 if (data.success) {
                     updateFileList(data.files, data.images);
                     
-                    // ⭐ NEW: Update document count in sidebar
+                    // ⭐ Update document count in sidebar
                     if (data.document_count_message) {
                         document.getElementById('kbStatus').textContent = data.document_count_message;
                     } else {
@@ -1899,7 +2110,7 @@
                     
                     showToast(data.message, 'success');
                     
-                    // CRITICAL: Unblock timer after successful upload
+                    // ⭐ CRITICAL: Unblock timer after successful upload
                     awaitingFileUpload = false;
                     console.log('File uploaded - starting timer');
                     startInactivityTimer();
@@ -1915,6 +2126,7 @@
 
             e.target.value = '';
         });
+
         function updateFileList(files, images = []) {
             const fileListDiv = document.getElementById('fileList');
             
@@ -1983,6 +2195,11 @@
             }
         }
 
+        // ============================================
+        // EXPORT FUNCTIONS
+        // ============================================
+        
+        // ⭐ UPDATED: Export Chat with error handling
         async function exportChat() {
             try {
                 showToast('Generating PDF...', 'success');
@@ -1998,7 +2215,6 @@
                 const data = await response.json();
                 
                 if (!response.ok) {
-                    // Show user-friendly error message
                     const errorMsg = data.error || `Server error: ${response.status}`;
                     showToast(errorMsg, 'error');
                     console.error('Export error details:', data);
@@ -2032,6 +2248,8 @@
                 showToast(`Export failed: ${error.message}`, 'error');
             }
         }
+
+        // ⭐ UPDATED: Clear Chat
         async function clearChat() {
             if (!confirm('Are you sure you want to clear the chat history? Preloaded documents will remain available.')) return;
 
@@ -2057,13 +2275,17 @@
                         </div>
                     `;
                     
-                    // ⭐ NEW: Update document count after clearing
+                    // ⭐ Update document count after clearing
                     if (data.document_count_message) {
                         document.getElementById('kbStatus').textContent = data.document_count_message;
                     }
                     
+                    // ⭐ Reset conversation state
                     sessionEnded = false;
                     waitingForMoreQuestionsResponse = false;
+                    waitingForUploadResponse = false;
+                    consecutiveNoCount = 0;
+                    lastAnalysis = null;
                     stopInactivityTimer();
                     
                     showToast('Chat cleared successfully', 'success');
@@ -2074,6 +2296,7 @@
             }
         }
         
+        // ⭐ UPDATED: Export Feedback
         async function exportFeedback() {
             if (!userHasFeedback) {
                 showToast('Please submit feedback before exporting', 'warning');
@@ -2094,7 +2317,6 @@
                 const data = await response.json();
         
                 if (!response.ok) {
-                    // Show user-friendly error message
                     const errorMsg = data.error || `Server error: ${response.status}`;
                     showToast(errorMsg, 'error');
                     console.error('Feedback export error details:', data);
@@ -2122,6 +2344,10 @@
             }
         }
 
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        
         async function initSession() {
             try {
                 const response = await fetch('/init_session', {
@@ -2136,7 +2362,6 @@
 
                 if (data.success) {
                     if (data.preloaded_files && data.preloaded_files.length > 0) {
-                        // ⭐ UPDATED: More descriptive message
                         const docCount = data.preloaded_files.length;
                         document.getElementById('kbStatus').textContent = 
                             `${docCount} document${docCount !== 1 ? 's' : ''} loaded. You can upload more documents to expand the collection.`;
@@ -2161,8 +2386,16 @@
             }
         }
 
-        // Initialize on page load
+        // ⭐ Initialize on page load
         window.addEventListener('load', () => {
+            console.log('🚀 HR Assistant with integrated features initialized');
+            console.log('✅ Greetings handling: ENABLED');
+            console.log('✅ Goodbyes handling: ENABLED');
+            console.log('✅ Acknowledgments handling: ENABLED');
+            console.log('✅ Inactivity timer (7s): ENABLED');
+            console.log('✅ Export feedback: ENABLED');
+            console.log('✅ Export chat: ENABLED');
+            
             initTTS();
             initSession();
         });
