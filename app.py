@@ -939,23 +939,48 @@ def submit_feedback():
         'feedback_submitted': True
     })
 
-@app.route('/export/json', methods=['POST'])
-def export_json():
-    """Export chat history as JSON"""
+# ============================================================================
+# FIXED FEEDBACK EXPORT ROUTE
+# ============================================================================
+
+@app.route('/export/feedback', methods=['POST'])
+def export_feedback():
+    """Export feedback as CSV - FIXED VERSION"""
     session_id = request.json.get('session_id', 'default')
     session = get_session(session_id)
     
-    chat_data = {
-        "export_info": {
-            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "total_messages": len(session['chat_history']),
-            "format": "HR Assistant JSON Export"
-        },
-        "chat_history": session['chat_history'],
-        "feedback": session['feedback_history']
-    }
+    if not session['feedback_history']:
+        return jsonify({
+            'success': False,
+            'error': 'No feedback data available'
+        }), 400
     
-    return jsonify(chat_data)
+    try:
+        # Create CSV content manually (no external library needed)
+        csv_lines = []
+        csv_lines.append('Timestamp,Rating,Comment')
+        
+        for feedback in session['feedback_history']:
+            timestamp = feedback.get('timestamp', '')
+            rating = feedback.get('rating', '')
+            comment = feedback.get('comment', '').replace('"', '""')  # Escape quotes
+            
+            csv_lines.append(f'"{timestamp}",{rating},"{comment}"')
+        
+        csv_content = '\n'.join(csv_lines)
+        
+        return jsonify({
+            'success': True,
+            'csv_data': csv_content,
+            'filename': f'hr_feedback_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+        })
+    
+    except Exception as e:
+        print(f"Feedback export error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 @app.route('/export/pdf', methods=['POST'])
 def export_pdf():
@@ -1203,4 +1228,5 @@ if __name__ == '__main__':
     
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+
 
