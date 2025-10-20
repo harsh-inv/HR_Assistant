@@ -408,7 +408,7 @@ def preload_documents():
     all_text = ""
     loaded_files = []
     
-    if not os.path.exists(DOCUMEfNTS_FOLDER):
+    if not os.path.exists(DOCUMENTS_FOLDER):
         print(f"Documents folder not found: {DOCUMENTS_FOLDER}")
         return None, []
     
@@ -1209,6 +1209,7 @@ if __name__ == '__main__':
     
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+
 
 
 
