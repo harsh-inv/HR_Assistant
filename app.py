@@ -239,13 +239,53 @@ def get_session(session_id):
 def is_greeting(message):
     """Detect if message is a greeting"""
     greetings = [
-        'hello', 'hi', 'hii', 'hey', 'howdy','Hello',
+        'hello', 'hi', 'hii', 'hey', 'howdy', 'Hello',
         'good morning', 'good afternoon', 'good evening', 
         'greetings', 'hai', 'hey there', 'hiya'
     ]
     lower_message = message.lower().strip()
     return any(greeting == lower_message or lower_message.startswith(greeting + ' ') 
                for greeting in greetings)
+
+def is_goodbye(message):
+    """Detect if message is a goodbye"""
+    goodbyes = ['bye', 'goodbye', 'see you', 'farewell', 'take care', 'exit', 'quit']
+    lower_message = message.lower().strip()
+    return any(goodbye in lower_message for goodbye in goodbyes)
+
+def is_acknowledgment(message):
+    """Detect if message is just an acknowledgment (saves API costs!)"""
+    acknowledgments = [
+        'ok', 'okay', 'okey', 'oke', 'k',
+        'nice', 'good', 'great', 'excellent', 'awesome', 'perfect', 'cool', 'fine',
+        'thanks', 'thank you', 'thankyou', 'thx', 'ty',
+        'alright', 'got it', 'understood', 'i see', 'i understand',
+        'yes', 'yeah', 'yep', 'yup', 'sure', 'of course'
+    ]
+    
+    # Also include negative responses
+    negative_responses = [
+        'no', 'nope', 'nah', 'not needed', 'no need', 'no thanks',
+        'not really', 'im good', "i'm good", 'all good', 'thats all',
+        "that's all", 'nothing else', 'nothing more'
+    ]
+    acknowledgments.extend(negative_responses)
+    
+    normalized = message.lower().strip().replace("'", "").replace(",", "").replace(".", "")
+    
+    # Check if it's an acknowledgment AND not a question
+    question_words = [
+        'what', 'why', 'how', 'when', 'where', 'who', 'which', 'can', 'could',
+        'would', 'should', 'is', 'are', 'does', 'do', 'tell', 'show', 'explain', 'describe'
+    ]
+    
+    is_ack = (
+        normalized in acknowledgments or
+        (len(normalized.split()) <= 3 and any(ack in normalized for ack in acknowledgments))
+    ) and not any(qw in normalized for qw in question_words)
+    
+    return is_ack
+
 
 def detect_query_type(message):
     """Categorize query to provide contextual help"""
@@ -676,7 +716,7 @@ def chat():
     normalized_message = message.lower().strip().replace("'", "").replace(",", "").replace(".", "")
     
     # ========================================================================
-    # GREETING DETECTION
+    # GREETING DETECTION (Priority 1)
     # ========================================================================
     if is_greeting(message):
         greeting_response = "Hello! I'm your HR Assistant. How can I help you today? You can ask about policies, benefits, leave procedures, or any HR-related questions."
@@ -693,7 +733,7 @@ def chat():
         })
     
     # ========================================================================
-    # NEGATIVE RESPONSE TRACKING
+    # NEGATIVE RESPONSE TRACKING (Priority 2)
     # ========================================================================
     negative_responses = [
         'no', 'nope', 'nah', 'not needed', 'no need', 'no thanks',
@@ -726,10 +766,9 @@ def chat():
         })
     
     # ========================================================================
-    # GOODBYE DETECTION
+    # GOODBYE DETECTION (Priority 3)
     # ========================================================================
-    goodbye_phrases = ['bye', 'goodbye', 'exit', 'quit', 'end', 'see you', 'farewell', 'take care']
-    if any(phrase in normalized_message for phrase in goodbye_phrases):
+    if is_goodbye(message):
         response = "Thank you for using HR Assistant! Have a great day! 👋"
         session['chat_history'].append({
             'message': response,
@@ -745,27 +784,9 @@ def chat():
         })
     
     # ========================================================================
-    # ACKNOWLEDGMENT DETECTION (saves API costs!)
+    # ACKNOWLEDGMENT DETECTION (Priority 4 - Saves API costs!)
     # ========================================================================
-    acknowledgments = [
-        'ok', 'okay', 'okey', 'oke', 'k',
-        'nice', 'good', 'great', 'excellent', 'awesome', 'perfect', 'cool', 'fine',
-        'thanks', 'thank you', 'thankyou', 'thx', 'ty',
-        'alright', 'got it', 'understood', 'i see', 'i understand',
-        'yes', 'yeah', 'yep', 'yup', 'sure', 'of course'
-    ]
-    acknowledgments.extend(negative_responses)
-    
-    is_acknowledgment = (
-        normalized_message in acknowledgments or
-        (len(normalized_message.split()) <= 3 and any(ack in normalized_message for ack in acknowledgments))
-    ) and not any(question_word in normalized_message for question_word in [
-        'what', 'why', 'how', 'when', 'where', 'who', 'which', 'can', 'could',
-        'would', 'should', 'is', 'are', 'does', 'do', 'tell', 'show', 'explain', 'describe'
-    ])
-    
-    # If it's just an acknowledgment, give a brief response (saves API call!)
-    if is_acknowledgment and session['last_analysis']:
+    if is_acknowledgment(message) and session.get('last_analysis'):
         if 'no' in normalized_message or 'not' in normalized_message:
             brief_response = "Understood. Let me know if you need anything else."
         elif 'yes' in normalized_message:
@@ -848,7 +869,7 @@ def chat():
                 'error': 'Please upload documents or videos first',
                 'response': 'I don\'t have any documents or videos to reference. Please upload some documents or ask me to help you get started.'
             }), 400
-
+            
 @app.route('/check_idle', methods=['POST'])
 def check_idle():
     """Check if user has been inactive (dual-threshold timer)"""
@@ -1182,3 +1203,4 @@ if __name__ == '__main__':
     
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+
