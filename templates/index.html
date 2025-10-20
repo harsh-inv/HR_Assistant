@@ -1995,12 +1995,15 @@
                     body: JSON.stringify({ session_id: sessionId })
                 });
         
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || `Server error: ${response.status}`);
-                }
-        
                 const data = await response.json();
+                
+                if (!response.ok) {
+                    // Show user-friendly error message
+                    const errorMsg = data.error || `Server error: ${response.status}`;
+                    showToast(errorMsg, 'error');
+                    console.error('Export error details:', data);
+                    return;
+                }
                 
                 if (data.success) {
                     const byteCharacters = atob(data.pdf_data);
@@ -2020,9 +2023,9 @@
                     document.body.removeChild(a);
                     URL.revokeObjectURL(url);
                     
-                    showToast('Chat exported as PDF successfully', 'success');
+                    showToast(`Chat exported successfully (${data.message_count} messages)`, 'success');
                 } else {
-                    throw new Error(data.error || 'Export failed');
+                    showToast(data.error || 'Export failed', 'error');
                 }
             } catch (error) {
                 console.error('Export error:', error);
@@ -2073,7 +2076,7 @@
         
         async function exportFeedback() {
             if (!userHasFeedback) {
-                showToast('No feedback data available', 'error');
+                showToast('Please submit feedback before exporting', 'warning');
                 return;
             }
         
@@ -2088,12 +2091,15 @@
                     body: JSON.stringify({ session_id: sessionId })
                 });
         
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || `Server error: ${response.status}`);
-                }
-        
                 const data = await response.json();
+        
+                if (!response.ok) {
+                    // Show user-friendly error message
+                    const errorMsg = data.error || `Server error: ${response.status}`;
+                    showToast(errorMsg, 'error');
+                    console.error('Feedback export error details:', data);
+                    return;
+                }
         
                 if (data.success) {
                     const blob = new Blob([data.csv_data], { type: 'text/csv' });
@@ -2106,9 +2112,9 @@
                     document.body.removeChild(a);
                     URL.revokeObjectURL(url);
         
-                    showToast('Feedback exported successfully', 'success');
+                    showToast(`Feedback exported successfully (${data.feedback_count} entries)`, 'success');
                 } else {
-                    throw new Error(data.error || 'Export failed');
+                    showToast(data.error || 'Export failed', 'error');
                 }
             } catch (error) {
                 console.error('Feedback export error:', error);
