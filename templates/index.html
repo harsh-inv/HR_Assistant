@@ -1205,7 +1205,8 @@
     
 <script>   
 
-    // ============================================================================
+<script>   
+// ============================================================================
 // SESSION VARIABLES
 // ============================================================================
 let sessionId = `session_${Date.now()}`;
@@ -1691,7 +1692,7 @@ function addLoadingMessage() {
 
     messageDiv.innerHTML = `
         <div class="message-avatar bot-avatar">
-            <img src="/static/HR-chat-icon.png" alt="Assistant" onerror="this.textContent='🤖'">
+            <img src="/static/HR-chat-icon.png" alt="Assistant" onerror="this.parentElement.textContent='🤖'">
         </div>
         <div class="message-content">
             <div class="loading"></div>
@@ -1889,6 +1890,9 @@ function closeImageModal() {
     modal.classList.remove('active');
 }
 
+// ============================================================================
+// FEEDBACK MODAL FUNCTIONS
+// ============================================================================
 function showFeedbackModal() {
     const modal = document.getElementById('feedbackModal');
     if (modal) {
@@ -1896,7 +1900,11 @@ function showFeedbackModal() {
         selectedRating = 0;
         updateStars(0);
         document.getElementById('feedbackComment').value = '';
-        document.getElementById('ratingLabel').textContent = '';
+        const ratingLabel = document.getElementById('ratingLabel');
+        if (ratingLabel) {
+            ratingLabel.textContent = '';
+            ratingLabel.classList.remove('active');
+        }
     }
 }
 
@@ -1907,7 +1915,11 @@ function closeFeedbackModal() {
         selectedRating = 0;
         document.getElementById('feedbackComment').value = '';
         updateStars(0);
-        document.getElementById('ratingLabel').textContent = '';
+        const ratingLabel = document.getElementById('ratingLabel');
+        if (ratingLabel) {
+            ratingLabel.textContent = '';
+            ratingLabel.classList.remove('active');
+        }
     }
 }
 
@@ -1983,154 +1995,6 @@ async function submitFeedback() {
     }
 }
 
-// Star Rating Event Listeners - Initialize on DOM load
-document.addEventListener('DOMContentLoaded', function() {
-    const stars = document.querySelectorAll('.star');
-    const ratingLabels = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
-    
-    stars.forEach(star => {
-        star.addEventListener('mouseenter', function() {
-            const rating = parseInt(this.getAttribute('data-rating'));
-            updateStars(rating);
-            document.getElementById('ratingLabel').textContent = ratingLabels[rating];
-            document.getElementById('ratingLabel').classList.add('active');
-            document.getElementById('ratingLabel').style.color = '#7f8c8d';
-        });
-
-        star.addEventListener('click', function() {
-            selectedRating = parseInt(this.getAttribute('data-rating'));
-            updateStars(selectedRating);
-            document.getElementById('ratingLabel').textContent = ratingLabels[selectedRating];
-            document.getElementById('ratingLabel').classList.add('active');
-            document.getElementById('ratingLabel').style.color = '#7f8c8d';
-            
-            stars.forEach((s, idx) => {
-                if (idx < selectedRating) {
-                    s.style.transform = 'scale(1.3)';
-                    setTimeout(() => { s.style.transform = 'scale(1.1)'; }, 200);
-                }
-            });
-        });
-    });
-
-    const starRating = document.querySelector('.star-rating');
-    if (starRating) {
-        starRating.addEventListener('mouseleave', () => {
-            if (selectedRating > 0) {
-                updateStars(selectedRating);
-                document.getElementById('ratingLabel').textContent = ratingLabels[selectedRating];
-                document.getElementById('ratingLabel').classList.add('active');
-            } else {
-                updateStars(0);
-                document.getElementById('ratingLabel').classList.remove('active');
-            }
-        });
-    }
-});
-// Star Rating Functions
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.star').forEach(star => {
-        star.addEventListener('mouseenter', function() {
-            const rating = parseInt(this.getAttribute('data-rating'));
-            updateStars(rating);
-            const ratingLabels = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
-            document.getElementById('ratingLabel').textContent = ratingLabels[rating];
-            document.getElementById('ratingLabel').classList.add('active');
-        });
-
-        star.addEventListener('click', function() {
-            selectedRating = parseInt(this.getAttribute('data-rating'));
-            updateStars(selectedRating);
-            const ratingLabels = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
-            document.getElementById('ratingLabel').textContent = ratingLabels[selectedRating];
-            document.getElementById('ratingLabel').classList.add('active');
-            
-            document.querySelectorAll('.star').forEach((s, idx) => {
-                if (idx < selectedRating) {
-                    s.style.transform = 'scale(1.3)';
-                    setTimeout(() => { s.style.transform = 'scale(1.1)'; }, 200);
-                }
-            });
-        });
-    });
-
-    const starRating = document.querySelector('.star-rating');
-    if (starRating) {
-        starRating.addEventListener('mouseleave', () => {
-            if (selectedRating > 0) {
-                updateStars(selectedRating);
-                const ratingLabels = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
-                document.getElementById('ratingLabel').textContent = ratingLabels[selectedRating];
-                document.getElementById('ratingLabel').classList.add('active');
-            } else {
-                updateStars(0);
-                document.getElementById('ratingLabel').classList.remove('active');
-            }
-        });
-    }
-});
-
-function updateStars(rating) {
-    document.querySelectorAll('.star').forEach((star, index) => {
-        if (index < rating) {
-            star.classList.add('active');
-        } else {
-            star.classList.remove('active');
-        }
-    });
-}
-
-async function submitFeedback() {
-    if (selectedRating === 0) {
-        const ratingLabel = document.getElementById('ratingLabel');
-        ratingLabel.textContent = 'Please select a rating';
-        ratingLabel.style.color = '#e74c3c';
-        ratingLabel.classList.add('active');
-        ratingLabel.style.fontWeight = '600';
-        
-        const stars = document.querySelectorAll('.star');
-        stars.forEach(star => {
-            star.style.animation = 'shake 0.5s';
-            setTimeout(() => { star.style.animation = ''; }, 500);
-        });
-        
-        return;
-    }
-
-    const comment = document.getElementById('feedbackComment').value.trim();
-
-    try {
-        const response = await fetch('/feedback', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                session_id: sessionId,
-                rating: selectedRating,
-                comment: comment
-            })
-        });
-
-        const data = await response.json();
-        if (data.success) {
-            showToast('Thank you for your feedback!', 'success');
-            document.getElementById('feedbackStatus').textContent = `Last rating: ${selectedRating}/5`;
-            userHasFeedback = true;
-            
-            const exportBtn = document.getElementById('exportFeedbackBtn');
-            exportBtn.disabled = false;
-            exportBtn.style.display = 'block';
-            
-            closeFeedbackModal();
-        }
-    } catch (error) {
-        console.error('Feedback error:', error);
-        showToast('Failed to submit feedback', 'error');
-    }
-}
-
-
 document.addEventListener('DOMContentLoaded', function() {
     const fileInput = document.getElementById('fileInput');
     if (fileInput) {
@@ -2190,6 +2054,61 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             e.target.value = '';
+        });
+    }
+    
+    // Initialize star rating listeners
+    const stars = document.querySelectorAll('.star');
+    const ratingLabels = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
+    
+    stars.forEach(star => {
+        star.addEventListener('mouseenter', function() {
+            const rating = parseInt(this.getAttribute('data-rating'));
+            updateStars(rating);
+            const ratingLabel = document.getElementById('ratingLabel');
+            if (ratingLabel) {
+                ratingLabel.textContent = ratingLabels[rating];
+                ratingLabel.classList.add('active');
+                ratingLabel.style.color = '#7f8c8d';
+            }
+        });
+
+        star.addEventListener('click', function() {
+            selectedRating = parseInt(this.getAttribute('data-rating'));
+            updateStars(selectedRating);
+            const ratingLabel = document.getElementById('ratingLabel');
+            if (ratingLabel) {
+                ratingLabel.textContent = ratingLabels[selectedRating];
+                ratingLabel.classList.add('active');
+                ratingLabel.style.color = '#7f8c8d';
+            }
+            
+            stars.forEach((s, idx) => {
+                if (idx < selectedRating) {
+                    s.style.transform = 'scale(1.3)';
+                    setTimeout(() => { s.style.transform = 'scale(1.1)'; }, 200);
+                }
+            });
+        });
+    });
+
+    const starRating = document.querySelector('.star-rating');
+    if (starRating) {
+        starRating.addEventListener('mouseleave', () => {
+            if (selectedRating > 0) {
+                updateStars(selectedRating);
+                const ratingLabel = document.getElementById('ratingLabel');
+                if (ratingLabel) {
+                    ratingLabel.textContent = ratingLabels[selectedRating];
+                    ratingLabel.classList.add('active');
+                }
+            } else {
+                updateStars(0);
+                const ratingLabel = document.getElementById('ratingLabel');
+                if (ratingLabel) {
+                    ratingLabel.classList.remove('active');
+                }
+            }
         });
     }
 });
@@ -2262,6 +2181,9 @@ function getFileIcon(filename) {
     }
 }
 
+// ============================================================================
+// EXPORT FUNCTIONS
+// ============================================================================
 async function exportChat() {
     try {
         showToast('Generating PDF...', 'success');
@@ -2303,6 +2225,48 @@ async function exportChat() {
         showToast('Export failed', 'error');
     }
 }
+
+async function exportFeedback() {
+    if (!userHasFeedback) {
+        showToast('No feedback data available', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch('/export/feedback', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ session_id: sessionId })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            const blob = new Blob([data.csv_data], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = data.filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showToast('Feedback exported', 'success');
+        } else {
+            showToast('No feedback data available', 'error');
+        }
+    } catch (error) {
+        console.error('Feedback export error:', error);
+        showToast('Export failed', 'error');
+    }
+}
+
+// ============================================================================
+// CLEAR CHAT FUNCTIONS
+// ============================================================================
 async function clearChat() {
     if (!confirm('Are you sure you want to clear the chat history? Preloaded documents will remain available.')) return;
 
@@ -2378,44 +2342,9 @@ async function clearChatAndPromptUpload() {
     }
 }
 
-async function exportFeedback() {
-    if (!userHasFeedback) {
-        showToast('No feedback data available', 'error');
-        return;
-    }
-
-    try {
-        const response = await fetch('/export/feedback', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ session_id: sessionId })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            const blob = new Blob([data.csv_data], { type: 'text/csv' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = data.filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-
-            showToast('Feedback exported', 'success');
-        } else {
-            showToast('No feedback data available', 'error');
-        }
-    } catch (error) {
-        console.error('Feedback export error:', error);
-        showToast('Export failed', 'error');
-    }
-}
-
+// ============================================================================
+// SESSION INITIALIZATION
+// ============================================================================
 async function initSession() {
     try {
         const response = await fetch('/init_session', {
@@ -2443,8 +2372,10 @@ async function initSession() {
             if (data.feedback_submitted) {
                 userHasFeedback = true;
                 const exportBtn = document.getElementById('exportFeedbackBtn');
-                exportBtn.disabled = false;
-                exportBtn.style.display = 'block';
+                if (exportBtn) {
+                    exportBtn.disabled = false;
+                    exportBtn.style.display = 'block';
+                }
             }
         }
     } catch (error) {
@@ -2462,6 +2393,6 @@ window.addEventListener('load', () => {
     initSession();
     console.log('HR Assistant initialized successfully');
 });
-            </script>
+</script>
 </body>
 </html>
