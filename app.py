@@ -245,24 +245,22 @@ def is_greeting(message):
         'good morning', 'good afternoon', 'good evening', 
         'greetings', 'hai', 'hey there', 'hiya'
     ]
-    # Remove ALL trailing punctuation for comparison
-    import re
-    lower_message = message.lower().strip()
-    # Remove trailing punctuation: . , ! ? ; :
-    lower_message = re.sub(r'[.,!?;:]+$', '', lower_message)
     
-    # Check for exact match or starts with greeting + space
+    # Remove trailing punctuation and convert to lowercase
+    lower_message = re.sub(r'[.,!?;:]+$', '', message.lower().strip())
+    
     return any(
-        greeting == lower_message or 
-        lower_message.startswith(greeting + ' ')
+        lower_message == greeting or lower_message.startswith(greeting + ' ')
         for greeting in greetings
     )
+
 
 def is_goodbye(message):
     """Detect if message is a goodbye"""
     goodbyes = ['bye', 'goodbye', 'see you', 'farewell', 'take care', 'exit', 'quit']
     lower_message = message.lower().strip()
     return any(goodbye in lower_message for goodbye in goodbyes)
+
 
 def is_acknowledgment(message):
     """Detect if message is just an acknowledgment - handles punctuation like 'okay.' 'nice.'"""
@@ -274,7 +272,6 @@ def is_acknowledgment(message):
         'yes', 'yeah', 'yep', 'yup', 'sure', 'of course'
     ]
     
-    # Also include negative responses
     negative_responses = [
         'no', 'nope', 'nah', 'not needed', 'no need', 'no thanks',
         'not really', 'im good', "i'm good", 'all good', 'thats all',
@@ -283,12 +280,8 @@ def is_acknowledgment(message):
     acknowledgments.extend(negative_responses)
     
     # Remove ALL punctuation for comparison
-    import re
-    normalized = message.lower().strip()
-    # Remove all punctuation
-    normalized = re.sub(r'[.,!?;:\'"]+', '', normalized)
+    normalized = re.sub(r'[.,!?;:\'"]+', '', message.lower().strip())
     
-    # Check if it's an acknowledgment AND not a question
     question_words = [
         'what', 'why', 'how', 'when', 'where', 'who', 'which', 'can', 'could',
         'would', 'should', 'is', 'are', 'does', 'do', 'tell', 'show', 'explain', 'describe'
@@ -731,7 +724,7 @@ def chat():
     # Normalize message (remove punctuation for comparison)
     import re
     normalized_message = message.lower().strip()
-    normalized_message = re.sub(r'[.,!?;:\'"]+', '', normalized_message)
+    normalized_message = re.sub(r'[.,!?;:\'"]+', '', message.lower().strip()))
     
     # ========================================================================
     # PRIORITY 1: GREETING DETECTION (Must be FIRST!)
@@ -1196,4 +1189,5 @@ if __name__ == '__main__':
     print("=" * 60 + "\n")
     
     app.run(debug=True, host='0.0.0.0', port=5000)
+
 
