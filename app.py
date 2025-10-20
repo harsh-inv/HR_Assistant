@@ -408,7 +408,7 @@ def preload_documents():
     all_text = ""
     loaded_files = []
     
-    if not os.path.exists(DOCUMENTS_FOLDER):
+    if not os.path.exists(DOCUMEfNTS_FOLDER):
         print(f"Documents folder not found: {DOCUMENTS_FOLDER}")
         return None, []
     
@@ -923,19 +923,18 @@ def submit_feedback():
     comment = request.json.get('comment', '')
     session = get_session(session_id)
     
-    feedback_data = {
+    feedback_entry = {
         'rating': rating,
         'comment': comment,
         'timestamp': datetime.now().isoformat()
     }
     
-    session['feedback_history'].append(feedback_data)
+    session['feedback_history'].append(feedback_entry)
     session['feedback_submitted'] = True
     session['last_interaction'] = time.time()
     
     return jsonify({
         'success': True,
-        'message': 'Thank you for your feedback!',
         'feedback_submitted': True
     })
 
@@ -943,45 +942,27 @@ def submit_feedback():
 # FIXED FEEDBACK EXPORT ROUTE
 # ============================================================================
 
-@app.route('/export/feedback', methods=['POST'])
 def export_feedback():
-    """Export feedback as CSV - FIXED VERSION"""
+    """Export feedback as CSV"""
     session_id = request.json.get('session_id', 'default')
     session = get_session(session_id)
     
-    if not session['feedback_history']:
-        return jsonify({
-            'success': False,
-            'error': 'No feedback data available'
-        }), 400
-    
-    try:
-        # Create CSV content manually (no external library needed)
-        csv_lines = []
-        csv_lines.append('Timestamp,Rating,Comment')
-        
-        for feedback in session['feedback_history']:
-            timestamp = feedback.get('timestamp', '')
-            rating = feedback.get('rating', '')
-            comment = feedback.get('comment', '').replace('"', '""')  # Escape quotes
-            
-            csv_lines.append(f'"{timestamp}",{rating},"{comment}"')
-        
-        csv_content = '\n'.join(csv_lines)
+    if session['feedback_history']:
+        csv_data = "Timestamp,Rating,Comment\n"
+        for fb in session['feedback_history']:
+            csv_data += f"{fb['timestamp']},{fb['rating']},\"{fb['comment']}\"\n"
         
         return jsonify({
             'success': True,
-            'csv_data': csv_content,
-            'filename': f'hr_feedback_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+            'csv_data': csv_data,
+            'filename': f'feedback_{session_id}.csv'
         })
-    
-    except Exception as e:
-        print(f"Feedback export error: {e}")
+    else:
         return jsonify({
             'success': False,
-            'error': str(e)
-        }), 500
-
+            'error': 'No feedback data available'
+        })
+        
 @app.route('/export/pdf', methods=['POST'])
 def export_pdf():
     """Export chat as PDF"""
@@ -1228,5 +1209,6 @@ if __name__ == '__main__':
     
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+
 
 
