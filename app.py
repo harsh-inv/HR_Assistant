@@ -238,15 +238,21 @@ def get_session(session_id):
     return sessions[session_id]
 
 def is_greeting(message):
-    """Detect if message is a greeting"""
+    """Detect if message is a greeting - handles punctuation"""
     greetings = [
-        'hello', 'hi', 'hii', 'hey', 'howdy', 'Hello',
+        'hello', 'hi', 'hii', 'hey', 'howdy',
         'good morning', 'good afternoon', 'good evening', 
         'greetings', 'hai', 'hey there', 'hiya'
     ]
-    lower_message = message.lower().strip()
-    return any(greeting == lower_message or lower_message.startswith(greeting + ' ') 
-               for greeting in greetings)
+    # Remove punctuation for comparison
+    lower_message = message.lower().strip().rstrip('.,!?;:')
+    
+    # Check for exact match or starts with greeting
+    return any(
+        greeting == lower_message or 
+        lower_message.startswith(greeting + ' ')
+        for greeting in greetings
+    )
 
 def is_goodbye(message):
     """Detect if message is a goodbye"""
@@ -255,7 +261,7 @@ def is_goodbye(message):
     return any(goodbye in lower_message for goodbye in goodbyes)
 
 def is_acknowledgment(message):
-    """Detect if message is just an acknowledgment (saves API costs!)"""
+    """Detect if message is just an acknowledgment - handles punctuation"""
     acknowledgments = [
         'ok', 'okay', 'okey', 'oke', 'k',
         'nice', 'good', 'great', 'excellent', 'awesome', 'perfect', 'cool', 'fine',
@@ -272,7 +278,8 @@ def is_acknowledgment(message):
     ]
     acknowledgments.extend(negative_responses)
     
-    normalized = message.lower().strip().replace("'", "").replace(",", "").replace(".", "")
+    # Remove all punctuation for comparison
+    normalized = message.lower().strip().replace("'", "").replace(",", "").replace(".", "").replace("!", "").replace("?", "")
     
     # Check if it's an acknowledgment AND not a question
     question_words = [
@@ -544,7 +551,7 @@ def init_session():
         session['uploaded_files'] = preloaded_files.copy()
         print(f"✓ Session {session_id} initialized with {len(preloaded_files)} preloaded documents")
     
-    # ⭐ NEW: Calculate total counts
+    # Calculate total counts
     total_documents = len(session['uploaded_files'])
     total_images = len(session.get('uploaded_images', []))
     
@@ -553,9 +560,10 @@ def init_session():
         'preloaded_files': preloaded_files,
         'message': f'{len(preloaded_files)} documents ready' if preloaded_files else 'No preloaded documents',
         'feedback_submitted': session['feedback_submitted'],
-        'total_documents': total_documents,  # ⭐ NEW
-        'total_images': total_images,        # ⭐ NEW
+        'total_documents': total_documents,
+        'total_images': total_images,
     })
+
 @app.route('/upload', methods=['POST'])
 def upload_files():
     """Handle file uploads (documents, videos, images)"""
@@ -635,7 +643,7 @@ def upload_files():
     session['last_interaction'] = upload_time
     session['upload_completed_time'] = upload_time
     
-    # ⭐ NEW: Calculate total document count
+    # Calculate total document count
     total_documents = len(session['uploaded_files'])
     total_images = len(session['uploaded_images'])
     
@@ -645,10 +653,11 @@ def upload_files():
         'images': processed_images,
         'message': f'Successfully processed {len(processed_files) + len(processed_images)} file(s)',
         'upload_completed_time': upload_time,
-        'total_documents': total_documents,  # ⭐ NEW
-        'total_images': total_images,        # ⭐ NEW
-        'document_count_message': f'{total_documents} document{"s" if total_documents != 1 else ""} loaded. You can upload more documents to expand the collection.'  # ⭐ NEW
+        'total_documents': total_documents,
+        'total_images': total_images,
+        'document_count_message': f'{total_documents} document{"s" if total_documents != 1 else ""} loaded. You can upload more documents to expand the collection.'
     })
+
 @app.route('/upload_video', methods=['POST'])
 def upload_video():
     """Handle video uploads with optional descriptions"""
@@ -713,11 +722,11 @@ def chat():
         'timestamp': datetime.now().isoformat()
     })
     
-    # Normalize message
-    normalized_message = message.lower().strip().replace("'", "").replace(",", "").replace(".", "")
+    # Normalize message (remove punctuation for comparison)
+    normalized_message = message.lower().strip().replace("'", "").replace(",", "").replace(".", "").replace("!", "").replace("?", "")
     
     # ========================================================================
-    # GREETING DETECTION (Priority 1)
+    # GREETING DETECTION (Priority 1) - Now handles "Hello." with punctuation
     # ========================================================================
     if is_greeting(message):
         greeting_response = "Hello! I'm your HR Assistant. How can I help you today? You can ask about policies, benefits, leave procedures, or any HR-related questions."
@@ -776,8 +785,7 @@ def chat():
             'is_user': False,
             'timestamp': datetime.now().isoformat()
         })
-        return jsonify({
-            'response': response,
+        return jsonify({'response': response,
             'is_voice_input': is_voice_input,
             'session_ended': True,
             'trigger_feedback': True,
@@ -786,6 +794,7 @@ def chat():
     
     # ========================================================================
     # ACKNOWLEDGMENT DETECTION (Priority 4 - Saves API costs!)
+    # Now handles "okay." and "nice." with punctuation
     # ========================================================================
     if is_acknowledgment(message) and session.get('last_analysis'):
         if 'no' in normalized_message or 'not' in normalized_message:
@@ -1061,14 +1070,15 @@ def clear_session():
             'feedback_submitted': False
         }
     
-    # ⭐ NEW: Return updated counts
+    # Return updated counts
     total_documents = len(preloaded_files)
     
     return jsonify({
         'success': True,
-        'total_documents': total_documents,  # ⭐ NEW
-        'document_count_message': f'{total_documents} document{"s" if total_documents != 1 else ""} loaded. You can upload more documents to expand the collection.'  # ⭐ NEW
+        'total_documents': total_documents,
+        'document_count_message': f'{total_documents} document{"s" if total_documents != 1 else ""} loaded. You can upload more documents to expand the collection.'
     })
+
 @app.route('/feedback/stats', methods=['GET'])
 def feedback_stats():
     """Get feedback statistics"""
@@ -1126,9 +1136,10 @@ def status():
             'Inactivity Detection',
             'Feedback Collection',
             'PDF/CSV Export',
-            'Greeting Detection',
-            'Acknowledgment Handling',
-            'Query Type Detection'
+            'Greeting Detection (with punctuation)',
+            'Acknowledgment Handling (with punctuation)',
+            'Query Type Detection',
+            'Consecutive No Detection'
         ]
     })
 
@@ -1160,21 +1171,16 @@ if __name__ == '__main__':
     print(f"🔑 OpenAI API: {'✓ Configured' if OPENAI_API_KEY else '✗ Not configured'}")
     print("=" * 60)
     print("\n✨ Enhanced Features:")
-    print("   • Smart greeting detection")
-    print("   • Acknowledgment handling (saves API costs)")
+    print("   • Smart greeting detection (handles 'Hello.' with punctuation)")
+    print("   • Acknowledgment handling (handles 'okay.' 'nice.' with punctuation)")
     print("   • Consecutive 'no' detection")
     print("   • Dual-threshold inactivity timer")
     print("   • Query type detection")
     print("   • Image preview support")
     print("   • Video transcription & search")
     print("   • Enhanced feedback system")
+    print("   • PDF export with chat history")
+    print("   • CSV feedback export")
     print("=" * 60 + "\n")
     
-if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
-
-
-
-
-
-
