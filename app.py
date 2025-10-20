@@ -39,7 +39,7 @@ try:
     from langchain.chains.combine_documents import create_stuff_documents_chain
     from langchain_core.prompts import ChatPromptTemplate
 except ImportError:
-    print("Please install: pip install langchain langchain-openai langchain-community faiss-cpu")
+    print("Please install: langchain langchain-openai langchain-community faiss-cpu")
 
 # PDF export
 try:
@@ -58,18 +58,16 @@ app.config['SECRET_KEY'] = 'your-secret-key-here'
 
 # Persistent disk configuration
 PERSISTENT_DISK = os.environ.get('PERSISTENT_DISK_PATH', '/opt/render/project/src')
-DOCUMENTS_FOLDER = os.path.join(PERSISTENT_DISK, 'documents')  # Preloaded documents
+DOCUMENTS_FOLDER = os.path.join(PERSISTENT_DISK, 'documents')
 app.config['UPLOAD_FOLDER'] = os.path.join(PERSISTENT_DISK, 'uploads')
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB
 
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 
-# Validate that the key exists
 if not OPENAI_API_KEY:
-    raise ValueError("OPENAI_API_KEY environment variable is not set. Please configure it in Render dashboard.")
+    raise ValueError("OPENAI_API_KEY environment variable is not set.")
 
 os.environ['OPENAI_API_KEY'] = OPENAI_API_KEY
-
 
 # Create directories
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -80,7 +78,7 @@ ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'doc'}
 ALLOWED_VIDEO_EXTENSIONS = {'mp4', 'avi', 'mov', 'mkv', 'webm'}
 ALLOWED_IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'}
 
-# Session storage (in production, use Redis or database)
+# Session storage
 sessions = {}
 
 class VideoIndex:
@@ -212,10 +210,10 @@ def get_session(session_id):
         sessions[session_id] = {
             'vectorstore': None,
             'conversation_chain': None,
-            'chat_history': [],  # ⭐ Ensure this is always a list
+            'chat_history': [],
             'uploaded_files': [],
             'uploaded_images': [],
-            'feedback_history': [],  # ⭐ Ensure this is always a list
+            'feedback_history': [],
             'consecutive_no_count': 0,
             'last_analysis': None,
             'awaiting_followup': False,
@@ -224,7 +222,7 @@ def get_session(session_id):
             'feedback_submitted': False
         }
     
-    # ⭐ CRITICAL: Ensure chat_history and feedback_history exist
+    # Ensure critical lists exist
     if 'chat_history' not in sessions[session_id]:
         sessions[session_id]['chat_history'] = []
     if 'feedback_history' not in sessions[session_id]:
@@ -499,7 +497,6 @@ def init_session():
         session['uploaded_files'] = preloaded_files.copy()
         print(f"✓ Session {session_id} initialized with {len(preloaded_files)} preloaded documents")
     
-    # ⭐ NEW: Calculate total counts
     total_documents = len(session['uploaded_files'])
     total_images = len(session.get('uploaded_images', []))
     
@@ -508,8 +505,8 @@ def init_session():
         'preloaded_files': preloaded_files,
         'message': f'{len(preloaded_files)} documents ready' if preloaded_files else 'No preloaded documents',
         'feedback_submitted': session['feedback_submitted'],
-        'total_documents': total_documents,  # ⭐ NEW
-        'total_images': total_images,        # ⭐ NEW
+        'total_documents': total_documents,
+        'total_images': total_images,
     })
     
 @app.route('/upload', methods=['POST'])
@@ -591,7 +588,6 @@ def upload_files():
     session['last_interaction'] = upload_time
     session['upload_completed_time'] = upload_time
     
-    # ⭐ NEW: Calculate total document count
     total_documents = len(session['uploaded_files'])
     total_images = len(session['uploaded_images'])
     
@@ -601,9 +597,9 @@ def upload_files():
         'images': processed_images,
         'message': f'Successfully processed {len(processed_files) + len(processed_images)} file(s)',
         'upload_completed_time': upload_time,
-        'total_documents': total_documents,  # ⭐ NEW
-        'total_images': total_images,        # ⭐ NEW
-        'document_count_message': f'{total_documents} document{"s" if total_documents != 1 else ""} loaded. You can upload more documents to expand the collection.'  # ⭐ NEW
+        'total_documents': total_documents,
+        'total_images': total_images,
+        'document_count_message': f'{total_documents} document{"s" if total_documents != 1 else ""} loaded. You can upload more documents to expand the collection.'
     })
     
 @app.route('/upload_video', methods=['POST'])
@@ -940,17 +936,17 @@ def export_pdf():
     data = request.json
     session_id = data.get('session_id', 'default')
     
-    # ⭐ Ensure session exists
+    # Ensure session exists
     if session_id not in sessions:
         return jsonify({
             'success': False,
             'error': 'Session not found. Please start a conversation first.'
         }), 404
     
-    # ⭐ Get messages safely
-    messages = sessions[session_id].get('messages', [])
+    # Get messages safely
+    chat_history = sessions[session_id].get('chat_history', [])
     
-    if not messages or len(messages) == 0:
+    if not chat_history or len(chat_history) == 0:
         return jsonify({
             'success': False,
             'error': 'No chat history found. Please have a conversation before exporting.'
@@ -998,29 +994,29 @@ def export_pdf():
         story = []
         
         # Title
-        story.append(Paragraph("Image/Audio Assistant - Chat Export", title_style))
+        story.append(Paragraph("HR Assistant - Chat Export", title_style))
         story.append(Spacer(1, 0.2 * inch))
         
         # Add export info
-        export_info = f"Exported: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}<br/>Messages: {len(messages)}"
+        export_info = f"Exported: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}<br/>Messages: {len(chat_history)}"
         story.append(Paragraph(export_info, bot_style))
         story.append(Spacer(1, 0.2 * inch))
         
         # Add messages
-        for idx, msg in enumerate(messages):
+        for idx, msg in enumerate(chat_history):
             try:
-                role = msg.get('role', 'user')
-                content = msg.get('content', '')
+                is_user = msg.get('is_user', False)
+                content = msg.get('message', '')
                 
                 # Truncate very long messages
                 if len(content) > 2000:
                     content = content[:2000] + '... (truncated)'
                 
                 # Clean content
-                content = html.escape(content)
+                content = html_module.escape(content)
                 content = content.replace('**', '').replace('*', '')
                 
-                if role == 'user':
+                if is_user:
                     story.append(Paragraph(f"<b>You:</b> {content}", user_style))
                 else:
                     story.append(Paragraph(f"<b>Assistant:</b> {content}", bot_style))
@@ -1041,7 +1037,7 @@ def export_pdf():
             'success': True,
             'pdf_data': pdf_data,
             'filename': pdf_filename,
-            'message_count': len(messages)
+            'message_count': len(chat_history)
         })
         
     except Exception as e:
@@ -1060,15 +1056,15 @@ def export_feedback():
     data = request.json
     session_id = data.get('session_id', 'default')
     
-    # ⭐ Ensure session exists
+    # Ensure session exists
     if session_id not in sessions:
         return jsonify({
             'success': False,
             'error': 'Session not found.'
         }), 404
     
-    # ⭐ Get feedback safely
-    feedback = sessions[session_id].get('feedback', [])
+    # Get feedback safely
+    feedback = sessions[session_id].get('feedback_history', [])
     
     if not feedback or len(feedback) == 0:
         return jsonify({
@@ -1119,14 +1115,14 @@ def clear_session():
             'feedback_submitted': False
         }
     
-    # ⭐ NEW: Return updated counts
     total_documents = len(preloaded_files)
     
     return jsonify({
         'success': True,
-        'total_documents': total_documents,  # ⭐ NEW
-        'document_count_message': f'{total_documents} document{"s" if total_documents != 1 else ""} loaded. You can upload more documents to expand the collection.'  # ⭐ NEW
+        'total_documents': total_documents,
+        'document_count_message': f'{total_documents} document{"s" if total_documents != 1 else ""} loaded. You can upload more documents to expand the collection.'
     })
+
 @app.route('/feedback/stats', methods=['GET'])
 def feedback_stats():
     """Get feedback statistics"""
@@ -1181,11 +1177,13 @@ def status():
             'Video Transcription & Search',
             'Image Upload & Preview',
             'Voice Input/Output',
-            'Inactivity Detection',
+            'Inactivity Detection (7s/10s dual threshold)',
             'Feedback Collection',
             'PDF/CSV Export',
             'Greeting Detection',
+            'Goodbye Detection',
             'Acknowledgment Handling',
+            'Consecutive No Tracking',
             'Query Type Detection'
         ]
     })
@@ -1218,18 +1216,16 @@ if __name__ == '__main__':
     print(f"🔑 OpenAI API: {'✓ Configured' if OPENAI_API_KEY else '✗ Not configured'}")
     print("=" * 60)
     print("\n✨ Enhanced Features:")
-    print("   • Smart greeting detection")
-    print("   • Acknowledgment handling (saves API costs)")
-    print("   • Consecutive 'no' detection")
-    print("   • Dual-threshold inactivity timer")
-    print("   • Query type detection")
-    print("   • Image preview support")
-    print("   • Video transcription & search")
-    print("   • Enhanced feedback system")
+    print("   • ✅ Smart greeting detection")
+    print("   • ✅ Goodbye detection with feedback trigger")
+    print("   • ✅ Acknowledgment handling (saves API costs)")
+    print("   • ✅ Consecutive 'no' detection (ends after 2)")
+    print("   • ✅ Dual-threshold inactivity timer (7s/10s)")
+    print("   • ✅ Query type detection")
+    print("   • ✅ Image preview support")
+    print("   • ✅ Video transcription & search")
+    print("   • ✅ Enhanced feedback system with CSV export")
+    print("   • ✅ PDF chat export")
     print("=" * 60 + "\n")
     
-if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
-
-
-
