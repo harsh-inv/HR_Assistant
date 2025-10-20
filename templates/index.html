@@ -1994,7 +1994,12 @@
                     },
                     body: JSON.stringify({ session_id: sessionId })
                 });
-
+        
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `Server error: ${response.status}`);
+                }
+        
                 const data = await response.json();
                 
                 if (data.success) {
@@ -2017,14 +2022,13 @@
                     
                     showToast('Chat exported as PDF successfully', 'success');
                 } else {
-                    showToast('Export failed: ' + data.error, 'error');
+                    throw new Error(data.error || 'Export failed');
                 }
             } catch (error) {
                 console.error('Export error:', error);
-                showToast('Export failed', 'error');
+                showToast(`Export failed: ${error.message}`, 'error');
             }
         }
-
         async function clearChat() {
             if (!confirm('Are you sure you want to clear the chat history? Preloaded documents will remain available.')) return;
 
@@ -2066,13 +2070,16 @@
                 showToast('Clear failed', 'error');
             }
         }
+        
         async function exportFeedback() {
             if (!userHasFeedback) {
                 showToast('No feedback data available', 'error');
                 return;
             }
-
+        
             try {
+                showToast('Exporting feedback...', 'success');
+                
                 const response = await fetch('/export/feedback', {
                     method: 'POST',
                     headers: {
@@ -2080,9 +2087,14 @@
                     },
                     body: JSON.stringify({ session_id: sessionId })
                 });
-
+        
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `Server error: ${response.status}`);
+                }
+        
                 const data = await response.json();
-
+        
                 if (data.success) {
                     const blob = new Blob([data.csv_data], { type: 'text/csv' });
                     const url = URL.createObjectURL(blob);
@@ -2093,14 +2105,14 @@
                     a.click();
                     document.body.removeChild(a);
                     URL.revokeObjectURL(url);
-
-                    showToast('Feedback exported', 'success');
+        
+                    showToast('Feedback exported successfully', 'success');
                 } else {
-                    showToast('No feedback data available', 'error');
+                    throw new Error(data.error || 'Export failed');
                 }
             } catch (error) {
                 console.error('Feedback export error:', error);
-                showToast('Export failed', 'error');
+                showToast(`Export failed: ${error.message}`, 'error');
             }
         }
 
