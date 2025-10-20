@@ -53,6 +53,10 @@ except ImportError:
     print("ReportLab not available for PDF export")
     PDF_EXPORT_AVAILABLE = False
 
+# ============================================================================
+# FLASK APP CONFIGURATION
+# ============================================================================
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 
@@ -77,11 +81,18 @@ os.makedirs(DOCUMENTS_FOLDER, exist_ok=True)
 # Allowed extensions
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'doc'}
 ALLOWED_VIDEO_EXTENSIONS = {'mp4', 'avi', 'mov', 'mkv', 'webm'}
+ALLOWED_IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'}
 
 # Session storage (in production, use Redis or database)
 sessions = {}
 
+# ============================================================================
+# VIDEO INDEX CLASS
+# ============================================================================
+
 class VideoIndex:
+    """Handles video transcription and semantic search"""
+    
     def __init__(self):
         self.embeddings = OpenAIEmbeddings()
         self.video_metadata = {}
@@ -202,13 +213,19 @@ class VideoIndex:
 video_index = VideoIndex()
 video_index.load_index()
 
+# ============================================================================
+# SESSION MANAGEMENT
+# ============================================================================
+
 def get_session(session_id):
+    """Get or create a session"""
     if session_id not in sessions:
         sessions[session_id] = {
             'vectorstore': None,
             'conversation_chain': None,
             'chat_history': [],
             'uploaded_files': [],
+            'uploaded_images': [],
             'feedback_history': [],
             'consecutive_no_count': 0,
             'last_analysis': None,
@@ -219,9 +236,51 @@ def get_session(session_id):
         }
     return sessions[session_id]
 
-# ---------- Document Processing Functions ----------
+def is_greeting(message):
+    """Detect if message is a greeting"""
+    greetings = [
+        'hello', 'hi', 'hii', 'hey', 'howdy','Hello',
+        'good morning', 'good afternoon', 'good evening', 
+        'greetings', 'hai', 'hey there', 'hiya'
+    ]
+    lower_message = message.lower().strip()
+    return any(greeting == lower_message or lower_message.startswith(greeting + ' ') 
+               for greeting in greetings)
+
+def detect_query_type(message):
+    """Categorize query to provide contextual help"""
+    msg_lower = message.lower()
+    
+    if any(word in msg_lower for word in ['leave', 'pto', 'vacation', 'sick', 'time off', 'absence']):
+        return 'leave_policy'
+    elif any(word in msg_lower for word in ['benefit', 'insurance', 'health', '401k', 'dental', 'medical']):
+        return 'benefits'
+    elif any(word in msg_lower for word in ['payroll', 'salary', 'pay', 'direct deposit', 'compensation']):
+        return 'payroll'
+    elif any(word in msg_lower for word in ['onboarding', 'new hire', 'orientation', 'first day']):
+        return 'onboarding'
+    elif any(word in msg_lower for word in ['performance', 'review', 'evaluation', 'appraisal']):
+        return 'performance'
+    elif any(word in msg_lower for word in ['remote', 'work from home', 'wfh', 'hybrid']):
+        return 'remote_work'
+    elif any(word in msg_lower for word in ['training', 'course', 'learning', 'development']):
+        return 'training'
+    elif any(word in msg_lower for word in ['grievance', 'complaint', 'issue', 'concern']):
+        return 'grievance'
+    elif any(word in msg_lower for word in ['policy', 'handbook', 'guidelines', 'rules']):
+        return 'policy'
+    else:
+        return 'general'
+
+# ============================================================================
+# DOCUMENT PROCESSING FUNCTIONS
+# ============================================================================
+
 def extract_pdf_text(pdf_file):
+    """Extract text from PDF using multiple methods"""
     text = ""
+    
+    # Try PyMuPDF first (most reliable)
     try:
         pdf_bytes = pdf_file.read()
         pdf_file.seek(0)
@@ -243,6 +302,7 @@ def extract_pdf_text(pdf_file):
     except:
         pass
     
+    # Fallback to pdfplumber
     try:
         pdf_file.seek(0)
         with pdfplumber.open(pdf_file) as pdf:
@@ -259,6 +319,7 @@ def extract_pdf_text(pdf_file):
     return text if text.strip() else "Could not extract text from PDF"
 
 def extract_docx_text(docx_file):
+    """Extract text from DOCX file"""
     try:
         doc = Document(docx_file)
         return "\n".join([para.text for para in doc.paragraphs if para.text.strip()])
@@ -266,6 +327,7 @@ def extract_docx_text(docx_file):
         return "Error reading DOCX file"
 
 def extract_txt_text(txt_file):
+    """Extract text from TXT file"""
     try:
         return txt_file.read().decode('utf-8')
     except:
@@ -276,6 +338,7 @@ def extract_txt_text(txt_file):
             return "Error reading TXT file"
 
 def process_file(uploaded_file, filename):
+    """Process uploaded file based on type"""
     file_ext = filename.lower().split('.')[-1]
     
     # Handle video files
@@ -283,6 +346,12 @@ def process_file(uploaded_file, filename):
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(filename))
         uploaded_file.save(filepath)
         return f"Video file saved: {filename}"
+    
+    # Handle image files
+    if file_ext in ALLOWED_IMAGE_EXTENSIONS:
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(filename))
+        uploaded_file.save(filepath)
+        return f"Image file saved: {filename}"
     
     # Handle document files
     if file_ext == 'pdf':
@@ -310,7 +379,7 @@ def preload_documents():
             try:
                 with open(filepath, 'rb') as f:
                     text = process_file(f, filename)
-                    if text and not text.startswith("Error") and not text.startswith("Video"):
+                    if text and not text.startswith("Error") and not text.startswith("Video") and not text.startswith("Image"):
                         all_text += f"\n\n--- {filename} ---\n{text}"
                         loaded_files.append(filename)
                         print(f"✓ Loaded document: {filename}")
@@ -334,7 +403,9 @@ def preload_documents():
     return None, []
 
 def create_chain(vectorstore):
+    """Create RAG chain with custom prompt"""
     retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
+    
     prompt = ChatPromptTemplate.from_template("""You are an HR Assistant for Invenio Business Solutions. Answer questions ONLY using the provided context from HR policy documents.
 
 Context: {context}
@@ -398,6 +469,7 @@ CRITICAL INSTRUCTIONS:
 - If info is missing, be specific about what's missing and suggest contacting HR
 
 Answer:""")
+    
     llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.3)
     document_chain = create_stuff_documents_chain(llm, prompt)
     return create_retrieval_chain(retriever, document_chain)
@@ -409,9 +481,13 @@ print("=" * 60)
 preloaded_vectorstore, preloaded_files = preload_documents()
 print("=" * 60)
 
-# ---------- Routes ----------
+# ============================================================================
+# ROUTES
+# ============================================================================
+
 @app.route('/')
 def index():
+    """Render main page"""
     return render_template('index.html')
 
 @app.route('/init_session', methods=['POST'])
@@ -427,15 +503,21 @@ def init_session():
         session['uploaded_files'] = preloaded_files.copy()
         print(f"✓ Session {session_id} initialized with {len(preloaded_files)} preloaded documents")
     
+    # ⭐ NEW: Calculate total counts
+    total_documents = len(session['uploaded_files'])
+    total_images = len(session.get('uploaded_images', []))
+    
     return jsonify({
         'success': True,
         'preloaded_files': preloaded_files,
         'message': f'{len(preloaded_files)} documents ready' if preloaded_files else 'No preloaded documents',
-        'feedback_submitted': session['feedback_submitted']
+        'feedback_submitted': session['feedback_submitted'],
+        'total_documents': total_documents,  # ⭐ NEW
+        'total_images': total_images,        # ⭐ NEW
     })
-
 @app.route('/upload', methods=['POST'])
 def upload_files():
+    """Handle file uploads (documents, videos, images)"""
     session_id = request.form.get('session_id', 'default')
     session = get_session(session_id)
     
@@ -445,24 +527,48 @@ def upload_files():
     files = request.files.getlist('files')
     all_text = ""
     processed_files = []
+    processed_images = []
     
     for file in files:
         if file.filename:
             filename = secure_filename(file.filename)
             file_ext = filename.lower().split('.')[-1]
             
+            # Handle image files separately
+            if file_ext in ALLOWED_IMAGE_EXTENSIONS:
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(filepath)
+                
+                # Read and encode as base64 for preview
+                with open(filepath, 'rb') as f:
+                    file_data = f.read()
+                base64_data = base64.b64encode(file_data).decode('utf-8')
+                
+                processed_images.append({
+                    'filename': filename,
+                    'base64': base64_data,
+                    'mimetype': f'image/{file_ext}'
+                })
+                session['uploaded_images'].append({
+                    'filename': filename,
+                    'path': filepath
+                })
+                continue
+            
+            # Handle video files
             if file_ext in ALLOWED_VIDEO_EXTENSIONS:
-                # Handle video file
                 filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 file.save(filepath)
                 processed_files.append(filename)
                 continue
             
+            # Handle document files
             text = process_file(file, filename)
-            if text and not text.startswith("Video file saved") and not text.startswith("Error"):
+            if text and not text.startswith("Video file saved") and not text.startswith("Image file saved") and not text.startswith("Error"):
                 all_text += f"\n\n--- {filename} ---\n{text}"
                 processed_files.append(filename)
     
+    # Process text documents into vector store
     if all_text:
         text_splitter = CharacterTextSplitter(
             separator="\n",
@@ -488,13 +594,20 @@ def upload_files():
     session['last_interaction'] = upload_time
     session['upload_completed_time'] = upload_time
     
+    # ⭐ NEW: Calculate total document count
+    total_documents = len(session['uploaded_files'])
+    total_images = len(session['uploaded_images'])
+    
     return jsonify({
         'success': True,
         'files': processed_files,
-        'message': f'Successfully processed {len(processed_files)} file(s)',
-        'upload_completed_time': upload_time
+        'images': processed_images,
+        'message': f'Successfully processed {len(processed_files) + len(processed_images)} file(s)',
+        'upload_completed_time': upload_time,
+        'total_documents': total_documents,  # ⭐ NEW
+        'total_images': total_images,        # ⭐ NEW
+        'document_count_message': f'{total_documents} document{"s" if total_documents != 1 else ""} loaded. You can upload more documents to expand the collection.'  # ⭐ NEW
     })
-
 @app.route('/upload_video', methods=['POST'])
 def upload_video():
     """Handle video uploads with optional descriptions"""
@@ -533,6 +646,7 @@ def serve_video(filename):
 
 @app.route('/chat', methods=['POST'])
 def chat():
+    """Handle chat messages with RAG and video search"""
     session_id = request.json.get('session_id', 'default')
     message = request.json.get('message', '')
     is_voice_input = request.json.get('is_voice_input', False)
@@ -561,10 +675,31 @@ def chat():
     # Normalize message
     normalized_message = message.lower().strip().replace("'", "").replace(",", "").replace(".", "")
     
-    # Check for negative/dismissive responses
-    negative_responses = ['no', 'nope', 'nah', 'not needed', 'no need', 'no thanks',
-                         'not really', 'im good', "i'm good", 'all good', 'thats all',
-                         "that's all", 'nothing else', 'nothing more']
+    # ========================================================================
+    # GREETING DETECTION
+    # ========================================================================
+    if is_greeting(message):
+        greeting_response = "Hello! I'm your HR Assistant. How can I help you today? You can ask about policies, benefits, leave procedures, or any HR-related questions."
+        session['chat_history'].append({
+            'message': greeting_response,
+            'is_user': False,
+            'timestamp': datetime.now().isoformat()
+        })
+        return jsonify({
+            'response': greeting_response,
+            'is_voice_input': is_voice_input,
+            'relevant_videos': [],
+            'query_type': 'greeting'
+        })
+    
+    # ========================================================================
+    # NEGATIVE RESPONSE TRACKING
+    # ========================================================================
+    negative_responses = [
+        'no', 'nope', 'nah', 'not needed', 'no need', 'no thanks',
+        'not really', 'im good', "i'm good", 'all good', 'thats all',
+        "that's all", 'nothing else', 'nothing more'
+    ]
     is_negative = any(neg in normalized_message for neg in negative_responses)
     
     # Track consecutive "no" responses
@@ -590,8 +725,11 @@ def chat():
             'relevant_videos': []
         })
     
-    # Check for goodbye
-    if normalized_message in ['bye', 'goodbye', 'exit', 'quit', 'end']:
+    # ========================================================================
+    # GOODBYE DETECTION
+    # ========================================================================
+    goodbye_phrases = ['bye', 'goodbye', 'exit', 'quit', 'end', 'see you', 'farewell', 'take care']
+    if any(phrase in normalized_message for phrase in goodbye_phrases):
         response = "Thank you for using HR Assistant! Have a great day! 👋"
         session['chat_history'].append({
             'message': response,
@@ -606,7 +744,9 @@ def chat():
             'relevant_videos': []
         })
     
-    # Check if this is an acknowledgment
+    # ========================================================================
+    # ACKNOWLEDGMENT DETECTION (saves API costs!)
+    # ========================================================================
     acknowledgments = [
         'ok', 'okay', 'okey', 'oke', 'k',
         'nice', 'good', 'great', 'excellent', 'awesome', 'perfect', 'cool', 'fine',
@@ -624,7 +764,7 @@ def chat():
         'would', 'should', 'is', 'are', 'does', 'do', 'tell', 'show', 'explain', 'describe'
     ])
     
-    # If it's just an acknowledgment, give a brief response
+    # If it's just an acknowledgment, give a brief response (saves API call!)
     if is_acknowledgment and session['last_analysis']:
         if 'no' in normalized_message or 'not' in normalized_message:
             brief_response = "Understood. Let me know if you need anything else."
@@ -641,13 +781,23 @@ def chat():
         return jsonify({
             'response': brief_response,
             'is_voice_input': is_voice_input,
-            'relevant_videos': []
+            'relevant_videos': [],
+            'is_acknowledgment': True
         })
     
-    # Search for relevant videos
+    # ========================================================================
+    # QUERY TYPE DETECTION
+    # ========================================================================
+    query_type = detect_query_type(message)
+    
+    # ========================================================================
+    # VIDEO SEARCH
+    # ========================================================================
     relevant_videos = video_index.search_relevant_videos(message, k=2)
     
-    # Get AI response from documents
+    # ========================================================================
+    # RAG RESPONSE GENERATION
+    # ========================================================================
     if session['conversation_chain']:
         try:
             result = session['conversation_chain'].invoke({'input': message})
@@ -655,6 +805,8 @@ def chat():
             
             # Store as last analysis
             session['last_analysis'] = response
+            session['awaiting_followup'] = True
+            
             session['chat_history'].append({
                 'message': response,
                 'is_user': False,
@@ -665,6 +817,7 @@ def chat():
             return jsonify({
                 'response': response,
                 'is_voice_input': is_voice_input,
+                'query_type': query_type,
                 'relevant_videos': [{
                     'filename': v['metadata']['path'].split('/')[-1],
                     'url': f"/video/{v['metadata']['path'].split('/')[-1]}",
@@ -691,11 +844,14 @@ def chat():
                 } for v in relevant_videos]
             })
         else:
-            return jsonify({'error': 'Please upload documents or videos first'}), 400
+            return jsonify({
+                'error': 'Please upload documents or videos first',
+                'response': 'I don\'t have any documents or videos to reference. Please upload some documents or ask me to help you get started.'
+            }), 400
 
 @app.route('/check_idle', methods=['POST'])
 def check_idle():
-    """Check if user has been inactive"""
+    """Check if user has been inactive (dual-threshold timer)"""
     data = request.json
     session_id = data.get('session_id')
     
@@ -708,8 +864,9 @@ def check_idle():
         # Calculate idle time
         idle_time = current_time - last_interaction
         
-        # If file was recently uploaded, use 10 second threshold
-        # Otherwise use 7 second threshold
+        # Dual-threshold system:
+        # - If file was recently uploaded: use 10 second threshold
+        # - Otherwise: use 7 second threshold
         if upload_completed_time and (current_time - upload_completed_time) < 15:
             idle_threshold = 10
         else:
@@ -721,21 +878,25 @@ def check_idle():
         if idle_time >= idle_threshold:
             return jsonify({
                 'is_idle': True,
-                'idle_time': idle_time
+                'idle_time': idle_time,
+                'threshold_used': idle_threshold
             })
         else:
             return jsonify({
                 'is_idle': False,
-                'idle_time': idle_time
+                'idle_time': idle_time,
+                'threshold_used': idle_threshold
             })
     else:
         return jsonify({
             'is_idle': False,
-            'idle_time': 0
+            'idle_time': 0,
+            'threshold_used': 7
         })
 
 @app.route('/feedback', methods=['POST'])
 def submit_feedback():
+    """Submit user feedback"""
     session_id = request.json.get('session_id', 'default')
     rating = request.json.get('rating')
     comment = request.json.get('comment', '')
@@ -759,6 +920,7 @@ def submit_feedback():
 
 @app.route('/export/json', methods=['POST'])
 def export_json():
+    """Export chat history as JSON"""
     session_id = request.json.get('session_id', 'default')
     session = get_session(session_id)
     
@@ -793,6 +955,7 @@ def export_pdf():
         doc = SimpleDocTemplate(pdf_path, pagesize=letter)
         styles = getSampleStyleSheet()
         
+        # Custom styles
         title_style = ParagraphStyle(
             'CustomTitle',
             parent=styles['Heading1'],
@@ -820,6 +983,7 @@ def export_pdf():
             spaceAfter=15
         )
         
+        # Build PDF content
         story = []
         story.append(Paragraph("HR Assistant - Chat Export", title_style))
         story.append(Spacer(1, 0.2 * inch))
@@ -831,11 +995,14 @@ def export_pdf():
                 content = msg['message'].replace('**', '')
                 story.append(Paragraph(f"<b>Assistant:</b> {html_module.escape(content)}", bot_style))
         
+        # Build PDF
         doc.build(story)
         
+        # Read PDF file
         with open(pdf_path, 'rb') as f:
             pdf_data = base64.b64encode(f.read()).decode('utf-8')
         
+        # Clean up
         os.remove(pdf_path)
         
         return jsonify({
@@ -850,6 +1017,7 @@ def export_pdf():
 
 @app.route('/export/feedback', methods=['POST'])
 def export_feedback():
+    """Export feedback as CSV"""
     session_id = request.json.get('session_id', 'default')
     session = get_session(session_id)
     
@@ -864,8 +1032,10 @@ def export_feedback():
     output = StringIO()
     writer = csv.writer(output)
     
+    # Write header
     writer.writerow(['Timestamp', 'Rating', 'Comment'])
     
+    # Write data
     for feedback in session['feedback_history']:
         writer.writerow([
             feedback['timestamp'],
@@ -882,6 +1052,7 @@ def export_feedback():
 
 @app.route('/clear', methods=['POST'])
 def clear_session():
+    """Clear chat history but keep preloaded documents"""
     session_id = request.json.get('session_id', 'default')
     if session_id in sessions:
         # Reset but keep preloaded documents
@@ -890,6 +1061,7 @@ def clear_session():
             'conversation_chain': create_chain(preloaded_vectorstore) if preloaded_vectorstore else None,
             'chat_history': [],
             'uploaded_files': preloaded_files.copy() if preloaded_files else [],
+            'uploaded_images': [],
             'feedback_history': [],
             'consecutive_no_count': 0,
             'last_analysis': None,
@@ -898,10 +1070,18 @@ def clear_session():
             'upload_completed_time': None,
             'feedback_submitted': False
         }
-    return jsonify({'success': True})
-
+    
+    # ⭐ NEW: Return updated counts
+    total_documents = len(preloaded_files)
+    
+    return jsonify({
+        'success': True,
+        'total_documents': total_documents,  # ⭐ NEW
+        'document_count_message': f'{total_documents} document{"s" if total_documents != 1 else ""} loaded. You can upload more documents to expand the collection.'  # ⭐ NEW
+    })
 @app.route('/feedback/stats', methods=['GET'])
 def feedback_stats():
+    """Get feedback statistics"""
     session_id = request.args.get('session_id', 'default')
     session = get_session(session_id)
     feedback_history = session['feedback_history']
@@ -912,16 +1092,93 @@ def feedback_stats():
     avg_rating = sum(f['rating'] for f in feedback_history) / len(feedback_history)
     return jsonify({
         'count': len(feedback_history),
-        'average': round(avg_rating, 1)
+        'average': round(avg_rating, 1),
+        'ratings_breakdown': {
+            '5_star': len([f for f in feedback_history if f['rating'] == 5]),
+            '4_star': len([f for f in feedback_history if f['rating'] == 4]),
+            '3_star': len([f for f in feedback_history if f['rating'] == 3]),
+            '2_star': len([f for f in feedback_history if f['rating'] == 2]),
+            '1_star': len([f for f in feedback_history if f['rating'] == 1])
+        }
     })
+
+# ============================================================================
+# HEALTH CHECK & STATUS ROUTES
+# ============================================================================
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint for monitoring"""
+    return jsonify({
+        'status': 'healthy',
+        'timestamp': datetime.now().isoformat(),
+        'preloaded_documents': len(preloaded_files),
+        'active_sessions': len(sessions),
+        'video_index_loaded': video_index.vector_store is not None
+    })
+
+@app.route('/status', methods=['GET'])
+def status():
+    """Get system status"""
+    return jsonify({
+        'app_name': 'HR Assistant',
+        'version': '2.0.0',
+        'preloaded_documents': len(preloaded_files),
+        'document_names': preloaded_files,
+        'active_sessions': len(sessions),
+        'video_processing_available': VIDEO_PROCESSING_AVAILABLE,
+        'pdf_export_available': PDF_EXPORT_AVAILABLE,
+        'features': [
+            'Document RAG',
+            'Video Transcription & Search',
+            'Image Upload & Preview',
+            'Voice Input/Output',
+            'Inactivity Detection',
+            'Feedback Collection',
+            'PDF/CSV Export',
+            'Greeting Detection',
+            'Acknowledgment Handling',
+            'Query Type Detection'
+        ]
+    })
+
+# ============================================================================
+# ERROR HANDLERS
+# ============================================================================
+
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({'error': 'Not found'}), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({'error': 'Internal server error'}), 500
+
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    return jsonify({'error': 'File too large. Maximum size is 100MB'}), 413
 
 if __name__ == '__main__':
     print("\n" + "=" * 60)
     print("🚀 HR ASSISTANT STARTING")
     print("=" * 60)
-    print(f"📁 Documents folder: {DOCUMENTS_FOLDER}")
+    print(f"📂 Documents folder: {DOCUMENTS_FOLDER}")
     print(f"📚 Preloaded documents: {len(preloaded_files)}")
+    print(f"🎥 Video processing: {'✓ Available' if VIDEO_PROCESSING_AVAILABLE else '✗ Not available'}")
+    print(f"📄 PDF export: {'✓ Available' if PDF_EXPORT_AVAILABLE else '✗ Not available'}")
+    print(f"💾 Upload folder: {app.config['UPLOAD_FOLDER']}")
+    print(f"🔑 OpenAI API: {'✓ Configured' if OPENAI_API_KEY else '✗ Not configured'}")
+    print("=" * 60)
+    print("\n✨ Enhanced Features:")
+    print("   • Smart greeting detection")
+    print("   • Acknowledgment handling (saves API costs)")
+    print("   • Consecutive 'no' detection")
+    print("   • Dual-threshold inactivity timer")
+    print("   • Query type detection")
+    print("   • Image preview support")
+    print("   • Video transcription & search")
+    print("   • Enhanced feedback system")
     print("=" * 60 + "\n")
+    
+if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
-
-
