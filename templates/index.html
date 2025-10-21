@@ -945,7 +945,7 @@
         console.log('Starting 7 second inactivity timer...');
         inactivityTimer = setTimeout(() => {
             handleInactivity();
-        }, 7000);
+        }, 10000);
     }
     
     function stopInactivityTimer() {
@@ -1262,41 +1262,26 @@
     }
     
     async function clearChatAndPromptUpload() {
-        try {
-            await fetch('/clear', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ session_id: sessionId })
-            });
-
-            uploadedFiles = [];
-            chatActive = false;
-            document.getElementById('fileList').innerHTML = '';
-            document.getElementById('kbStatus').textContent = 'No PDFs found. Upload PDF files to get started.';
-            
-            document.getElementById('chatMessages').innerHTML = `
-                <div class="welcome-message">
-                    <div class="welcome-avatar">
-                        <img src="static/HR-chat-icon.jpg" alt="Assistant" onerror="this.innerHTML='📄'">
-                    </div>
-                    <h2>Hello! I'm your PDF Assistant.</h2>
-                    <p>I can help you analyze and understand PDF documents. Upload one or more PDF files to get started.</p>
-                </div>
-            `;
-
-            sessionEnded = false;
-            waitingForMoreQuestionsResponse = false;
-            waitingForUploadResponse = false;
-            
-            document.getElementById('fileInput').click();
-            showToast('Please upload PDF files', 'success');
-        } catch (error) {
-            console.error('Clear error:', error);
-            showToast('Failed to clear chat', 'error');
-        }
+    // DON'T clear the chat - just prompt for file upload
+    waitingForUploadResponse = false;
+    sessionEnded = false;
+    
+    // Show a message that they can upload files
+    addMessage('Please upload your additional files using the upload area in the sidebar.', false, false);
+    
+    // Optional: Highlight the upload area briefly
+    const uploadArea = document.querySelector('.upload-area');
+    if (uploadArea) {
+        uploadArea.style.border = '2px solid #3498db';
+        uploadArea.style.background = 'rgba(52, 152, 219, 0.1)';
+        setTimeout(() => {
+            uploadArea.style.border = '2px dashed rgba(90, 112, 133, 0.5)';
+            uploadArea.style.background = 'transparent';
+        }, 2000);
     }
+    
+    showToast('You can upload additional files now', 'success');
+}
 
     function addLoadingMessage() {
         const messagesDiv = document.getElementById('chatMessages');
