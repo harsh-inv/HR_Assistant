@@ -36,19 +36,17 @@ app.config['DOCUMENTS_FOLDER'] = os.getenv('DOCUMENTS_FOLDER', '/opt/render/proj
 
 UPLOAD_FOLDER = app.config['UPLOAD_FOLDER']
 STATIC_FOLDER = app.config['STATIC_FOLDER']
-PRELOAD_FOLDER = os.path.join(app.config['DOCUMENTS_FOLDER'], 'preload_documents')
+DOCUMENTS_FOLDER = app.config['DOCUMENTS_FOLDER']  # Load directly from this folder
 PRELOAD_VIDEOS_FOLDER = os.path.join(app.config['DOCUMENTS_FOLDER'], 'preload_videos')
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(STATIC_FOLDER, exist_ok=True)
-os.makedirs(PRELOAD_FOLDER, exist_ok=True)
 os.makedirs(PRELOAD_VIDEOS_FOLDER, exist_ok=True)
 
 # Debug: Print the paths
-print(f"📁 Documents folder: {app.config['DOCUMENTS_FOLDER']}")
-print(f"📁 Preload folder: {PRELOAD_FOLDER}")
+print(f"📁 Documents folder: {DOCUMENTS_FOLDER}")
 print(f"📁 Videos folder: {PRELOAD_VIDEOS_FOLDER}")
-print(f"✓ Folders exist: Docs={os.path.exists(PRELOAD_FOLDER)}, Videos={os.path.exists(PRELOAD_VIDEOS_FOLDER)}")
+print(f"✓ Folders exist: Docs={os.path.exists(DOCUMENTS_FOLDER)}, Videos={os.path.exists(PRELOAD_VIDEOS_FOLDER)}")
 
 # OpenAI API Key - CRITICAL: Set this in your environment variables
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
@@ -137,6 +135,10 @@ Your Response:"""
 # Video metadata storage
 video_metadata = {}
 
+global_vectorstore = None
+global_conversation_chain = None
+preloaded_files_list = []
+
 def load_video_metadata():
     """Load metadata about videos in the preload_videos folder"""
     global video_metadata
@@ -192,18 +194,22 @@ def read_txt(file_path):
         return ""
 
 def get_preloaded_documents():
-    """Load all documents from preload folder using recursive walk"""
+    """Load all documents from the documents folder using recursive walk"""
     all_text = ""
     processed_files = []
     
-    if not os.path.exists(PRELOAD_FOLDER):
-        print(f"⚠ Preload folder not found: {PRELOAD_FOLDER}")
+    if not os.path.exists(DOCUMENTS_FOLDER):
+        print(f"⚠ Documents folder not found: {DOCUMENTS_FOLDER}")
         return all_text, processed_files
     
-    print(f"📁 Scanning folder: {PRELOAD_FOLDER}")
+    print(f"📁 Scanning folder: {DOCUMENTS_FOLDER}")
     
     # Use os.walk to recursively traverse directories
-    for root, dirs, files in os.walk(PRELOAD_FOLDER):
+    for root, dirs, files in os.walk(DOCUMENTS_FOLDER):
+        # Skip the preload_videos folder
+        if 'preload_videos' in root:
+            continue
+            
         for filename in files:
             if filename.lower().endswith(('.pdf', '.docx', '.doc', '.txt')):
                 file_path = os.path.join(root, filename)
@@ -215,7 +221,7 @@ def get_preloaded_documents():
                     if ext == '.pdf':
                         pdf_reader = PdfReader(file_path)
                         page_count = len(pdf_reader.pages)
-                        print(f"  └─ PDF has {page_count} pages")
+                        print(f"   └─ PDF has {page_count} pages")
                         
                         for i, page in enumerate(pdf_reader.pages):
                             page_text = page.extract_text()
@@ -224,7 +230,7 @@ def get_preloaded_documents():
                                 all_text += page_text + "\n"
                         
                         processed_files.append(filename)
-                        print(f"  └─ ✓ Successfully processed PDF")
+                        print(f"   └─ ✓ Successfully processed PDF")
                     
                     elif ext in ['.docx', '.doc']:
                         doc_text = read_docx(file_path)
@@ -232,9 +238,9 @@ def get_preloaded_documents():
                             all_text += f"\n\n--- From {filename} ---\n\n"
                             all_text += doc_text + "\n"
                             processed_files.append(filename)
-                            print(f"  └─ ✓ Successfully extracted {len(doc_text)} characters")
+                            print(f"   └─ ✓ Successfully extracted {len(doc_text)} characters")
                         else:
-                            print(f"  └─ ✗ No text extracted from DOCX")
+                            print(f"   └─ ✗ No text extracted from DOCX")
                     
                     elif ext == '.txt':
                         txt_text = read_txt(file_path)
@@ -242,12 +248,12 @@ def get_preloaded_documents():
                             all_text += f"\n\n--- From {filename} ---\n\n"
                             all_text += txt_text + "\n"
                             processed_files.append(filename)
-                            print(f"  └─ ✓ Successfully extracted {len(txt_text)} characters")
+                            print(f"   └─ ✓ Successfully extracted {len(txt_text)} characters")
                         else:
-                            print(f"  └─ ✗ No text extracted from TXT")
+                            print(f"   └─ ✗ No text extracted from TXT")
                 
                 except Exception as e:
-                    print(f"  └─ ✗ Error processing {filename}: {e}")
+                    print(f"   └─ ✗ Error processing {filename}: {e}")
     
     print(f"✓ Successfully processed {len(processed_files)} files")
     print(f"✓ Total characters extracted: {len(all_text)}")
@@ -324,6 +330,42 @@ def get_conversation_chain(vectorstore):
     )
     return conversation_chain
 
+def initialize_global_documents():
+    """Initialize documents at application startup"""
+    global global_vectorstore, global_conversation_chain, preloaded_files_list
+    
+    print("="*70)
+    print("🚀 INITIALIZING DOCUMENT LOADING AT STARTUP")
+    print("="*70)
+    
+    preloaded_text, processed_files = get_preloaded_documents()
+    
+    if preloaded_text.strip():
+        try:
+            print("📊 Creating text chunks...")
+            text_chunks = get_text_chunks(preloaded_text)
+            print(f"✓ Created {len(text_chunks)} text chunks")
+            
+            print("🔍 Building vector store...")
+            global_vectorstore = get_vectorstore(text_chunks)
+            print("✓ Vector store created successfully")
+            
+            print("🤖 Initializing conversation chain...")
+            global_conversation_chain = get_conversation_chain(global_vectorstore)
+            print("✓ Conversation chain ready")
+            
+            preloaded_files_list = processed_files
+            
+            print("="*70)
+            print(f"✅ STARTUP COMPLETE: {len(processed_files)} documents loaded and ready")
+            print("="*70)
+        except Exception as e:
+            print(f"❌ Error during startup document loading: {e}")
+            print("="*70)
+    else:
+        print("⚠️  No documents found in the documents folder")
+        print("="*70)
+
 # ==================== FLASK ROUTES ====================
 
 @app.route('/')
@@ -347,30 +389,21 @@ def init_session():
             'last_analysis': None,
             'awaiting_followup': False,
             'consecutive_no_count': 0,
-            'chat_active': True,
+            'chat_active': False,
             'upload_completed_time': None,
             'preloaded_files': []
         }
         
-        # CHANGED: Now returns both text and processed_files list
-        preloaded_text, processed_files = get_preloaded_documents()
-        
-        if preloaded_text.strip():
-            try:
-                text_chunks = get_text_chunks(preloaded_text)
-                vectorstore = get_vectorstore(text_chunks)
-                conversation_chain = get_conversation_chain(vectorstore)
-                
-                sessions[session_id]['vectorstore'] = vectorstore
-                sessions[session_id]['conversation_chain'] = conversation_chain
-                sessions[session_id]['chat_active'] = True
-                
-                # CHANGED: Use the processed_files list directly
-                sessions[session_id]['preloaded_files'] = processed_files
-                
-                print(f"✓ Session {session_id} initialized with {len(processed_files)} preloaded documents")
-            except Exception as e:
-                print(f"✗ Error loading preloaded documents: {e}")
+        # Use the globally loaded documents
+        if global_vectorstore and global_conversation_chain:
+            # Create a new conversation chain for this session (to maintain separate memory)
+            sessions[session_id]['vectorstore'] = global_vectorstore
+            sessions[session_id]['conversation_chain'] = get_conversation_chain(global_vectorstore)
+            sessions[session_id]['chat_active'] = True
+            sessions[session_id]['preloaded_files'] = preloaded_files_list.copy()
+            print(f"✓ Session {session_id} initialized with {len(preloaded_files_list)} preloaded documents")
+        else:
+            print(f"⚠️  Session {session_id} initialized without preloaded documents")
     
     load_video_metadata()
     
@@ -385,6 +418,7 @@ def init_session():
 @app.route('/upload', methods=['POST'])
 def upload_file():
     session_id = request.form.get('session_id')
+    
     if session_id not in sessions:
         sessions[session_id] = {
             'messages': [],
@@ -397,7 +431,7 @@ def upload_file():
             'last_analysis': None,
             'awaiting_followup': False,
             'consecutive_no_count': 0,
-            'chat_active': True,
+            'chat_active': False,
             'upload_completed_time': None,
             'preloaded_files': []
         }
@@ -419,8 +453,8 @@ def upload_file():
     
     for file in files:
         if file and (file.filename.lower().endswith('.pdf') or 
-                    file.filename.lower().endswith('.docx') or 
-                    file.filename.lower().endswith('.txt')):
+                     file.filename.lower().endswith('.docx') or 
+                     file.filename.lower().endswith('.txt')):
             filename = f"{int(time.time())}_{file.filename}"
             filepath = os.path.join(UPLOAD_FOLDER, filename)
             file.save(filepath)
@@ -430,20 +464,21 @@ def upload_file():
                 'filename': filename,
                 'original_name': file.filename
             })
-            
             uploaded_files.append({
                 'filename': filename,
                 'original_name': file.filename
             })
     
-    if saved_paths or sessions[session_id].get('preloaded_files'):
+    if saved_paths or preloaded_files_list:
         try:
-            # CHANGED: Now handles the tuple return
+            # Get preloaded text
             preloaded_text, _ = get_preloaded_documents()
+            
+            # Get uploaded text
             uploaded_text = get_document_text(saved_paths)
             
+            # Combine both
             all_text = preloaded_text  # Start with preloaded
-            
             if uploaded_text.strip():
                 all_text += "\n\n--- User Uploaded Documents ---\n\n" + uploaded_text
             
@@ -457,6 +492,7 @@ def upload_file():
                 sessions[session_id]['chat_active'] = True
                 
                 welcome_msg = 'Documents processed successfully! I have access to company documents and your uploaded files. How can I assist you today?'
+                
                 sessions[session_id]['messages'].append({
                     'role': 'assistant',
                     'content': welcome_msg,
@@ -468,6 +504,7 @@ def upload_file():
                     'success': False,
                     'error': 'No text could be extracted from the documents'
                 })
+        
         except Exception as e:
             print(f"Document processing error: {e}")
             return jsonify({
@@ -518,9 +555,9 @@ def chat():
         
         normalized_message = message.lower().strip().replace("'", "").replace(",", "").replace(".", "")
         
-        negative_responses = ['no', 'nope', 'nah', 'not needed', 'no need', 'no thanks', 
-                             'not really', 'im good', "i'm good", 'all good', 'thats all', 
-                             "that's all", 'nothing else', 'nothing more']
+        negative_responses = ['no', 'nope', 'nah', 'not needed', 'no need', 'no thanks',
+                              'not really', 'im good', "i'm good", 'all good', 'thats all',
+                              "that's all", 'nothing else', 'nothing more']
         
         is_negative = any(neg in normalized_message for neg in negative_responses)
         
@@ -603,7 +640,7 @@ def chat():
             normalized_message in acknowledgments or
             (len(normalized_message.split()) <= 3 and any(ack in normalized_message for ack in acknowledgments))
         ) and not any(question_word in normalized_message for question_word in [
-            'what', 'why', 'how', 'when', 'where', 'who', 'which', 'can', 'could', 
+            'what', 'why', 'how', 'when', 'where', 'who', 'which', 'can', 'could',
             'would', 'should', 'is', 'are', 'does', 'do', 'explain', 'tell', 'show', 'describe'
         ])
         
@@ -630,13 +667,13 @@ def chat():
         
         relevant_videos = get_relevant_videos(message)
         video_context = ""
+        
         if relevant_videos:
             video_context = "\n\n**Related Video Resources:**\n"
             for video in relevant_videos:
                 video_context += f"- {video['name']} (Video available in system)\n"
         
         conversation_chain = sessions[session_id]['conversation_chain']
-        
         if conversation_chain:
             response = conversation_chain({'question': message})
             bot_response = response['answer']
@@ -739,10 +776,10 @@ def export_pdf():
         
         for msg in exportable_messages:
             if msg['role'] == 'user':
-                story.append(Paragraph(f"<b>You:</b> {html.escape(msg['content'])}", user_style))
+                story.append(Paragraph(f"You: {html.escape(msg['content'])}", user_style))
             else:
                 content = msg['content'].replace('**', '')
-                story.append(Paragraph(f"<b>Assistant:</b> {html.escape(content)}", bot_style))
+                story.append(Paragraph(f"Assistant: {html.escape(content)}", bot_style))
         
         doc.build(story)
         
@@ -784,7 +821,15 @@ def clear_chat():
         sessions[session_id]['feedback_submitted'] = False
         sessions[session_id]['feedback'] = []
         
-        has_preloaded = bool(sessions[session_id].get('preloaded_files'))
+        # Restore preloaded documents
+        has_preloaded = bool(preloaded_files_list)
+        
+        if has_preloaded and global_vectorstore:
+            sessions[session_id]['vectorstore'] = global_vectorstore
+            sessions[session_id]['conversation_chain'] = get_conversation_chain(global_vectorstore)
+            sessions[session_id]['chat_active'] = True
+        else:
+            sessions[session_id]['chat_active'] = False
         
         if sessions[session_id].get('conversation_chain'):
             try:
@@ -793,10 +838,8 @@ def clear_chat():
             except Exception as e:
                 print(f"Error clearing memory: {e}")
         
-        sessions[session_id]['chat_active'] = has_preloaded or bool(sessions[session_id].get('vectorstore'))
-        
         return jsonify({
-            'success': True, 
+            'success': True,
             'chat_active': sessions[session_id]['chat_active'],
             'has_preloaded': has_preloaded
         })
@@ -858,8 +901,9 @@ def check_idle():
             idle_threshold = 10
         else:
             idle_threshold = 7
-            if upload_completed_time:
-                sessions[session_id]['upload_completed_time'] = None
+        
+        if upload_completed_time:
+            sessions[session_id]['upload_completed_time'] = None
         
         if idle_time >= idle_threshold:
             return jsonify({
@@ -899,7 +943,12 @@ def export_feedback():
         })
 
 if __name__ == '__main__':
+    # Load documents at startup
+    initialize_global_documents()
+    
+    # Start Flask app
     app.run(debug=True, host='0.0.0.0', port=5000)
+
 
 
 
