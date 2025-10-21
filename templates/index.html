@@ -1112,6 +1112,8 @@
 
     async function initSession() {
     try {
+        console.log('Initializing session:', sessionId);
+        
         const response = await fetch('/init_session', {
             method: 'POST',
             headers: {
@@ -1119,6 +1121,10 @@
             },
             body: JSON.stringify({ session_id: sessionId })
         });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
         const data = await response.json();
 
@@ -1140,9 +1146,17 @@
             document.getElementById('kbStatus').textContent = 'No documents found. Upload files to get started.';
             chatActive = false;
         }
+        
+        console.log('Session initialized successfully. Chat active:', chatActive);
+        
     } catch (error) {
         console.error('Init error:', error);
-        showToast('Failed to initialize session', 'error');
+        showToast('Failed to initialize session. Please refresh the page.', 'error');
+        // Retry after 2 seconds
+        setTimeout(() => {
+            console.log('Retrying session initialization...');
+            initSession();
+        }, 2000);
     }
 }
 
@@ -1657,6 +1671,7 @@
 
     function initializeApp() {
             console.log('Initializing HR Assistant...');
+        initSession();
             
             const fileInput = document.getElementById('fileInput');
             if (fileInput) {
@@ -1724,7 +1739,6 @@
             }
 
             initTTS();
-            initSession();
             
             console.log('HR Assistant initialized');
         }
