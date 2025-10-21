@@ -34,15 +34,8 @@ CORS(app)
 UPLOAD_FOLDER = 'uploads'
 STATIC_FOLDER = 'static'
 
-# Render disk path for pre-loaded documents and videos
-RENDER_DISK_PATH = '/opt/render/project/src/documents'
-PRELOAD_FOLDER = os.path.join(RENDER_DISK_PATH, 'preload_documents') if os.path.exists(RENDER_DISK_PATH) else 'preload_documents'
-PRELOAD_VIDEOS_FOLDER = os.path.join(RENDER_DISK_PATH, 'preload_videos') if os.path.exists(RENDER_DISK_PATH) else 'preload_videos'
-
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(STATIC_FOLDER, exist_ok=True)
-os.makedirs(PRELOAD_FOLDER, exist_ok=True)
-os.makedirs(PRELOAD_VIDEOS_FOLDER, exist_ok=True)
 
 # OpenAI API Key
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
@@ -120,44 +113,6 @@ CRITICAL INSTRUCTIONS:
 
 Your Response:"""
 
-# Video metadata storage
-video_metadata = {}
-
-def load_video_metadata():
-    """Load metadata about videos in the preload_videos folder"""
-    global video_metadata
-    video_extensions = ['.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv']
-    
-    if not os.path.exists(PRELOAD_VIDEOS_FOLDER):
-        print(f"Videos folder not found: {PRELOAD_VIDEOS_FOLDER}")
-        return
-    
-    for filename in os.listdir(PRELOAD_VIDEOS_FOLDER):
-        file_path = os.path.join(PRELOAD_VIDEOS_FOLDER, filename)
-        if os.path.isfile(file_path) and any(filename.lower().endswith(ext) for ext in video_extensions):
-            video_name = os.path.splitext(filename)[0]
-            video_metadata[filename] = {
-                'name': video_name,
-                'path': file_path,
-                'keywords': video_name.lower().split('_')
-            }
-    
-    print(f"Loaded {len(video_metadata)} videos from {PRELOAD_VIDEOS_FOLDER}")
-
-def get_relevant_videos(query):
-    """Find relevant videos based on query keywords"""
-    query_lower = query.lower()
-    relevant_videos = []
-    
-    for filename, metadata in video_metadata.items():
-        if any(keyword in query_lower for keyword in metadata['keywords']):
-            relevant_videos.append({
-                'filename': filename,
-                'name': metadata['name']
-            })
-    
-    return relevant_videos
-
 def read_docx(file_path):
     """Extract text from DOCX files"""
     try:
@@ -176,46 +131,6 @@ def read_txt(file_path):
     except Exception as e:
         print(f"Error reading TXT {file_path}: {e}")
         return ""
-
-def get_preloaded_documents():
-    """Load all documents from preload folder"""
-    text = ""
-    supported_extensions = ['.pdf', '.docx', '.txt']
-    
-    if not os.path.exists(PRELOAD_FOLDER):
-        print(f"Preload folder not found: {PRELOAD_FOLDER}")
-        return text
-    
-    for filename in os.listdir(PRELOAD_FOLDER):
-        file_path = os.path.join(PRELOAD_FOLDER, filename)
-        if os.path.isfile(file_path):
-            ext = os.path.splitext(filename)[1].lower()
-            
-            if ext == '.pdf':
-                try:
-                    pdf_reader = PdfReader(file_path)
-                    for page in pdf_reader.pages:
-                        page_text = page.extract_text()
-                        if page_text:
-                            text += f"\n\n--- From {filename} ---\n\n"
-                            text += page_text + "\n"
-                except Exception as e:
-                    print(f"Error reading PDF {file_path}: {e}")
-            
-            elif ext == '.docx':
-                doc_text = read_docx(file_path)
-                if doc_text:
-                    text += f"\n\n--- From {filename} ---\n\n"
-                    text += doc_text + "\n"
-            
-            elif ext == '.txt':
-                txt_text = read_txt(file_path)
-                if txt_text:
-                    text += f"\n\n--- From {filename} ---\n\n"
-                    text += txt_text + "\n"
-    
-    print(f"Loaded preloaded documents from {PRELOAD_FOLDER}")
-    return text
 
 def get_pdf_text(pdf_paths):
     """Extract text from PDF files"""
@@ -324,40 +239,13 @@ def init_session():
             'last_analysis': None,
             'awaiting_followup': False,
             'consecutive_no_count': 0,
-            'chat_active': True,
-            'upload_completed_time': None,
-            'preloaded_files': []
+            'chat_active': False,
+            'upload_completed_time': None
         }
-        
-        # Load preloaded documents
-        preloaded_text = get_preloaded_documents()
-        if preloaded_text.strip():
-            try:
-                text_chunks = get_text_chunks(preloaded_text)
-                vectorstore = get_vectorstore(text_chunks)
-                conversation_chain = get_conversation_chain(vectorstore)
-                
-                sessions[session_id]['vectorstore'] = vectorstore
-                sessions[session_id]['conversation_chain'] = conversation_chain
-                sessions[session_id]['chat_active'] = True
-                
-                # Get list of preloaded files
-                if os.path.exists(PRELOAD_FOLDER):
-                    preloaded_files = [f for f in os.listdir(PRELOAD_FOLDER) 
-                                     if os.path.isfile(os.path.join(PRELOAD_FOLDER, f))]
-                    sessions[session_id]['preloaded_files'] = preloaded_files
-                
-                print(f"Session {session_id} initialized with preloaded documents")
-            except Exception as e:
-                print(f"Error loading preloaded documents: {e}")
-    
-    # Load video metadata
-    load_video_metadata()
     
     return jsonify({
         'success': True,
         'pdf_files': [f['filename'] for f in sessions[session_id]['pdf_files']],
-        'preloaded_files': sessions[session_id].get('preloaded_files', []),
         'feedback_submitted': sessions[session_id]['feedback_submitted'],
         'chat_active': sessions[session_id]['chat_active']
     })
@@ -377,21 +265,9 @@ def upload_file():
             'last_analysis': None,
             'awaiting_followup': False,
             'consecutive_no_count': 0,
-            'chat_active': True,
-            'upload_completed_time': None,
-            'preloaded_files': []
+            'chat_active': False,
+            'upload_completed_time': None
         }
-    
-    # Clear existing uploaded files
-    for file_info in sessions[session_id]['pdf_files']:
-        filepath = os.path.join(UPLOAD_FOLDER, file_info['filename'])
-        try:
-            if os.path.exists(filepath):
-                os.remove(filepath)
-        except Exception as e:
-            print(f"Error deleting file: {e}")
-    
-    sessions[session_id]['pdf_files'] = []
     
     uploaded_files = []
     files = request.files.getlist('files')
@@ -418,17 +294,16 @@ def upload_file():
             })
     
     # Process documents and create/update conversation chain
-    if saved_paths or sessions[session_id].get('preloaded_files'):
+    if saved_paths:
         try:
-            # Combine preloaded and uploaded documents
-            all_text = get_preloaded_documents()
-            uploaded_text = get_document_text(saved_paths)
+            # Get all document paths (existing + new uploads)
+            all_paths = [os.path.join(UPLOAD_FOLDER, f['filename']) 
+                        for f in sessions[session_id]['pdf_files']]
+            
+            uploaded_text = get_document_text(all_paths)
             
             if uploaded_text.strip():
-                all_text += "\n\n--- User Uploaded Documents ---\n\n" + uploaded_text
-            
-            if all_text.strip():
-                text_chunks = get_text_chunks(all_text)
+                text_chunks = get_text_chunks(uploaded_text)
                 vectorstore = get_vectorstore(text_chunks)
                 conversation_chain = get_conversation_chain(vectorstore)
                 
@@ -436,14 +311,15 @@ def upload_file():
                 sessions[session_id]['conversation_chain'] = conversation_chain
                 sessions[session_id]['chat_active'] = True
                 
-                # Add welcome message
-                welcome_msg = 'Documents processed successfully! I have access to company documents and your uploaded files. How can I assist you today?'
-                sessions[session_id]['messages'].append({
-                    'role': 'assistant',
-                    'content': welcome_msg,
-                    'timestamp': datetime.now().isoformat(),
-                    'exclude_from_export': False
-                })
+                # Add welcome message only if it's the first upload
+                if len(sessions[session_id]['messages']) == 0:
+                    welcome_msg = 'Documents processed successfully! How can I assist you today?'
+                    sessions[session_id]['messages'].append({
+                        'role': 'assistant',
+                        'content': welcome_msg,
+                        'timestamp': datetime.now().isoformat(),
+                        'exclude_from_export': False
+                    })
             else:
                 return jsonify({
                     'success': False,
@@ -481,11 +357,11 @@ def chat():
             'response': 'Please wait for the system to initialize.'
         })
     
-    # Chat is always active with preloaded documents
+    # Check if chat is active
     if not sessions[session_id]['chat_active']:
         return jsonify({
             'error': 'Chat not active',
-            'response': 'Please wait for documents to be processed.'
+            'response': 'Please upload documents first to start chatting.'
         })
     
     # Update last interaction time
@@ -510,13 +386,20 @@ def chat():
         
         is_negative = any(neg in normalized_message for neg in negative_responses)
         
-        # Track consecutive "no" responses
-        if is_negative:
+        # Track consecutive "no" responses - BUT ONLY if the question was about uploading more files
+        last_bot_message = ""
+        if len(sessions[session_id]['messages']) >= 2:
+            last_bot_message = sessions[session_id]['messages'][-2].get('content', '').lower()
+        
+        # Only count as negative if it's in response to upload question
+        is_upload_question = 'upload' in last_bot_message or 'more files' in last_bot_message or 'additional' in last_bot_message
+        
+        if is_negative and is_upload_question:
             sessions[session_id]['consecutive_no_count'] = sessions[session_id].get('consecutive_no_count', 0) + 1
         else:
             sessions[session_id]['consecutive_no_count'] = 0
         
-        # End session after 2 consecutive "no" responses
+        # End session after 2 consecutive "no" responses to upload questions
         if sessions[session_id]['consecutive_no_count'] >= 2:
             bot_response = "Thank you for using the HR Assistant! Have a great day!"
             
@@ -541,7 +424,7 @@ def chat():
         # Handle greetings - BEFORE LLM
         greetings = ['hello', 'hi', 'hii', 'hey', 'good morning', 'good afternoon', 'good evening']
         if any(greet in normalized_message for greet in greetings) and len(normalized_message.split()) <= 3:
-            bot_response = 'Hello! I\'m your HR Assistant. I have access to company documents and can help answer your questions. How may I assist you today?'
+            bot_response = 'Hello! I\'m your HR Assistant. How may I assist you today?'
             
             sessions[session_id]['messages'].append({
                 'role': 'assistant',
@@ -600,7 +483,7 @@ def chat():
         
         # Handle acknowledgments with brief responses - BEFORE LLM
         if is_acknowledgment:
-            if is_negative:
+            if is_negative and not is_upload_question:
                 bot_response = "Understood. I'm here if you need anything else."
             else:
                 bot_response = "You're welcome! Feel free to ask if you have any other questions."
@@ -620,24 +503,12 @@ def chat():
                 'session_ended': False
             })
         
-        # Check for relevant videos
-        relevant_videos = get_relevant_videos(message)
-        video_context = ""
-        if relevant_videos:
-            video_context = "\n\n**Related Video Resources:**\n"
-            for video in relevant_videos:
-                video_context += f"- {video['name']} (Video available in system)\n"
-        
         # Get response from conversation chain - ONLY FOR ACTUAL QUESTIONS
         conversation_chain = sessions[session_id]['conversation_chain']
         
         if conversation_chain:
             response = conversation_chain({'question': message})
             bot_response = response['answer']
-            
-            # Add video context if relevant
-            if video_context:
-                bot_response += video_context
             
             # Store as last analysis
             sessions[session_id]['last_analysis'] = bot_response
@@ -658,8 +529,7 @@ def chat():
             'response': bot_response,
             'is_voice_input': is_voice_input,
             'feedback_submitted': sessions[session_id]['feedback_submitted'],
-            'session_ended': False,
-            'videos': relevant_videos if relevant_videos else None
+            'session_ended': False
         })
     
     except Exception as e:
@@ -773,34 +643,22 @@ def clear_chat():
             except Exception as e:
                 print(f"Error deleting file: {e}")
         
-        # Clear session data immediately - keep vectorstore and conversation chain
+        # Clear session data completely
         sessions[session_id]['messages'] = []
         sessions[session_id]['pdf_files'] = []
+        sessions[session_id]['vectorstore'] = None
+        sessions[session_id]['conversation_chain'] = None
         sessions[session_id]['last_interaction'] = time.time()
         sessions[session_id]['last_analysis'] = None
         sessions[session_id]['awaiting_followup'] = False
         sessions[session_id]['consecutive_no_count'] = 0
         sessions[session_id]['feedback_submitted'] = False
         sessions[session_id]['feedback'] = []
-        
-        # Keep preloaded files and chat_active status
-        has_preloaded = bool(sessions[session_id].get('preloaded_files'))
-        
-        # Simply clear the conversation memory without rebuilding
-        if sessions[session_id].get('conversation_chain'):
-            try:
-                sessions[session_id]['conversation_chain'].memory.clear()
-                print("Conversation memory cleared successfully")
-            except Exception as e:
-                print(f"Error clearing memory: {e}")
-        
-        # Chat remains active if preloaded documents exist
-        sessions[session_id]['chat_active'] = has_preloaded or bool(sessions[session_id].get('vectorstore'))
+        sessions[session_id]['chat_active'] = False
         
         return jsonify({
             'success': True, 
-            'chat_active': sessions[session_id]['chat_active'],
-            'has_preloaded': has_preloaded
+            'chat_active': False
         })
     
     return jsonify({'success': False, 'error': 'Session not found'})
@@ -824,8 +682,7 @@ def submit_feedback():
             'last_analysis': None,
             'awaiting_followup': False,
             'consecutive_no_count': 0,
-            'chat_active': True,
-            'preloaded_files': []
+            'chat_active': False
         }
     
     feedback_entry = {
@@ -855,13 +712,8 @@ def check_idle():
         
         idle_time = current_time - last_interaction
         
-        # 10 seconds after upload, 7 seconds otherwise
-        if upload_completed_time and (current_time - upload_completed_time) < 15:
-            idle_threshold = 10
-        else:
-            idle_threshold = 7
-            if upload_completed_time:
-                sessions[session_id]['upload_completed_time'] = None
+        # 10 seconds timeout always
+        idle_threshold = 10
         
         if idle_time >= idle_threshold:
             return jsonify({
@@ -901,28 +753,10 @@ def export_feedback():
         })
 
 if __name__ == '__main__':
-    # Load preloaded documents and videos on startup
     print("="*50)
     print("HR ASSISTANT - Starting Application")
     print("="*50)
-    print(f"Render Disk Path: {RENDER_DISK_PATH}")
-    print(f"Preload Documents Folder: {PRELOAD_FOLDER}")
-    print(f"Preload Videos Folder: {PRELOAD_VIDEOS_FOLDER}")
     print(f"Upload Folder: {UPLOAD_FOLDER}")
-    
-    # Check if directories exist
-    if os.path.exists(PRELOAD_FOLDER):
-        doc_count = len([f for f in os.listdir(PRELOAD_FOLDER) if os.path.isfile(os.path.join(PRELOAD_FOLDER, f))])
-        print(f"✓ Found {doc_count} preloaded documents")
-    else:
-        print(f"✗ Preload documents folder not found")
-    
-    if os.path.exists(PRELOAD_VIDEOS_FOLDER):
-        video_count = len([f for f in os.listdir(PRELOAD_VIDEOS_FOLDER) if os.path.isfile(os.path.join(PRELOAD_VIDEOS_FOLDER, f))])
-        print(f"✓ Found {video_count} preloaded videos")
-    else:
-        print(f"✗ Preload videos folder not found")
-    
     print("="*50)
     
     app.run(debug=True, host='0.0.0.0', port=5000)
