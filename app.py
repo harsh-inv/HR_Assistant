@@ -30,24 +30,26 @@ app.secret_key = os.urandom(24)
 CORS(app)
 
 # Configure folders
-UPLOAD_FOLDER = 'uploads'
-STATIC_FOLDER = 'static'
+app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['STATIC_FOLDER'] = 'static'
+app.config['DOCUMENTS_FOLDER'] = os.getenv('DOCUMENTS_FOLDER', '/opt/render/project/src/documents')
 
-# Render disk path for pre-loaded documents and videos
-RENDER_DISK_PATH = '/opt/render/project/src/documents'
-if os.path.exists(RENDER_DISK_PATH):
-    PRELOAD_FOLDER = os.path.join(RENDER_DISK_PATH, 'preload_documents')
-    PRELOAD_VIDEOS_FOLDER = os.path.join(RENDER_DISK_PATH, 'preload_videos')
-    print(f"✓ Running on Render with disk mounted at: {RENDER_DISK_PATH}")
-else:
-    PRELOAD_FOLDER = 'preload_documents'
-    PRELOAD_VIDEOS_FOLDER = 'preload_videos'
-    print(f"Running locally - using local folders")
+UPLOAD_FOLDER = app.config['UPLOAD_FOLDER']
+STATIC_FOLDER = app.config['STATIC_FOLDER']
+PRELOAD_FOLDER = os.path.join(app.config['DOCUMENTS_FOLDER'], 'preload_documents')
+PRELOAD_VIDEOS_FOLDER = os.path.join(app.config['DOCUMENTS_FOLDER'], 'preload_videos')
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(STATIC_FOLDER, exist_ok=True)
 os.makedirs(PRELOAD_FOLDER, exist_ok=True)
 os.makedirs(PRELOAD_VIDEOS_FOLDER, exist_ok=True)
+
+# Debug: Print the paths
+print(f"📁 Documents folder: {app.config['DOCUMENTS_FOLDER']}")
+print(f"📁 Preload folder: {PRELOAD_FOLDER}")
+print(f"📁 Videos folder: {PRELOAD_VIDEOS_FOLDER}")
+print(f"✓ Folders exist: Docs={os.path.exists(PRELOAD_FOLDER)}, Videos={os.path.exists(PRELOAD_VIDEOS_FOLDER)}")
+```
 
 # OpenAI API Key - CRITICAL: Set this in your environment variables
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
@@ -905,5 +907,6 @@ def export_feedback():
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+
 
 
