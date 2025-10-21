@@ -36,27 +36,17 @@ app.config['DOCUMENTS_FOLDER'] = os.getenv('DOCUMENTS_FOLDER', '/opt/render/proj
 
 UPLOAD_FOLDER = app.config['UPLOAD_FOLDER']
 STATIC_FOLDER = app.config['STATIC_FOLDER']
-DOCUMENTS_FOLDER = app.config['DOCUMENTS_FOLDER']  # Load directly from this folder
+DOCUMENTS_FOLDER = app.config['DOCUMENTS_FOLDER']
 PRELOAD_VIDEOS_FOLDER = os.path.join(app.config['DOCUMENTS_FOLDER'], 'preload_videos')
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(STATIC_FOLDER, exist_ok=True)
-os.makedirs(PRELOAD_VIDEOS_FOLDER, exist_ok=True)
 
-# Debug: Print the paths
-print(f"📁 Documents folder: {DOCUMENTS_FOLDER}")
-print(f"📁 Videos folder: {PRELOAD_VIDEOS_FOLDER}")
-print(f"✓ Folders exist: Docs={os.path.exists(DOCUMENTS_FOLDER)}, Videos={os.path.exists(PRELOAD_VIDEOS_FOLDER)}")
-
-# OpenAI API Key - CRITICAL: Set this in your environment variables
+# OpenAI API Key
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 if not OPENAI_API_KEY or OPENAI_API_KEY == 'your-api-key-here':
     print("="*70)
-    print("WARNING: OPENAI_API_KEY is not set or is using placeholder value!")
-    print("Please set your OpenAI API key in one of these ways:")
-    print("1. Create a .env file with: OPENAI_API_KEY=sk-your-actual-key")
-    print("2. Set environment variable: export OPENAI_API_KEY=sk-your-actual-key")
-    print("3. On Render: Add OPENAI_API_KEY in Environment Variables section")
+    print("WARNING: OPENAI_API_KEY is not set!")
     print("="*70)
 else:
     os.environ['OPENAI_API_KEY'] = OPENAI_API_KEY
@@ -65,7 +55,7 @@ else:
 # Session storage
 sessions = {}
 
-# Enhanced prompt template for HR Assistant
+# Enhanced prompt template
 HR_ASSISTANT_TEMPLATE = """You are an HR Assistant for Invenio Business Solutions. Answer questions ONLY using the provided context from HR policy documents.
 
 Context: {context}
@@ -98,11 +88,11 @@ RESPONSE STRUCTURE (for procedural questions like "How do I...?"):
 - Step 3: [Action from context]
 (Continue as needed)
 
-**Required Forms & Documents**: 
+**Required Forms & Documents**:
 - [List any forms the employee must complete/submit - include form numbers and names from context]
 - [Where to obtain them if mentioned]
 
-**Reference Documents**: 
+**Reference Documents**:
 - [List policy documents, handbook sections, or guides mentioned in context for additional reading]
 
 **Timeline**: [If mentioned in context]
@@ -135,6 +125,7 @@ Your Response:"""
 # Video metadata storage
 video_metadata = {}
 
+# Global vectorstore for preloaded documents
 global_vectorstore = None
 global_conversation_chain = None
 preloaded_files_list = []
@@ -194,7 +185,7 @@ def read_txt(file_path):
         return ""
 
 def get_preloaded_documents():
-    """Load all documents from the documents folder using recursive walk"""
+    """Load all documents from the documents folder - ONLY top-level files, skip subdirectories"""
     all_text = ""
     processed_files = []
     
@@ -204,15 +195,21 @@ def get_preloaded_documents():
     
     print(f"📁 Scanning folder: {DOCUMENTS_FOLDER}")
     
-    # Use os.walk to recursively traverse directories
-    for root, dirs, files in os.walk(DOCUMENTS_FOLDER):
-        # Skip the preload_videos folder
-        if 'preload_videos' in root:
-            continue
+    # List files ONLY in the top-level directory, skip subdirectories
+    try:
+        items = os.listdir(DOCUMENTS_FOLDER)
+        print(f"   Found {len(items)} items in directory")
+        
+        for filename in items:
+            file_path = os.path.join(DOCUMENTS_FOLDER, filename)
             
-        for filename in files:
+            # Skip if it's a directory (like preload_documents, preload_videos)
+            if os.path.isdir(file_path):
+                print(f"   ⏩ Skipping directory: {filename}")
+                continue
+            
+            # Process only document files
             if filename.lower().endswith(('.pdf', '.docx', '.doc', '.txt')):
-                file_path = os.path.join(root, filename)
                 print(f"📖 Processing: {filename}")
                 
                 try:
@@ -254,15 +251,21 @@ def get_preloaded_documents():
                 
                 except Exception as e:
                     print(f"   └─ ✗ Error processing {filename}: {e}")
+            else:
+                print(f"   ⏩ Skipping non-document file: {filename}")
+    
+    except Exception as e:
+        print(f"❌ Error listing directory: {e}")
     
     print(f"✓ Successfully processed {len(processed_files)} files")
     print(f"✓ Total characters extracted: {len(all_text)}")
     
     return all_text, processed_files
-    
+
 def get_document_text(file_paths):
     """Extract text from various document types"""
     text = ""
+    
     for file_path in file_paths:
         ext = os.path.splitext(file_path)[1].lower()
         
@@ -328,6 +331,7 @@ def get_conversation_chain(vectorstore):
         condense_question_prompt=CONDENSE_QUESTION_PROMPT,
         combine_docs_chain_kwargs={"prompt": qa_prompt}
     )
+    
     return conversation_chain
 
 def initialize_global_documents():
@@ -358,12 +362,17 @@ def initialize_global_documents():
             
             print("="*70)
             print(f"✅ STARTUP COMPLETE: {len(processed_files)} documents loaded and ready")
+            print(f"   Files loaded: {', '.join(processed_files[:5])}")
+            if len(processed_files) > 5:
+                print(f"   ... and {len(processed_files) - 5} more")
             print("="*70)
         except Exception as e:
             print(f"❌ Error during startup document loading: {e}")
+            import traceback
+            traceback.print_exc()
             print("="*70)
     else:
-        print("⚠️  No documents found in the documents folder")
+        print("⚠️  No documents found or no text extracted from documents")
         print("="*70)
 
 # ==================== FLASK ROUTES ====================
@@ -478,7 +487,7 @@ def upload_file():
             uploaded_text = get_document_text(saved_paths)
             
             # Combine both
-            all_text = preloaded_text  # Start with preloaded
+            all_text = preloaded_text
             if uploaded_text.strip():
                 all_text += "\n\n--- User Uploaded Documents ---\n\n" + uploaded_text
             
@@ -896,7 +905,6 @@ def check_idle():
         
         idle_time = current_time - last_interaction
         
-        # 10 seconds after upload, 7 seconds otherwise
         if upload_completed_time and (current_time - upload_completed_time) < 15:
             idle_threshold = 10
         else:
@@ -942,15 +950,10 @@ def export_feedback():
             'error': 'No feedback data available'
         })
 
+# **CRITICAL FIX: Call initialization BEFORE app.run()**
 if __name__ == '__main__':
-    # Load documents at startup
+    # Load documents at startup - THIS MUST BE CALLED FIRST
     initialize_global_documents()
     
     # Start Flask app
     app.run(debug=True, host='0.0.0.0', port=5000)
-
-
-
-
-
-
