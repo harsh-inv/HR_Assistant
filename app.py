@@ -859,7 +859,7 @@ def check_idle():
         if upload_completed_time and (current_time - upload_completed_time) < 15:
             idle_threshold = 10
         else:
-            idle_threshold = 7
+            idle_threshold = 10
             if upload_completed_time:
                 sessions[session_id]['upload_completed_time'] = None
         
@@ -926,3 +926,4 @@ if __name__ == '__main__':
     print("="*50)
     
     app.run(debug=True, host='0.0.0.0', port=5000)
+
