@@ -43,8 +43,6 @@ else:
     PRELOAD_FOLDER = 'preload_documents'
     PRELOAD_VIDEOS_FOLDER = 'preload_videos'
     print(f"Running locally - using local folders")
-PRELOAD_FOLDER = os.path.join(RENDER_DISK_PATH, 'preload_documents') if os.path.exists(RENDER_DISK_PATH) else 'preload_documents'
-PRELOAD_VIDEOS_FOLDER = os.path.join(RENDER_DISK_PATH, 'preload_videos') if os.path.exists(RENDER_DISK_PATH) else 'preload_videos'
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(STATIC_FOLDER, exist_ok=True)
@@ -196,40 +194,73 @@ def get_preloaded_documents():
     """Load all documents from preload folder"""
     text = ""
     supported_extensions = ['.pdf', '.docx', '.txt']
+    files_processed = 0
     
     if not os.path.exists(PRELOAD_FOLDER):
-        print(f"Preload folder not found: {PRELOAD_FOLDER}")
+        print(f"⚠ Preload folder not found: {PRELOAD_FOLDER}")
         return text
     
-    for filename in os.listdir(PRELOAD_FOLDER):
-        file_path = os.path.join(PRELOAD_FOLDER, filename)
-        if os.path.isfile(file_path):
-            ext = os.path.splitext(filename)[1].lower()
-            
-            if ext == '.pdf':
-                try:
-                    pdf_reader = PdfReader(file_path)
-                    for page in pdf_reader.pages:
-                        page_text = page.extract_text()
-                        if page_text:
-                            text += f"\n\n--- From {filename} ---\n\n"
-                            text += page_text + "\n"
-                except Exception as e:
-                    print(f"Error reading PDF {file_path}: {e}")
-            
-            elif ext == '.docx':
-                doc_text = read_docx(file_path)
-                if doc_text:
-                    text += f"\n\n--- From {filename} ---\n\n"
-                    text += doc_text + "\n"
-            
-            elif ext == '.txt':
-                txt_text = read_txt(file_path)
-                if txt_text:
-                    text += f"\n\n--- From {filename} ---\n\n"
-                    text += txt_text + "\n"
+    print(f"📁 Scanning folder: {PRELOAD_FOLDER}")
+    files_in_folder = os.listdir(PRELOAD_FOLDER)
+    print(f"📄 Found {len(files_in_folder)} total items in folder")
     
-    print(f"Loaded preloaded documents from {PRELOAD_FOLDER}")
+    for filename in files_in_folder:
+        file_path = os.path.join(PRELOAD_FOLDER, filename)
+        
+        # Skip if not a file
+        if not os.path.isfile(file_path):
+            print(f"⏭ Skipping (not a file): {filename}")
+            continue
+            
+        ext = os.path.splitext(filename)[1].lower()
+        
+        # Check if supported extension
+        if ext not in supported_extensions:
+            print(f"⏭ Skipping (unsupported type): {filename}")
+            continue
+        
+        print(f"📖 Processing: {filename}")
+        
+        if ext == '.pdf':
+            try:
+                pdf_reader = PdfReader(file_path)
+                page_count = len(pdf_reader.pages)
+                print(f"  └─ PDF has {page_count} pages")
+                
+                for i, page in enumerate(pdf_reader.pages):
+                    page_text = page.extract_text()
+                    if page_text:
+                        text += f"\n\n--- From {filename} (Page {i+1}) ---\n\n"
+                        text += page_text + "\n"
+                
+                files_processed += 1
+                print(f"  └─ ✓ Successfully extracted {len(page_text)} characters")
+            except Exception as e:
+                print(f"  └─ ✗ Error reading PDF: {e}")
+        
+        elif ext == '.docx':
+            doc_text = read_docx(file_path)
+            if doc_text:
+                text += f"\n\n--- From {filename} ---\n\n"
+                text += doc_text + "\n"
+                files_processed += 1
+                print(f"  └─ ✓ Successfully extracted {len(doc_text)} characters")
+            else:
+                print(f"  └─ ✗ No text extracted from DOCX")
+        
+        elif ext == '.txt':
+            txt_text = read_txt(file_path)
+            if txt_text:
+                text += f"\n\n--- From {filename} ---\n\n"
+                text += txt_text + "\n"
+                files_processed += 1
+                print(f"  └─ ✓ Successfully extracted {len(txt_text)} characters")
+            else:
+                print(f"  └─ ✗ No text extracted from TXT")
+    
+    print(f"✓ Successfully processed {files_processed} out of {len(files_in_folder)} files")
+    print(f"✓ Total characters extracted: {len(text)}")
+    
     return text
 
 def get_document_text(file_paths):
@@ -874,4 +905,5 @@ def export_feedback():
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+
 
