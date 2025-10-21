@@ -1111,26 +1111,33 @@
     }
 
     async function initSession() {
-        try {
-            const response = await fetch('/init_session', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ session_id: sessionId })
-            });
+    try {
+        const response = await fetch('/init_session', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ session_id: sessionId })
+        });
 
-            const data = await response.json();
+        const data = await response.json();
 
-            if (data.pdf_files && data.pdf_files.length > 0) {
-                document.getElementById('kbStatus').textContent = `${data.pdf_files.length} PDF${data.pdf_files.length !== 1 ? 's' : ''} loaded.`;
-                updateFileList(data.pdf_files);
-                chatActive = data.chat_active;
-            }
-        } catch (error) {
-            console.error('Init error:', error);
+        if (data.pdf_files && data.pdf_files.length > 0) {
+            document.getElementById('kbStatus').textContent = `${data.pdf_files.length} PDF${data.pdf_files.length !== 1 ? 's' : ''} loaded.`;
+            updateFileList(data.pdf_files);
+            chatActive = data.chat_active;
+        } else if (data.preloaded_files && data.preloaded_files.length > 0) {
+            // Handle preloaded files
+            document.getElementById('kbStatus').textContent = `${data.preloaded_files.length} preloaded document${data.preloaded_files.length !== 1 ? 's' : ''} available.`;
+            updateFileList(data.preloaded_files);
+            chatActive = data.chat_active;
+        } else {
+            document.getElementById('kbStatus').textContent = 'No documents found. Upload files to get started.';
         }
+    } catch (error) {
+        console.error('Init error:', error);
     }
+}
 
     function toggleSidebar() {
         const sidebar = document.getElementById('sidebar');
@@ -1546,8 +1553,24 @@ async function clearChat() {
             uploadedFiles = [];
             document.getElementById('fileList').innerHTML = '';
             
-            if (data.chat_active) {
-                document.getElementById('kbStatus').textContent = 'Preloaded documents available. Upload additional files if needed.';
+            // Check if preloaded documents exist
+            if (data.chat_active && data.has_preloaded) {
+                // Fetch session info to get preloaded file count
+                const sessionResponse = await fetch('/init_session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ session_id: sessionId })
+                });
+                const sessionData = await sessionResponse.json();
+                
+                if (sessionData.preloaded_files && sessionData.preloaded_files.length > 0) {
+                    document.getElementById('kbStatus').textContent = `${sessionData.preloaded_files.length} preloaded document${sessionData.preloaded_files.length !== 1 ? 's' : ''} available.`;
+                    updateFileList(sessionData.preloaded_files);
+                } else {
+                    document.getElementById('kbStatus').textContent = 'Preloaded documents available. Upload additional files if needed.';
+                }
             } else {
                 document.getElementById('kbStatus').textContent = 'No documents found. Upload files to get started.';
                 chatActive = false;
