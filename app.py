@@ -49,7 +49,6 @@ print(f"📁 Documents folder: {app.config['DOCUMENTS_FOLDER']}")
 print(f"📁 Preload folder: {PRELOAD_FOLDER}")
 print(f"📁 Videos folder: {PRELOAD_VIDEOS_FOLDER}")
 print(f"✓ Folders exist: Docs={os.path.exists(PRELOAD_FOLDER)}, Videos={os.path.exists(PRELOAD_VIDEOS_FOLDER)}")
-```
 
 # OpenAI API Key - CRITICAL: Set this in your environment variables
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
@@ -907,6 +906,7 @@ def export_feedback():
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+
 
 
 
