@@ -1267,12 +1267,6 @@
     sessionEnded = false;
     
     // Show a message that they can upload files
-    async function clearChatAndPromptUpload() {
-    // DON'T clear the chat - just prompt for file upload
-    waitingForUploadResponse = false;
-    sessionEnded = false;
-    
-    // Show a message that they can upload files
     addMessage('Please upload your additional files using the upload area in the sidebar.', false, false);
     
     // Optional: Highlight the upload area briefly
@@ -1289,348 +1283,343 @@
     showToast('You can upload additional files now', 'success');
 }
 
-    function addLoadingMessage() {
-        const messagesDiv = document.getElementById('chatMessages');
-        const welcomeMsg = messagesDiv.querySelector('.welcome-message');
-        if (welcomeMsg) welcomeMsg.remove();
+function addLoadingMessage() {
+    const messagesDiv = document.getElementById('chatMessages');
+    const welcomeMsg = messagesDiv.querySelector('.welcome-message');
+    if (welcomeMsg) welcomeMsg.remove();
 
-        const messageId = `msg_loading_${Date.now()}`;
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'message bot-message';
-        messageDiv.id = messageId;
+    const messageId = `msg_loading_${Date.now()}`;
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message bot-message';
+    messageDiv.id = messageId;
 
-        messageDiv.innerHTML = `<div class="message-avatar bot-avatar">
-                <img src="static/HR-chat-icon.jpg" alt="Assistant" onerror="this.innerHTML='📄'">
-            </div>
-            <div class="message-content">
-                <div class="loading"></div>
-            </div>
-        `;
+    messageDiv.innerHTML = `<div class="message-avatar bot-avatar">
+            <img src="static/HR-chat-icon.jpg" alt="Assistant" onerror="this.innerHTML='📄'">
+        </div>
+        <div class="message-content">
+            <div class="loading"></div>
+        </div>
+    `;
 
-        messagesDiv.appendChild(messageDiv);
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    messagesDiv.appendChild(messageDiv);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
-        return messageId;
+    return messageId;
+}
+
+function addMessage(content, isUser, autoSpeak = false) {
+    const messagesDiv = document.getElementById('chatMessages');
+    const welcomeMsg = messagesDiv.querySelector('.welcome-message');
+    if (welcomeMsg) welcomeMsg.remove();
+
+    const messageId = `msg_${Date.now()}`;
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+    messageDiv.id = messageId;
+
+    const avatarContent = isUser ? 'U' : `<img src="static/HR-chat-icon.jpg" alt="Assistant" onerror="this.innerHTML='📄'">`;
+
+    let formattedContent = content;
+    if (!isUser && !content.includes('loading')) {
+        formattedContent = formatBotMessage(content);
     }
 
-    function addMessage(content, isUser, autoSpeak = false) {
-        const messagesDiv = document.getElementById('chatMessages');
-        const welcomeMsg = messagesDiv.querySelector('.welcome-message');
-        if (welcomeMsg) welcomeMsg.remove();
+    const cleanTextForTTS = content
+        .replace(/<[^>]*>/g, '')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&quot;/g, '"')
+        .replace(/&amp;/g, '&')
+        .replace(/\*\*/g, '')
+        .replace(/\*/g, '')
+        .replace(/#{1,6}\s/g, '')
+        .replace(/\n{3,}/g, '. ')
+        .replace(/\n/g, '. ')
+        .replace(/\.{2,}/g, '.')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
 
-        const messageId = `msg_${Date.now()}`;
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
-        messageDiv.id = messageId;
+    const hasSpeaker = !isUser && !content.includes('loading') && !content.includes('Error') && cleanTextForTTS.length > 0;
+    const speakerBtn = hasSpeaker ? `<button class="speaker-btn" data-text="${cleanTextForTTS.replace(/"/g, '&quot;')}" onclick="speakText(this.getAttribute('data-text'), this)"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg></button>` : '';
 
-        const avatarContent = isUser ? 'U' : `<img src="static/HR-chat-icon.jpg" alt="Assistant" onerror="this.innerHTML='📄'">`;
+    messageDiv.innerHTML = `
+        <div class="message-avatar ${isUser ? 'user-avatar' : 'bot-avatar'}">
+            ${avatarContent}
+        </div>
+        <div class="message-content">
+            ${formattedContent}
+            ${speakerBtn}
+        </div>
+    `;
 
-        let formattedContent = content;
-        if (!isUser && !content.includes('loading')) {
-            formattedContent = formatBotMessage(content);
-        }
+    messagesDiv.appendChild(messageDiv);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
-        const cleanTextForTTS = content
-            .replace(/<[^>]*>/g, '')
-            .replace(/&nbsp;/g, ' ')
-            .replace(/&quot;/g, '"')
-            .replace(/&amp;/g, '&')
-            .replace(/\*\*/g, '')
-            .replace(/\*/g, '')
-            .replace(/#{1,6}\s/g, '')
-            .replace(/\n{3,}/g, '. ')
-            .replace(/\n/g, '. ')
-            .replace(/\.{2,}/g, '.')
-            .replace(/\s{2,}/g, ' ')
-            .trim();
-
-        const hasSpeaker = !isUser && !content.includes('loading') && !content.includes('Error') && cleanTextForTTS.length > 0;
-        const speakerBtn = hasSpeaker ? `<button class="speaker-btn" data-text="${cleanTextForTTS.replace(/"/g, '&quot;')}" onclick="speakText(this.getAttribute('data-text'), this)"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg></button>` : '';
-
-        messageDiv.innerHTML = `
-            <div class="message-avatar ${isUser ? 'user-avatar' : 'bot-avatar'}">
-                ${avatarContent}
-            </div>
-            <div class="message-content">
-                ${formattedContent}
-                ${speakerBtn}
-            </div>
-        `;
-
-        messagesDiv.appendChild(messageDiv);
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
-
-        if (autoSpeak && hasSpeaker && !isSpeaking) {
-            setTimeout(() => {
-                const btn = messageDiv.querySelector('.speaker-btn');
-                if (btn && !isSpeaking) {
-                    const textToSpeak = btn.getAttribute('data-text');
-                    startSpeech(textToSpeak, btn);
-                }
-            }, 400);
-        }
-
-        return messageId;
-    }
-    
-    function removeMessage(messageId) {
-        const msg = document.getElementById(messageId);
-        if (msg) msg.remove();
-    }
-
-    function formatBotMessage(text) {
-        text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-
-        let lines = text.split('\n');
-        let inList = false;
-        let formatted = [];
-
-        for (let i = 0; i < lines.length; i++) {
-            let line = lines[i].trim();
-
-            if (!line) {
-                if (inList) {
-                    formatted.push('</ul>');
-                    inList = false;
-                }
-                continue;
-            }
-
-            if (line.match(/^\*\s+/) || line.match(/^-\s+/)) {
-                if (!inList) {
-                    formatted.push('<ul>');
-                    inList = true;
-                }
-                formatted.push(`<li>${line.substring(2)}</li>`);
-            }
-            else if (line.match(/^\d+\.\s/)) {
-                if (inList) {
-                    formatted.push('</ul>');
-                    inList = false;
-                }
-                formatted.push(`<p><strong>${line}</strong></p>`);
-            }
-            else if (line.startsWith('###')) {
-                if (inList) {
-                    formatted.push('</ul>');
-                    inList = false;
-                }
-                formatted.push(`<h3>${line.replace(/###/g, '').trim()}</h3>`);
-            }
-            else if (line.startsWith('##')) {
-                if (inList) {
-                    formatted.push('</ul>');
-                    inList = false;
-                }
-                formatted.push(`<h3>${line.replace(/##/g, '').trim()}</h3>`);
-            }
-            else if (line.startsWith('#')) {
-                if (inList) {
-                    formatted.push('</ul>');
-                    inList = false;
-                }
-                formatted.push(`<h4>${line.replace(/#/g, '').trim()}</h4>`);
-            }
-            else {
-                if (inList) {
-                    formatted.push('</ul>');
-                    inList = false;
-                }
-                formatted.push(`<p>${line}</p>`);
-            }
-        }
-
-        if (inList) {
-            formatted.push('</ul>');
-        }
-
-        return formatted.join('');
-    }
-
-    function showToast(message, type = 'success') {
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
-
-        let iconSvg;
-        if (type === 'success') {
-            iconSvg = `<svg class="toast-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#10b981"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`;
-        } else if (type === 'warning') {
-            iconSvg = `<svg class="toast-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#f39c12"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>`;
-        } else {
-            iconSvg = `<svg class="toast-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#ef4444"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>`;
-        }
-
-        toast.innerHTML = `
-            ${iconSvg}
-            <div class="toast-message">${message}</div>
-        `;
-
-        document.body.appendChild(toast);
-
+    if (autoSpeak && hasSpeaker && !isSpeaking) {
         setTimeout(() => {
-            toast.style.animation = 'slideInRight 0.4s ease-out reverse';
-            setTimeout(() => toast.remove(), 400);
-        }, 3000);
+            const btn = messageDiv.querySelector('.speaker-btn');
+            if (btn && !isSpeaking) {
+                const textToSpeak = btn.getAttribute('data-text');
+                startSpeech(textToSpeak, btn);
+            }
+        }, 400);
     }
 
-    function updateFileList(files) {
-        const fileListDiv = document.getElementById('fileList');
-        fileListDiv.innerHTML = '';
+    return messageId;
+}
 
-        files.forEach((filename) => {
-            const fileItem = document.createElement('div');
-            fileItem.className = 'file-item';
-            fileItem.dataset.filename = filename;
+function removeMessage(messageId) {
+    const msg = document.getElementById(messageId);
+    if (msg) msg.remove();
+}
 
-            fileItem.innerHTML = `
-                <div class="file-header">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                        <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
-                    </svg>
-                    <span class="file-name">${filename}</span>
+function formatBotMessage(text) {
+    text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+    let lines = text.split('\n');
+    let inList = false;
+    let formatted = [];
+
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i].trim();
+
+        if (!line) {
+            if (inList) {
+                formatted.push('</ul>');
+                inList = false;
+            }
+            continue;
+        }
+
+        if (line.match(/^\*\s+/) || line.match(/^-\s+/)) {
+            if (!inList) {
+                formatted.push('<ul>');
+                inList = true;
+            }
+            formatted.push(`<li>${line.substring(2)}</li>`);
+        }
+        else if (line.match(/^\d+\.\s/)) {
+            if (inList) {
+                formatted.push('</ul>');
+                inList = false;
+            }
+            formatted.push(`<p><strong>${line}</strong></p>`);
+        }
+        else if (line.startsWith('###')) {
+            if (inList) {
+                formatted.push('</ul>');
+                inList = false;
+            }
+            formatted.push(`<h3>${line.replace(/###/g, '').trim()}</h3>`);
+        }
+        else if (line.startsWith('##')) {
+            if (inList) {
+                formatted.push('</ul>');
+                inList = false;
+            }
+            formatted.push(`<h3>${line.replace(/##/g, '').trim()}</h3>`);
+        }
+        else if (line.startsWith('#')) {
+            if (inList) {
+                formatted.push('</ul>');
+                inList = false;
+            }
+            formatted.push(`<h4>${line.replace(/#/g, '').trim()}</h4>`);
+        }
+        else {
+            if (inList) {
+                formatted.push('</ul>');
+                inList = false;
+            }
+            formatted.push(`<p>${line}</p>`);
+        }
+    }
+
+    if (inList) {
+        formatted.push('</ul>');
+    }
+
+    return formatted.join('');
+}
+
+function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+
+    let iconSvg;
+    if (type === 'success') {
+        iconSvg = `<svg class="toast-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#10b981"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`;
+    } else if (type === 'warning') {
+        iconSvg = `<svg class="toast-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#f39c12"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>`;
+    } else {
+        iconSvg = `<svg class="toast-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#ef4444"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>`;
+    }
+
+    toast.innerHTML = `
+        ${iconSvg}
+        <div class="toast-message">${message}</div>
+    `;
+
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.animation = 'slideInRight 0.4s ease-out reverse';
+        setTimeout(() => toast.remove(), 400);
+    }, 3000);
+}
+
+function updateFileList(files) {
+    const fileListDiv = document.getElementById('fileList');
+    fileListDiv.innerHTML = '';
+
+    files.forEach((filename) => {
+        const fileItem = document.createElement('div');
+        fileItem.className = 'file-item';
+        fileItem.dataset.filename = filename;
+
+        fileItem.innerHTML = `
+            <div class="file-header">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                </svg>
+                <span class="file-name">${filename}</span>
+            </div>
+        `;
+
+        fileListDiv.appendChild(fileItem);
+    });
+}
+
+async function exportChat() {
+    try {
+        showToast('Generating PDF...', 'success');
+        
+        const response = await fetch('/export/pdf', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ session_id: sessionId })
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+            const byteCharacters = atob(data.pdf_data);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: 'application/pdf' });
+            
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = data.filename;
+            a.click();
+            
+            showToast('Chat exported successfully', 'success');
+        } else {
+            showToast('Export failed: ' + data.error, 'error');
+        }
+    } catch (error) {
+        console.error('Export error:', error);
+        showToast('Export failed', 'error');
+    }
+}
+
+async function clearChat() {
+    if (!confirm('Are you sure you want to clear the chat and remove all PDFs?')) return;
+
+    try {
+        const response = await fetch('/clear', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ session_id: sessionId })
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+            uploadedFiles = [];
+            document.getElementById('fileList').innerHTML = '';
+            
+            if (data.chat_active) {
+                document.getElementById('kbStatus').textContent = 'Preloaded documents available. Upload additional files if needed.';
+            } else {
+                document.getElementById('kbStatus').textContent = 'No documents found. Upload files to get started.';
+                chatActive = false;
+            }
+
+            document.getElementById('chatMessages').innerHTML = `
+                <div class="welcome-message">
+                    <div class="welcome-avatar">
+                        <img src="/static/HR-chat-icon.png" alt="Assistant" onerror="this.innerHTML='📄'">
+                    </div>
+                    <h2>Hello! I'm your HR Assistant.</h2>
+                    <p>I can help you analyze and understand HR policies. I'm ready to answer your questions.</p>
                 </div>
             `;
 
-            fileListDiv.appendChild(fileItem);
+            sessionEnded = false;
+            waitingForMoreQuestionsResponse = false;
+            waitingForUploadResponse = false;
+            userHasFeedback = false;
+            chatActive = data.chat_active;
+            
+            const exportBtn = document.getElementById('exportFeedbackBtn');
+            exportBtn.disabled = true;
+            exportBtn.style.display = 'none';
+            document.getElementById('feedbackStatus').textContent = 'No feedback yet';
+            
+            stopInactivityTimer();
+
+            showToast('Chat cleared successfully', 'success');
+        } else {
+            showToast('Failed to clear chat: ' + (data.error || 'Unknown error'), 'error');
+        }
+    } catch (error) {
+        console.error('Clear error:', error);
+        showToast('Failed to clear chat', 'error');
+    }
+}
+
+async function exportFeedback() {
+    if (!userHasFeedback) {
+        showToast('No feedback data available', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch('/export/feedback', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ session_id: sessionId })
         });
-    }
 
-    async function exportChat() {
-        try {
-            showToast('Generating PDF...', 'success');
-            
-            const response = await fetch('/export/pdf', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ session_id: sessionId })
-            });
+        const data = await response.json();
 
-            const data = await response.json();
-            
-            if (data.success) {
-                const byteCharacters = atob(data.pdf_data);
-                const byteNumbers = new Array(byteCharacters.length);
-                for (let i = 0; i < byteCharacters.length; i++) {
-                    byteNumbers[i] = byteCharacters.charCodeAt(i);
-                }
-                const byteArray = new Uint8Array(byteNumbers);
-                const blob = new Blob([byteArray], { type: 'application/pdf' });
-                
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = data.filename;
-                a.click();
-                
-                showToast('Chat exported successfully', 'success');
-            } else {
-                showToast('Export failed: ' + data.error, 'error');
-            }
-        } catch (error) {
-            console.error('Export error:', error);
-            showToast('Export failed', 'error');
-        }
-    }
-    
-    async function clearChat() {
-        if (!confirm('Are you sure you want to clear the chat and remove all PDFs?')) return;
+        if (data.success) {
+            const blob = new Blob([data.csv_data], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = data.filename;
+            a.click();
 
-        try {
-            const response = await fetch('/clear', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ session_id: sessionId })
-            });
-
-            const data = await response.json();
-            
-            if (data.success) {
-                // Clear uploaded files
-                uploadedFiles = [];
-                document.getElementById('fileList').innerHTML = '';
-                
-                // Update status based on preloaded documents
-                if (data.chat_active) {
-                    document.getElementById('kbStatus').textContent = 'Preloaded documents available. Upload additional files if needed.';
-                } else {
-                    document.getElementById('kbStatus').textContent = 'No documents found. Upload files to get started.';
-                    chatActive = false;
-                }
-
-                // Clear chat messages and show welcome message
-                document.getElementById('chatMessages').innerHTML = `
-                    <div class="welcome-message">
-                        <div class="welcome-avatar">
-                            <img src="/static/HR-chat-icon.png" alt="Assistant" onerror="this.innerHTML='📄'">
-                        </div>
-                        <h2>Hello! I'm your HR Assistant.</h2>
-                        <p>I can help you analyze and understand HR policies. I'm ready to answer your questions.</p>
-                    </div>
-                `;
-
-                // Reset session state
-                sessionEnded = false;
-                waitingForMoreQuestionsResponse = false;
-                waitingForUploadResponse = false;
-                userHasFeedback = false;
-                chatActive = data.chat_active;
-                
-                // Reset feedback button
-                const exportBtn = document.getElementById('exportFeedbackBtn');
-                exportBtn.disabled = true;
-                exportBtn.style.display = 'none';
-                document.getElementById('feedbackStatus').textContent = 'No feedback yet';
-                
-                stopInactivityTimer();
-
-                showToast('Chat cleared successfully', 'success');
-            } else {
-                showToast('Failed to clear chat: ' + (data.error || 'Unknown error'), 'error');
-            }
-        } catch (error) {
-            console.error('Clear error:', error);
-            showToast('Failed to clear chat', 'error');
-        }
-    }
-
-    async function exportFeedback() {
-        if (!userHasFeedback) {
+            showToast('Feedback exported', 'success');
+        } else {
             showToast('No feedback data available', 'error');
-            return;
         }
-
-        try {
-            const response = await fetch('/export/feedback', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ session_id: sessionId })
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                const blob = new Blob([data.csv_data], { type: 'text/csv' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = data.filename;
-                a.click();
-
-                showToast('Feedback exported', 'success');
-            } else {
-                showToast('No feedback data available', 'error');
-            }
-        } catch (error) {
-            console.error('Feedback export error:', error);
-            showToast('Export failed', 'error');
-        }
+    } catch (error) {
+        console.error('Feedback export error:', error);
+        showToast('Export failed', 'error');
     }
+}
 
 function initializeApp() {
     console.log('Initializing HR Assistant...');
@@ -1706,7 +1695,6 @@ function initializeApp() {
     console.log('HR Assistant initialized');
 }
 
-// Initialize app when DOM is ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeApp);
 } else {
