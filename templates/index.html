@@ -1632,84 +1632,86 @@
         }
     }
 
-    function initializeApp() {
-            console.log('Initializing HR Assistant...');
+function initializeApp() {
+    console.log('Initializing HR Assistant...');
+    
+    const fileInput = document.getElementById('fileInput');
+    if (fileInput) {
+        fileInput.addEventListener('change', async function(e) {
+            const files = e.target.files;
             
-            const fileInput = document.getElementById('fileInput');
-            if (fileInput) {
-                fileInput.addEventListener('change', async function(e) {
-                    const files = e.target.files;
-                    
-                    if (files.length === 0) {
-                        return;
-                    }
-
-                    const formData = new FormData();
-                    formData.append('session_id', sessionId);
-                    
-                    let fileCount = 0;
-                    for (let i = 0; i < files.length; i++) {
-                        const filename = files[i].name.toLowerCase();
-                        if (filename.endsWith('.pdf') || filename.endsWith('.docx') || filename.endsWith('.txt')) {
-                            formData.append('files', files[i]);
-                            fileCount++;
-                        }
-                    }
-
-                    if (fileCount === 0) {
-                        showToast('Please select PDF, DOCX, or TXT files only', 'error');
-                        e.target.value = '';
-                        return;
-                    }
-
-                    try {
-                        showToast('Processing documents...', 'success');
-
-                        const response = await fetch('/upload', {
-                            method: 'POST',
-                            body: formData
-                        });
-
-                        const data = await response.json();
-
-                        if (data.success) {
-                            uploadedFiles = data.files;
-                            chatActive = data.chat_active;
-                            updateFileList(data.files.map(f => f.original_name));
-                            
-                            document.getElementById('kbStatus').textContent = `${data.files.length} document${data.files.length !== 1 ? 's' : ''} uploaded and processed.`;
-                            
-                            showToast('Documents processed successfully!', 'success');
-                            
-                            if (data.welcome_message) {
-                                addMessage(data.welcome_message, false, false);
-                            }
-                            
-                            stopInactivityTimer();
-                            startInactivityTimer();
-                            
-                        } else {
-                            showToast(`Upload failed: ${data.error}`, 'error');
-                        }
-                    } catch (error) {
-                        console.error('Upload error:', error);
-                        showToast('Upload error', 'error');
-                    }
-
-                    e.target.value = '';
-                });
+            if (files.length === 0) {
+                return;
             }
 
-            initTTS();
-            initSession();
+            const formData = new FormData();
+            formData.append('session_id', sessionId);
             
-            console.log('HR Assistant initialized');
-        }
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initializeApp);
-    } else {
-        initializeApp();
+            let fileCount = 0;
+            for (let i = 0; i < files.length; i++) {
+                const filename = files[i].name.toLowerCase();
+                if (filename.endsWith('.pdf') || filename.endsWith('.docx') || filename.endsWith('.txt')) {
+                    formData.append('files', files[i]);
+                    fileCount++;
+                }
+            }
+
+            if (fileCount === 0) {
+                showToast('Please select PDF, DOCX, or TXT files only', 'error');
+                e.target.value = '';
+                return;
+            }
+
+            try {
+                showToast('Processing documents...', 'success');
+
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    uploadedFiles = data.files;
+                    chatActive = data.chat_active;
+                    updateFileList(data.files.map(f => f.original_name));
+                    
+                    document.getElementById('kbStatus').textContent = `${data.files.length} document${data.files.length !== 1 ? 's' : ''} uploaded and processed.`;
+                    
+                    showToast('Documents processed successfully!', 'success');
+                    
+                    if (data.welcome_message) {
+                        addMessage(data.welcome_message, false, false);
+                    }
+                    
+                    stopInactivityTimer();
+                    startInactivityTimer();
+                    
+                } else {
+                    showToast(`Upload failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                showToast('Upload error', 'error');
+            }
+
+            e.target.value = '';
+        });
     }
+
+    initTTS();
+    initSession();
+    
+    console.log('HR Assistant initialized');
+}
+
+// Initialize app when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeApp);
+} else {
+    initializeApp();
+}
 </script>
 </body>
 </html>
