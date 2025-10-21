@@ -1267,6 +1267,12 @@
     sessionEnded = false;
     
     // Show a message that they can upload files
+    async function clearChatAndPromptUpload() {
+    // DON'T clear the chat - just prompt for file upload
+    waitingForUploadResponse = false;
+    sessionEnded = false;
+    
+    // Show a message that they can upload files
     addMessage('Please upload your additional files using the upload area in the sidebar.', false, false);
     
     // Optional: Highlight the upload area briefly
