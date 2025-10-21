@@ -35,6 +35,14 @@ STATIC_FOLDER = 'static'
 
 # Render disk path for pre-loaded documents and videos
 RENDER_DISK_PATH = '/opt/render/project/src/documents'
+if os.path.exists(RENDER_DISK_PATH):
+    PRELOAD_FOLDER = os.path.join(RENDER_DISK_PATH, 'preload_documents')
+    PRELOAD_VIDEOS_FOLDER = os.path.join(RENDER_DISK_PATH, 'preload_videos')
+    print(f"✓ Running on Render with disk mounted at: {RENDER_DISK_PATH}")
+else:
+    PRELOAD_FOLDER = 'preload_documents'
+    PRELOAD_VIDEOS_FOLDER = 'preload_videos'
+    print(f"Running locally - using local folders")
 PRELOAD_FOLDER = os.path.join(RENDER_DISK_PATH, 'preload_documents') if os.path.exists(RENDER_DISK_PATH) else 'preload_documents'
 PRELOAD_VIDEOS_FOLDER = os.path.join(RENDER_DISK_PATH, 'preload_videos') if os.path.exists(RENDER_DISK_PATH) else 'preload_videos'
 
@@ -866,3 +874,4 @@ def export_feedback():
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+
