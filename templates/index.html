@@ -770,7 +770,6 @@
     </div>
 
 <script>
-    let sessionId = `session_${Date.now()}`;
     let isRecording = false;
     let recognition = null;
     let currentUtterance = null;
@@ -783,6 +782,13 @@
     let waitingForUploadResponse = false;
     let sessionEnded = false;
     let chatActive = false;
+    // Generate session ID once and store it in sessionStorage
+    let sessionId = sessionStorage.getItem('hr_assistant_session_id');
+    if (!sessionId) {
+        sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        sessionStorage.setItem('hr_assistant_session_id', sessionId);
+    }
+    console.log('Using session ID:', sessionId);
     
     if ('webkitSpeechRecognition' in window) {
         recognition = new webkitSpeechRecognition();
@@ -1112,7 +1118,7 @@
 
     async function initSession() {
     try {
-        console.log('Initializing session:', sessionId);
+        console.log('Initializing session with ID:', sessionId);
         
         const response = await fetch('/init_session', {
             method: 'POST',
@@ -1127,21 +1133,20 @@
         }
 
         const data = await response.json();
+        console.log('Init session response:', data);
 
         // Handle preloaded files from the documents folder
         if (data.preloaded_files && data.preloaded_files.length > 0) {
             const totalDocs = data.preloaded_files.length;
             document.getElementById('kbStatus').textContent = `${totalDocs} preloaded document${totalDocs !== 1 ? 's' : ''} available from knowledge base.`;
-            chatActive = data.chat_active;
+            chatActive = true;
             console.log(`✓ Loaded ${totalDocs} preloaded documents`);
         } 
-        // Handle uploaded files (if any from previous session)
         else if (data.pdf_files && data.pdf_files.length > 0) {
             document.getElementById('kbStatus').textContent = `${data.pdf_files.length} document${data.pdf_files.length !== 1 ? 's' : ''} loaded.`;
             updateFileList(data.pdf_files);
-            chatActive = data.chat_active;
+            chatActive = true;
         }
-        // No documents at all
         else {
             document.getElementById('kbStatus').textContent = 'No documents found. Upload files to get started.';
             chatActive = false;
@@ -1152,14 +1157,8 @@
     } catch (error) {
         console.error('Init error:', error);
         showToast('Failed to initialize session. Please refresh the page.', 'error');
-        // Retry after 2 seconds
-        setTimeout(() => {
-            console.log('Retrying session initialization...');
-            initSession();
-        }, 2000);
     }
 }
-
     function toggleSidebar() {
         const sidebar = document.getElementById('sidebar');
         sidebar.classList.toggle('collapsed');
@@ -1252,7 +1251,7 @@
         }
 
         const loadingId = addLoadingMessage();
-
+        console.log('Sending message with session ID:', sessionId);
         try {
             const response = await fetch('/chat', {
                 method: 'POST',
@@ -1669,9 +1668,12 @@
         }
     }
 
-    function initializeApp() {
-            console.log('Initializing HR Assistant...');
-        initSession();
+    async function initializeApp() {
+            console.log('Initializing HR Assistant with session:', sessionId);
+            
+            // Wait for session initialization to complete
+            await initSession();
+        
             
             const fileInput = document.getElementById('fileInput');
             if (fileInput) {
