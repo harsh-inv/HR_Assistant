@@ -192,78 +192,68 @@ def read_txt(file_path):
         return ""
 
 def get_preloaded_documents():
-    """Load all documents from preload folder"""
-    text = ""
-    supported_extensions = ['.pdf', '.docx', '.txt']
-    files_processed = 0
+    """Load all documents from preload folder using recursive walk"""
+    all_text = ""
+    processed_files = []
     
     if not os.path.exists(PRELOAD_FOLDER):
         print(f"⚠ Preload folder not found: {PRELOAD_FOLDER}")
-        return text
+        return all_text, processed_files
     
     print(f"📁 Scanning folder: {PRELOAD_FOLDER}")
-    files_in_folder = os.listdir(PRELOAD_FOLDER)
-    print(f"📄 Found {len(files_in_folder)} total items in folder")
     
-    for filename in files_in_folder:
-        file_path = os.path.join(PRELOAD_FOLDER, filename)
-        
-        # Skip if not a file
-        if not os.path.isfile(file_path):
-            print(f"⏭ Skipping (not a file): {filename}")
-            continue
-            
-        ext = os.path.splitext(filename)[1].lower()
-        
-        # Check if supported extension
-        if ext not in supported_extensions:
-            print(f"⏭ Skipping (unsupported type): {filename}")
-            continue
-        
-        print(f"📖 Processing: {filename}")
-        
-        if ext == '.pdf':
-            try:
-                pdf_reader = PdfReader(file_path)
-                page_count = len(pdf_reader.pages)
-                print(f"  └─ PDF has {page_count} pages")
+    # Use os.walk to recursively traverse directories
+    for root, dirs, files in os.walk(PRELOAD_FOLDER):
+        for filename in files:
+            if filename.lower().endswith(('.pdf', '.docx', '.doc', '.txt')):
+                file_path = os.path.join(root, filename)
+                print(f"📖 Processing: {filename}")
                 
-                for i, page in enumerate(pdf_reader.pages):
-                    page_text = page.extract_text()
-                    if page_text:
-                        text += f"\n\n--- From {filename} (Page {i+1}) ---\n\n"
-                        text += page_text + "\n"
+                try:
+                    ext = os.path.splitext(filename)[1].lower()
+                    
+                    if ext == '.pdf':
+                        pdf_reader = PdfReader(file_path)
+                        page_count = len(pdf_reader.pages)
+                        print(f"  └─ PDF has {page_count} pages")
+                        
+                        for i, page in enumerate(pdf_reader.pages):
+                            page_text = page.extract_text()
+                            if page_text:
+                                all_text += f"\n\n--- From {filename} (Page {i+1}) ---\n\n"
+                                all_text += page_text + "\n"
+                        
+                        processed_files.append(filename)
+                        print(f"  └─ ✓ Successfully processed PDF")
+                    
+                    elif ext in ['.docx', '.doc']:
+                        doc_text = read_docx(file_path)
+                        if doc_text:
+                            all_text += f"\n\n--- From {filename} ---\n\n"
+                            all_text += doc_text + "\n"
+                            processed_files.append(filename)
+                            print(f"  └─ ✓ Successfully extracted {len(doc_text)} characters")
+                        else:
+                            print(f"  └─ ✗ No text extracted from DOCX")
+                    
+                    elif ext == '.txt':
+                        txt_text = read_txt(file_path)
+                        if txt_text:
+                            all_text += f"\n\n--- From {filename} ---\n\n"
+                            all_text += txt_text + "\n"
+                            processed_files.append(filename)
+                            print(f"  └─ ✓ Successfully extracted {len(txt_text)} characters")
+                        else:
+                            print(f"  └─ ✗ No text extracted from TXT")
                 
-                files_processed += 1
-                print(f"  └─ ✓ Successfully extracted {len(page_text)} characters")
-            except Exception as e:
-                print(f"  └─ ✗ Error reading PDF: {e}")
-        
-        elif ext == '.docx':
-            doc_text = read_docx(file_path)
-            if doc_text:
-                text += f"\n\n--- From {filename} ---\n\n"
-                text += doc_text + "\n"
-                files_processed += 1
-                print(f"  └─ ✓ Successfully extracted {len(doc_text)} characters")
-            else:
-                print(f"  └─ ✗ No text extracted from DOCX")
-        
-        elif ext == '.txt':
-            txt_text = read_txt(file_path)
-            if txt_text:
-                text += f"\n\n--- From {filename} ---\n\n"
-                text += txt_text + "\n"
-                files_processed += 1
-                print(f"  └─ ✓ Successfully extracted {len(txt_text)} characters")
-            else:
-                print(f"  └─ ✗ No text extracted from TXT")
+                except Exception as e:
+                    print(f"  └─ ✗ Error processing {filename}: {e}")
     
-    print(f"✓ Successfully processed {files_processed} out of {len(files_in_folder)} files")
-    print(f"✓ Total characters extracted: {len(text)}")
+    print(f"✓ Successfully processed {len(processed_files)} files")
+    print(f"✓ Total characters extracted: {len(all_text)}")
     
-    return text
-
+    return all_text, processed_files
+    
 def get_document_text(file_paths):
     """Extract text from various document types"""
     text = ""
@@ -362,7 +352,9 @@ def init_session():
             'preloaded_files': []
         }
         
-        preloaded_text = get_preloaded_documents()
+        # CHANGED: Now returns both text and processed_files list
+        preloaded_text, processed_files = get_preloaded_documents()
+        
         if preloaded_text.strip():
             try:
                 text_chunks = get_text_chunks(preloaded_text)
@@ -373,14 +365,12 @@ def init_session():
                 sessions[session_id]['conversation_chain'] = conversation_chain
                 sessions[session_id]['chat_active'] = True
                 
-                if os.path.exists(PRELOAD_FOLDER):
-                    preloaded_files = [f for f in os.listdir(PRELOAD_FOLDER) 
-                                     if os.path.isfile(os.path.join(PRELOAD_FOLDER, f))]
-                    sessions[session_id]['preloaded_files'] = preloaded_files
+                # CHANGED: Use the processed_files list directly
+                sessions[session_id]['preloaded_files'] = processed_files
                 
-                print(f"Session {session_id} initialized with preloaded documents")
+                print(f"✓ Session {session_id} initialized with {len(processed_files)} preloaded documents")
             except Exception as e:
-                print(f"Error loading preloaded documents: {e}")
+                print(f"✗ Error loading preloaded documents: {e}")
     
     load_video_metadata()
     
@@ -412,6 +402,7 @@ def upload_file():
             'preloaded_files': []
         }
     
+    # Clear previous uploads
     for file_info in sessions[session_id]['pdf_files']:
         filepath = os.path.join(UPLOAD_FOLDER, file_info['filename'])
         try:
@@ -447,8 +438,11 @@ def upload_file():
     
     if saved_paths or sessions[session_id].get('preloaded_files'):
         try:
-            all_text = get_preloaded_documents()
+            # CHANGED: Now handles the tuple return
+            preloaded_text, _ = get_preloaded_documents()
             uploaded_text = get_document_text(saved_paths)
+            
+            all_text = preloaded_text  # Start with preloaded
             
             if uploaded_text.strip():
                 all_text += "\n\n--- User Uploaded Documents ---\n\n" + uploaded_text
@@ -906,6 +900,7 @@ def export_feedback():
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+
 
 
 
