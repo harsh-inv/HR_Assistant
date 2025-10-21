@@ -63,18 +63,22 @@ Chat History: {chat_history}
 Question: {question}
 
 STRICT ACCURACY RULES:
-1. Answer ONLY based on the information in the Context above
-2. If the context doesn't contain the answer, say: "I don't have that specific information in the HR policy documents. Please contact HR directly or ask a different question."
-3. Do NOT make assumptions or provide general knowledge
-4. Do NOT add extra information not present in the context
-5. Quote specific policy details, form numbers, and document names when available
-6. Be concise, direct, and professional
+1. ALWAYS check the Context thoroughly before answering
+2. Answer ONLY based on the information in the Context above
+3. If the context contains the answer, provide it completely and accurately
+4. If the context doesn't contain the answer, say: "I don't have that specific information in the HR policy documents. Please contact HR directly or ask a different question."
+5. Do NOT make assumptions or provide general knowledge
+6. Do NOT add extra information not present in the context
+7. Quote specific policy details, form numbers, and document names when available
+8. Be concise, direct, and professional
+9. IMPORTANT: Always give the same answer to the same question if the context is the same
 
 CONVERSATION HANDLING:
 - For greetings (hello, hi, hey): Respond warmly with a brief welcome
 - For goodbyes (bye, goodbye): Respond courteously and professionally
 - For acknowledgments like "ok", "thanks", "got it", "yes", "no": Respond with ONE short sentence only
 - For follow-up questions: Answer briefly based on previous context (2-3 sentences)
+- For repeated questions: Provide the same accurate answer as before
 - For new questions: Provide full structured response
 
 RESPONSE STRUCTURE (for procedural questions like "How do I...?"):
@@ -274,7 +278,7 @@ def get_vectorstore(text_chunks):
 
 def get_conversation_chain(vectorstore):
     """Create conversational retrieval chain with enhanced prompt"""
-    llm = ChatOpenAI(temperature=0.3, model_name="gpt-3.5-turbo")
+    llm = ChatOpenAI(temperature=0.1, model_name="gpt-3.5-turbo")  # Reduced from 0.3 to 0.1
     
     # Create custom condense question prompt
     CONDENSE_QUESTION_PROMPT = PromptTemplate.from_template(
@@ -295,14 +299,14 @@ def get_conversation_chain(vectorstore):
     
     conversation_chain = ConversationalRetrievalChain.from_llm(
         llm=llm,
-        retriever=vectorstore.as_retriever(search_kwargs={"k": 5}),
+        retriever=vectorstore.as_retriever(search_kwargs={"k": 7}),  # Increased from 5 to 7
         memory=memory,
         return_source_documents=False,
         condense_question_prompt=CONDENSE_QUESTION_PROMPT,
         combine_docs_chain_kwargs={"prompt": qa_prompt}
     )
     return conversation_chain
-
+    
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -926,4 +930,5 @@ if __name__ == '__main__':
     print("="*50)
     
     app.run(debug=True, host='0.0.0.0', port=5000)
+
 
